@@ -1,0 +1,33 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "test": "vitest",
+    "import-socios": "node scripts/import-socios-from-sheet.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.6",
+    "date-fns": "^4.4.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "googleapis": "^173.0.0",
+    "ioredis": "^5.3.2",
+    "jsonwebtoken": "^9.0.0",
+    "mongoose": "^9.7.0",
+    "swagger-jsdoc": "^6.3.0",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "vitest": "^1.0.0"
+  }
+}

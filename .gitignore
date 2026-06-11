@@ -1,0 +1,14 @@
+# Node
+node_modules/
+dist/
+.env
+npm-debug.log
+
+# Google credentials
+google-credentials.json
+
+# Mac
+.DS_Store
+
+# Windows
+Thumbs.db
