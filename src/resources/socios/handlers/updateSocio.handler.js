@@ -1,6 +1,7 @@
 import Socio from '../models/Socio.js';
 import { updateSheetRow, appendToSheet } from '../../../services/googleSheetsService.js';
 import { buildSocioSheetRow } from '../services/socioSheetSync.js';
+import { syncSocioUserFromSocio } from '../../usuarios/services/userSync.js';
 
 export const updateSocioHandler = async (req, res) => {
   try {
@@ -43,6 +44,10 @@ export const updateSocioHandler = async (req, res) => {
           await socio.save();
         }
       }
+    }
+
+    if (socio.correoElectronico && socio.dni) {
+      await syncSocioUserFromSocio(socio);
     }
 
     res.status(200).json(socio);

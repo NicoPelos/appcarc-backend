@@ -66,6 +66,22 @@ Roles actuales:
 *   `npm test` - corre pruebas.
 *   `npm run import-socios` - importa socios desde Google Sheets a MongoDB.
 
+## Variables de entorno necesarias
+
+Asegúrate de definir al menos:
+
+```bash
+MONGO_URI=<URL_DE_CONEXION_A_MONGODB>
+PORT=3001
+JWT_SECRET=<SECRETO_PARA_JWT>
+GOOGLE_SHEETS_SOCIOS_ID=<ID_DE_TU_PLANILLA>
+GOOGLE_SHEETS_SOCIOS_SHEET_NAME=Socios
+DEFAULT_CLUB_ID=<CLUB_ID_POR_DEFECTO_PARA_IMPORT>
+REDIS_URL=<URL_REDIS_OPCIONAL>
+```
+
+`JWT_SECRET` es indispensable para la autenticación JWT del login y la validación de tokens.
+
 ## Testing
 
 Corre las pruebas unitarias/finales con:

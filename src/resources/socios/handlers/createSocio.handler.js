@@ -1,6 +1,7 @@
 import Socio from '../models/Socio.js';
 import { appendToSheet } from '../../../services/googleSheetsService.js';
 import { buildSocioSheetRow } from '../services/socioSheetSync.js';
+import { syncSocioUserFromSocio } from '../../usuarios/services/userSync.js';
 
 export const createSocioHandler = async (req, res) => {
   try {
@@ -21,6 +22,10 @@ export const createSocioHandler = async (req, res) => {
 
     const socio = new Socio(data);
     await socio.save();
+
+    if (socio.correoElectronico && socio.dni) {
+      await syncSocioUserFromSocio(socio);
+    }
 
     const spreadsheetId = process.env.GOOGLE_SHEETS_SOCIOS_ID;
     const sheetName = process.env.GOOGLE_SHEETS_SOCIOS_SHEET_NAME || 'Socios';

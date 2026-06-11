@@ -9,6 +9,11 @@ import routes from './appRoutes.js';
 // Load environment variables
 dotenv.config();
 
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️ JWT_SECRET no está definido. Usando secreto de desarrollo por defecto. Define JWT_SECRET en backend/.env para producción.');
+  process.env.JWT_SECRET = 'dev_default_jwt_secret';
+}
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 

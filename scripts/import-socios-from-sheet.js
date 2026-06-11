@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import Socio from '../src/resources/socios/models/Socio.js';
 import { getSheetValues } from '../src/services/googleSheetsService.js';
 import { columnsToSocioData } from '../src/resources/socios/services/socioSheetSync.js';
+import { syncSocioUserFromSocio } from '../src/resources/usuarios/services/userSync.js';
 
 dotenv.config();
 
@@ -86,6 +87,10 @@ const run = async () => {
           updateOps,
           { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
         );
+
+        if (socio?.correoElectronico && socio?.dni) {
+          await syncSocioUserFromSocio(socio);
+        }
 
         results.push({ status: 'ok', row: sheetRowNumber, dni: record.dni, id: socio._id, active });
       } catch (errRow) {

@@ -1,5 +1,5 @@
 import express from 'express';
-import { googleLogin, register, login, logout } from './handlers/auth.handler.js';
+import { googleLogin, register, login, logout, changePassword } from './handlers/auth.handler.js';
 import { protect } from '../../middleware/auth.js';
 
 const router = express.Router();
@@ -49,7 +49,7 @@ router.post('/google', googleLogin);
  *                 type: string
  *               role:
  *                 type: string
- *                 enum: [admin, secretary, viewer]
+ *                 enum: [admin, secretary, viewer, socio]
  *                 default: secretary
  *               clubId:
  *                 type: string
@@ -84,6 +84,32 @@ router.post('/register', register);
  *       400: { description: Credenciales inválidas }
  */
 router.post('/login', login);
+
+/**
+ * @openapi
+ * /api/auth/password:
+ *   put:
+ *     summary: Cambiar contraseña del usuario autenticado
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword: { type: string, format: password }
+ *               newPassword: { type: string, format: password }
+ *     responses:
+ *       200: { description: Contraseña actualizada correctamente }
+ *       400: { description: Error en los datos enviados }
+ */
+router.put('/password', protect, changePassword);
 
 /**
  * @openapi

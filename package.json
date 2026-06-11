@@ -8,7 +8,8 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "test": "vitest",
-    "import-socios": "node scripts/import-socios-from-sheet.js"
+    "import-socios": "node scripts/import-socios-from-sheet.js",
+    "seed-admin": "node scripts/seed-admin.js"
   },
   "keywords": [],
   "author": "",

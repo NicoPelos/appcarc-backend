@@ -6,10 +6,11 @@ const userSchema = new mongoose.Schema({
   nombre: String,
   role: { 
     type: String, 
-    enum: ['admin', 'secretary', 'viewer'], 
+    enum: ['admin', 'secretary', 'viewer', 'socio'], 
     default: 'secretary' 
   },
   clubId: { type: String, required: true }, // Identificador del club al que pertenece
+  socioId: { type: String, unique: true, sparse: true },
   active: { type: Boolean, default: true }
 }, { timestamps: true });
 
