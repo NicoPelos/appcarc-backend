@@ -5,7 +5,10 @@ import { buildSocioSheetRow } from '../services/socioSheetSync.js';
 export const updateSocioHandler = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = { ...req.body };
+    const updateData = {
+      ...req.body,
+      updatedBy: req.user?.id,
+    };
 
     if (!updateData.domicilioCompleto) {
       if (updateData.calle) {
@@ -18,7 +21,7 @@ export const updateSocioHandler = async (req, res) => {
     const socio = await Socio.findOneAndUpdate(
       { _id: id, clubId: req.user?.clubId },
       updateData,
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
     if (!socio) return res.status(404).json({ message: 'Socio no encontrado' });
 

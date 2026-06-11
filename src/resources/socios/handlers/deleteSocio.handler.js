@@ -7,8 +7,13 @@ export const deleteSocioHandler = async (req, res) => {
     const { id } = req.params;
     const socio = await Socio.findOneAndUpdate(
       { _id: id, clubId: req.user?.clubId },
-      { active: false },
-      { new: true }
+      {
+        active: false,
+        deletedAt: new Date(),
+        deletedBy: req.user?.id,
+        updatedBy: req.user?.id,
+      },
+      { returnDocument: 'after' }
     );
     if (!socio) return res.status(404).json({ message: 'Socio no encontrado' });
 

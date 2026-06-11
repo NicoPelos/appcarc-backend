@@ -52,11 +52,20 @@ export const buildSocioSheetRow = (socio) => {
   ];
 };
 
-const normalizeHeader = (text) => text?.toString().trim().toLowerCase().replace(/\s+/g, ' ');
+const normalizeHeader = (text) => {
+  const normalized = text?.toString().trim().toLowerCase() || '';
+  return normalized
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
 
 const headerMap = {
+  'socio n': 'socioNumber',
+  'socio nro': 'socioNumber',
   'nro socio': 'socioNumber',
-  'socio number': 'socioNumber',
   'socio number': 'socioNumber',
   'sexo': 'sexo',
   'apellido': 'apellido',
@@ -72,15 +81,33 @@ const headerMap = {
   'nacionalidad': 'nacionalidad',
   'fecha de asociado': 'fechaDeAsociado',
   'estado': 'estado',
+  'activo adherente baja': 'estado',
+  'condicion obs': 'condicionObs',
+  'condicion obs': 'condicionObs',
+  'condicion obs': 'condicionObs',
+  'condicion obs': 'condicionObs',
+  'condicion obs': 'condicionObs',
+  'condicion obs': 'condicionObs',
+  'condicion obs': 'condicionObs',
+  'condicion obs': 'condicionObs',
   'condicion obs': 'condicionObs',
   'correo electronico': 'correoElectronico',
+  'correo electronico': 'correoElectronico',
   'email': 'correoElectronico',
+  'e mail': 'correoElectronico',
   'telefono': 'telefono',
+  'n de telefono': 'telefono',
   'telefono emergencia': 'telefonoEmergencia',
   'observaciones': 'observaciones',
   'clubid': 'clubId',
   'club id': 'clubId',
   'club': 'clubId',
+};
+
+const parseDateValue = (value) => {
+  if (!value) return undefined;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
 };
 
 export const columnsToSocioData = (headerRow, valuesRow) => {
@@ -92,7 +119,7 @@ export const columnsToSocioData = (headerRow, valuesRow) => {
     if (!field) return;
     const value = valuesRow[index] ?? '';
     if (field === 'fechaNacimiento' || field === 'fechaDeAsociado') {
-      record[field] = value ? new Date(value) : undefined;
+      record[field] = parseDateValue(value);
     } else {
       record[field] = value?.toString().trim();
     }

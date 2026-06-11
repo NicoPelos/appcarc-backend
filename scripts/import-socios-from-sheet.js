@@ -33,27 +33,64 @@ const run = async () => {
 
     const [headerRow, ...dataRows] = values;
     const results = [];
+    const importUser = process.env.IMPORT_USER_ID || 'sheet-import';
 
-    for (const row of dataRows) {
-      const record = columnsToSocioData(headerRow, row);
-      record.clubId = record.clubId || process.env.DEFAULT_CLUB_ID;
-      if (!record.dni || !record.apellido || !record.nombre) {
-        results.push({ status: 'skipped', row, reason: 'Falta DNI, apellido o nombre' });
-        continue;
+    for (let i = 0; i < dataRows.length; i++) {
+      const row = dataRows[i];
+      const sheetRowNumber = i + 2; // header is row 1
+      try {
+        const record = columnsToSocioData(headerRow, row);
+        record.clubId = record.clubId || process.env.DEFAULT_CLUB_ID;
+        if (!record.dni || !record.apellido || !record.nombre) {
+          results.push({ status: 'skipped', row: sheetRowNumber, reason: 'Falta DNI, apellido o nombre' });
+          continue;
+        }
+
+        // Determine active / deleted state from estado field
+        let active = true;
+        const estadoVal = (record.estado || '').toString().toLowerCase();
+        const isTrash = estadoVal.includes('papelera') || estadoVal.includes('trash') || estadoVal.includes('eliminad');
+        const isBaja = !isTrash && (estadoVal.includes('baja') || estadoVal === 'baja');
+        if (isBaja) active = false;
+        if (isTrash) active = false;
+
+        // Ensure domicilioCompleto
+        if (!record.domicilioCompleto) {
+          if (record.calle) record.domicilioCompleto = `${record.calle}${record.altura ? ' ' + record.altura : ''}`;
+          else if (record.direccionActual) record.domicilioCompleto = record.direccionActual;
+        }
+
+        const updateOps = {
+          $set: {
+            ...record,
+            active,
+            sheetRowNumber,
+            sheetName,
+            spreadsheetId,
+            sheetUpdatedAt: new Date(),
+            updatedBy: importUser,
+          },
+          $setOnInsert: {
+            createdBy: importUser,
+          },
+        };
+
+        // Only mark deletedAt/deletedBy when the sheet explicitly indicates the record is in the trash
+        if (isTrash) {
+          updateOps.$set.deletedAt = new Date();
+          updateOps.$set.deletedBy = importUser;
+        }
+
+        const socio = await Socio.findOneAndUpdate(
+          { dni: record.dni, clubId: record.clubId },
+          updateOps,
+          { returnDocument: 'after', upsert: true, setDefaultsOnInsert: true }
+        );
+
+        results.push({ status: 'ok', row: sheetRowNumber, dni: record.dni, id: socio._id, active });
+      } catch (errRow) {
+        results.push({ status: 'error', row: i + 2, error: errRow.message });
       }
-
-      const update = {
-        ...record,
-        active: true,
-      };
-
-      const socio = await Socio.findOneAndUpdate(
-        { dni: record.dni, clubId: record.clubId },
-        update,
-        { new: true, upsert: true, setDefaultsOnInsert: true }
-      );
-
-      results.push({ status: 'ok', dni: record.dni, id: socio._id });
     }
 
     console.log('Importación finalizada', results.length, 'filas procesadas');

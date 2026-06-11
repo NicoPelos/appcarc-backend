@@ -26,6 +26,8 @@ const socioSchema = new mongoose.Schema({
   spreadsheetId: String,
   sheetUpdatedAt: Date,
   active: { type: Boolean, default: true },
+  deletedAt: Date,
+  deletedBy: String,
   createdBy: String,
   updatedBy: String,
 }, {

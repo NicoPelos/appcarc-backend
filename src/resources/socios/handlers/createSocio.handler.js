@@ -4,7 +4,12 @@ import { buildSocioSheetRow } from '../services/socioSheetSync.js';
 
 export const createSocioHandler = async (req, res) => {
   try {
-    const data = { ...req.body, clubId: req.body.clubId || req.user?.clubId };
+    const data = {
+      ...req.body,
+      clubId: req.body.clubId || req.user?.clubId,
+      createdBy: req.user?.id,
+      updatedBy: req.user?.id,
+    };
 
     if (!data.domicilioCompleto) {
       if (data.calle) {

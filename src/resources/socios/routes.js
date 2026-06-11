@@ -4,6 +4,7 @@ import { getSociosHandler } from './handlers/getSocios.handler.js';
 import { getSocioByIdHandler } from './handlers/getSocioById.handler.js';
 import { updateSocioHandler } from './handlers/updateSocio.handler.js';
 import { deleteSocioHandler } from './handlers/deleteSocio.handler.js';
+import { restoreSocioHandler } from './handlers/restoreSocio.handler.js';
 import { protect, authorize } from '../../middleware/auth.js';
 
 const router = express.Router();
@@ -138,6 +139,26 @@ router.get('/:id', protect, authorize('admin', 'secretary', 'viewer'), getSocioB
  *         description: Socio actualizado exitosamente
  */
 router.put('/:id', protect, authorize('admin', 'secretary'), updateSocioHandler);
+router.put('/:id/restore', protect, authorize('admin', 'secretary'), restoreSocioHandler);
+
+/**
+ * @openapi
+ * /api/socios/{id}/restore:
+ *   put:
+ *     summary: Restaurar socio desde la papelera
+ *     tags: [Socios]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Socio restaurado exitosamente
+ */
 
 /**
  * @openapi
