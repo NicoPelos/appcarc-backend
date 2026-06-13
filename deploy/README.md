@@ -21,16 +21,25 @@ cd appcarc-backend
 
 3. Asegurate de tener el SSD montado, por ejemplo en `/mnt/ssd`.
 
-4. Levantar los servicios:
+4. Levantar los servicios de producción:
 
 ```bash
 docker compose up -d --build
 ```
 
-5. Ver logs:
+5. Para desarrollo local con solo Mongo y Mongo Express, usa:
 
 ```bash
-docker compose logs -f
+cp .env.example .env
+# ajusta .env con tus valores locales
+mkdir -p data/mongo
+docker compose -f docker-compose.dev.yml up -d
+```
+
+6. Ver logs del entorno de desarrollo:
+
+```bash
+docker compose -f docker-compose.dev.yml logs -f
 ```
 
 MongoDB persistirá en `/mnt/ssd/mongo-data`. Los backups pueden guardarse en `/mnt/ssd/backups`.
