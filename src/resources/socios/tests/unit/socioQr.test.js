@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import jwt from 'jsonwebtoken';
 import Socio from '../../models/Socio.js';
-import { generateSocioQrToken, decodeSocioQrToken, resolveSocioFromQrToken, findActiveSocioByDni, getSocioDebtSummary } from '../../services/socioQr.service.js';
+import {
+  generateSocioQrToken,
+  decodeSocioQrToken,
+  resolveSocioFromQrToken,
+  findActiveSocioByDni,
+  resolveSocioFromQrTokenOrDni,
+  getSocioDebtSummary,
+} from '../../services/socioQr.service.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
 
 const mockSocio = { _id: '507f1f77bcf86cd799439011', clubId: 'club1', active: true, nombre: 'Juan', apellido: 'Perez', dni: '123' };
@@ -51,6 +58,20 @@ describe('Socio QR service', () => {
     const socio = await findActiveSocioByDni('123', 'club1');
     expect(Socio.findOne).toHaveBeenCalledWith({ dni: '123', clubId: 'club1', active: true });
     expect(socio).toEqual(mockSocio);
+  });
+
+  it('should resolve socio from token or DNI with method metadata', async () => {
+    Socio.findOne.mockResolvedValue(mockSocio);
+
+    const byToken = await resolveSocioFromQrTokenOrDni({ token: 'signed-507f1f77bcf86cd799439011', clubId: 'club1' });
+    const byDni = await resolveSocioFromQrTokenOrDni({ dni: '123', clubId: 'club1' });
+
+    expect(byToken).toEqual({ socio: mockSocio, method: 'QR' });
+    expect(byDni).toEqual({ socio: mockSocio, method: 'DNI' });
+  });
+
+  it('should reject resolving without token or DNI', async () => {
+    await expect(resolveSocioFromQrTokenOrDni({ clubId: 'club1' })).rejects.toThrow('Se requiere token QR o DNI');
   });
 
   it('should return debt summary with pending quotas', async () => {

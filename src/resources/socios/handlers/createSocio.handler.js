@@ -1,45 +1,69 @@
 import Socio from '../models/Socio.js';
-import { appendToSheet } from '../../../services/googleSheetsService.js';
-import { buildSocioSheetRow } from '../services/socioSheetSync.js';
-import { syncSocioUserFromSocio } from '../../usuarios/services/userSync.js';
+import { syncSocioToSheet } from '../services/socioSheetSync.js';
+import { prepareSocioCreateData, syncSocioUserIfPossible } from '../services/socioData.service.js';
+
+/**
+ * @openapi
+ * /api/socios:
+ *   post:
+ *     summary: Crear socio
+ *     tags: [Socios]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - apellido
+ *               - nombre
+ *               - dni
+ *             properties:
+ *               dni:
+ *                 type: string
+ *                 description: DNI del socio
+ *               nombre:
+ *                 type: string
+ *                 description: Nombre del socio
+ *               apellido:
+ *                 type: string
+ *                 description: Apellido del socio
+ *               correoElectronico:
+ *                 type: string
+ *                 description: Correo electrónico del socio
+ *               telefono:
+ *                 type: string
+ *                 description: Teléfono del socio
+ *               domicilioCompleto:
+ *                 type: string
+ *                 description: Domicilio completo del socio
+ *               calle:
+ *                 type: string
+ *                 description: Calle del socio
+ *               altura:
+ *                 type: string
+ *                 description: Altura del socio
+ *               direccionActual:
+ *                 type: string
+ *                 description: Dirección actual del socio
+ *     responses:
+*       201:
+*         description: Socio creado exitosamente
+*       400:
+*         description: Error en los datos enviados para la creación
+*       500:
+*         description: Error al crear socio
+ */
 
 export const createSocioHandler = async (req, res) => {
   try {
-    const data = {
-      ...req.body,
-      clubId: req.body.clubId || req.user?.clubId,
-      createdBy: req.user?.id,
-      updatedBy: req.user?.id,
-    };
-
-    if (!data.domicilioCompleto) {
-      if (data.calle) {
-        data.domicilioCompleto = `${data.calle}${data.altura ? ' ' + data.altura : ''}`;
-      } else if (data.direccionActual) {
-        data.domicilioCompleto = data.direccionActual;
-      }
-    }
-
-    const socio = new Socio(data);
+    const socio = new Socio(prepareSocioCreateData(req.body, req.user));
     await socio.save();
 
-    if (socio.correoElectronico && socio.dni) {
-      await syncSocioUserFromSocio(socio);
-    }
-
-    const spreadsheetId = process.env.GOOGLE_SHEETS_SOCIOS_ID;
-    const sheetName = process.env.GOOGLE_SHEETS_SOCIOS_SHEET_NAME || 'Socios';
-    if (spreadsheetId) {
-      const sheetRow = buildSocioSheetRow(socio);
-      const { rowNumber } = await appendToSheet(spreadsheetId, `${sheetName}!A:Z`, sheetRow);
-      if (rowNumber) {
-        socio.sheetRowNumber = rowNumber;
-        socio.sheetName = sheetName;
-        socio.spreadsheetId = spreadsheetId;
-        socio.sheetUpdatedAt = new Date();
-        await socio.save();
-      }
-    }
+    await syncSocioUserIfPossible(socio);
+    await syncSocioToSheet(socio);
 
     res.status(201).json(socio);
   } catch (error) {

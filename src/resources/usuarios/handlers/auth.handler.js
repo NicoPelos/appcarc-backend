@@ -29,15 +29,85 @@ export const register = async (req, res) => {
 };
 
 export const googleLogin = async (req, res) => {
-  const { idToken } = req.body;
+  const { idToken, clubId } = req.body;
   try {
     const ticket = await client.verifyIdToken({ idToken, audience: process.env.GOOGLE_CLIENT_ID });
     const { email, name, picture } = ticket.getPayload();
-    let user = await User.findOne({ email });
-    if (!user) return res.status(403).json({ message: 'Tu usuario no está registrado en ningún club. Contacta al administrador.' });
-    if (!user.active) return res.status(403).json({ message: 'Usuario desactivado' });
-    const token = jwt.sign({ id: user._id, role: user.role, clubId: user.clubId }, process.env.JWT_SECRET, { expiresIn: '8h' });
-    res.status(200).json({ token, user: { nombre: user.nombre || name, email, role: user.role, clubId: user.clubId, picture } });
+
+    if (!clubId) {
+      return res.status(400).json({ message: 'clubId es requerido' });
+    }
+
+    let user = await User.findOne({ email, clubId });
+
+    // Si no existe usuario, intentar crear uno vinculado a un socio
+    if (!user) {
+      // Buscar si existe un socio con ese email
+      const Socio = require('../../socios/models/Socio.js').default;
+      const socio = await Socio.findOne({
+        correoElectronico: email,
+        clubId: clubId,
+        active: true,
+      });
+
+      if (!socio) {
+        return res.status(403).json({
+          message: 'Tu email no está registrado como socio en ningún club. Contacta al administrador.',
+        });
+      }
+
+      // Crear usuario automáticamente vinculado al socio
+      // Generar contraseña aleatoria (para seguridad, el usuario puede cambiarla después)
+      const randomPassword = Math.random().toString(36).slice(-12);
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(randomPassword, salt);
+
+      user = new User({
+        email,
+        password: hashedPassword,
+        nombre: socio.nombre,
+        role: 'socio', // Por defecto socio, admin puede cambiar después
+        clubId: clubId,
+        socioId: socio._id.toString(),
+        active: true,
+      });
+
+      await user.save();
+    }
+
+    if (!user.active) {
+      return res.status(403).json({ message: 'Usuario desactivado' });
+    }
+
+    // Obtener datos del socio si existen
+    const Socio = require('../../socios/models/Socio.js').default;
+    const socio = user.socioId ? await Socio.findById(user.socioId) : null;
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role, clubId: user.clubId },
+      process.env.JWT_SECRET,
+      { expiresIn: '8h' }
+    );
+
+    res.status(200).json({
+      token,
+      user: {
+        id: user._id,
+        nombre: user.nombre || name,
+        email,
+        role: user.role,
+        clubId: user.clubId,
+        socioId: user.socioId,
+        picture,
+      },
+      socio: socio ? {
+        id: socio._id,
+        nombre: socio.nombre,
+        apellido: socio.apellido,
+        fotoPerfil: socio.fotoPerfil,
+        redesSociales: socio.redesSociales,
+      } : null,
+    });
   } catch (error) {
     console.error('Error en Google Login:', error);
     res.status(401).json({ message: 'Autenticación de Google fallida' });

@@ -37,6 +37,8 @@ router.get('/', protect, authorize('admin', 'secretary'), getMovimientosHandler)
  *               - type
  *               - amount
  *               - concept
+ *               - responsable
+ *               - paymentMethod
  *             properties:
  *               type:
  *                 type: string
@@ -45,6 +47,11 @@ router.get('/', protect, authorize('admin', 'secretary'), getMovimientosHandler)
  *                 type: number
  *               concept:
  *                 type: string
+ *               responsable:
+ *                 type: string
+ *               paymentMethod:
+ *                 type: string
+ *                 enum: [Efectivo, Transferencia]
  *               description:
  *                 type: string
  *               date:

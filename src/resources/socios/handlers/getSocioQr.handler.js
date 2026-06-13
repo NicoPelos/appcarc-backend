@@ -1,5 +1,43 @@
 import { generateSocioQrToken, findActiveSocioById } from '../services/socioQr.service.js';
-import Socio from '../models/Socio.js';
+
+
+/**
+ * @openapi
+ * /api/socios/{id}/qr:
+ *   get:
+ *     summary: Obtener token QR de socio
+ *     tags: [Socios]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         description: ID del socio
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Token QR generado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                   description: Token QR del socio
+ *                 socioId:
+ *                   type: string
+ *                   description: ID del socio
+ *                 clubId:
+ *                   type: string
+ *                   description: ID del club al que pertenece el socio
+ *       404:
+ *         description: Socio no encontrado
+ *       500:
+ *         description: Error al generar token QR
+ */
 
 export const getSocioQrHandler = async (req, res) => {
   try {

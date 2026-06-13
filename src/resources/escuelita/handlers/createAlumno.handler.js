@@ -1,6 +1,55 @@
 import Socio from '../../socios/models/Socio.js';
 import Escuelita from '../models/Escuelita.js';
 
+/**
+ * @openapi
+ * /api/escuelita:
+ *   post:
+ *     summary: Inscribir un nuevo alumno en escuelita
+ *     tags: [Escuelita]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/AlumnoRequest'
+ *     responses:
+ *       201:
+ *         description: Alumno de escuelita creado exitosamente
+ *       400:
+ *         description: Error en los datos enviados para crear el alumno de escuelita
+ *       404:
+ *         description: Socio no encontrado o inactivo
+ *       409:
+ *         description: El socio ya está inscripto en escuelita
+ *       500:
+ *         description: Error al crear alumno de escuelita
+ *
+ * components:
+ *   schemas:
+ *     AlumnoRequest:
+ *       type: object
+ *       required:
+ *         - socioId
+ *       properties:
+ *         socioId:
+ *           type: string
+ *           description: ID del socio a inscribir en escuelita
+ *         fechaInscripcion:
+ *           type: string
+ *           format: date-time
+ *           description: Fecha de inscripción del alumno. Si no se envía, se usa la fecha actual.
+ *         estado:
+ *           type: string
+ *           enum: [activo, pausado, baja]
+ *           description: Estado del alumno en escuelita (activo, pausado o baja). Si no se envía, se asume "activo".
+ *         observaciones:
+ *           type: string
+ *           description: Observaciones adicionales sobre el alumno de escuelita (opcional)
+ */
+
 export const createAlumnoHandler = async (req, res) => {
   try {
     const { socioId, fechaInscripcion, estado = 'activo', observaciones = '' } = req.body;

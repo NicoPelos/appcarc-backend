@@ -1,5 +1,33 @@
 import MuroLibre from '../models/MuroLibre.js';
 
+/**
+ * @openapi
+ * /api/muro-libre:
+ *   get:
+ *     summary: Obtener muros libres
+ *     tags: [MuroLibre]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         description: Número de página
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - name: limit
+ *         in: query
+ *         description: Límite de registros por página
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *     responses:
+ *       200:
+ *         description: Lista de muros libres
+ *       500:
+ *         description: Error al obtener muros libres
+ */
+
 export const getMuroLibreHandler = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;

@@ -34,7 +34,7 @@ router.get('/', protect, authorize('admin', 'secretary', 'viewer'), getCobrosHan
  *           schema:
  *             type: object
  *             required:
- *               - responsable
+ *               - paymentMethod
  *               - items
  *             properties:
  *               responsable:

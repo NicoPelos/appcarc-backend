@@ -2,6 +2,67 @@ import Movimiento from '../models/Movimiento.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 
+/**
+ * @openapi
+ * /api/movimientos:
+ *   post:
+ *     summary: Crear un nuevo movimiento
+ *     tags: [Movimientos]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/MovimientoCreateRequest'
+ *     responses:
+ *       201:
+ *         description: Movimiento creado exitosamente
+ *       400:
+ *         description: Error en los datos enviados para crear el movimiento
+ *       500:
+ *         description: Error al crear movimiento
+ *
+ * components:
+ *   schemas:
+ *     MovimientoCreateRequest:
+ *       type: object
+ *       required:
+ *         - type
+ *         - amount
+ *         - concept
+ *         - responsable
+ *         - paymentMethod
+ *       properties:
+ *         type:
+ *           type: string
+ *           enum: [Ingreso, Egreso]
+ *           description: Tipo de movimiento (Ingreso o Egreso)
+ *         amount:
+ *           type: number
+ *           minimum: 0
+ *           description: Importe del movimiento
+ *         concept:
+ *           type: string
+ *           description: Concepto del movimiento
+ *         responsable:
+ *           type: string
+ *           description: Responsable del movimiento
+ *         paymentMethod:
+ *           type: string
+ *           enum: [Efectivo, Transferencia]
+ *           description: Forma de pago del movimiento
+ *         formId:
+ *           type: string
+ *           description: ID del formulario asociado al movimiento (opcional)
+ *         description:
+ *           type: string
+ *           description: Descripción adicional del movimiento (opcional)
+ *         date:
+ *           type: string
+ *           format: date-time
+ *           description: Fecha del movimiento (opcional)
+ */ 
+
 export const createMovimientoHandler = async (req, res) => {
   try {
     const {

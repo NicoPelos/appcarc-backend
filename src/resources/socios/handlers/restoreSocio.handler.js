@@ -1,5 +1,32 @@
 import Socio from '../models/Socio.js';
 
+/** * @openapi
+ * /api/socios/{id}/restore:
+ *   put:
+ *     summary: Restaurar socio eliminado
+ *     tags: [Socios]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         description: ID del socio a restaurar
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Socio restaurado con éxito
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Socio'
+ *       404:
+ *         description: Socio no encontrado o no está en papelera
+ *       500:
+ *         description: Error al restaurar socio
+ */
+
 export const restoreSocioHandler = async (req, res) => {
   try {
     const { id } = req.params;

@@ -1,6 +1,29 @@
 import Socio from '../models/Socio.js';
-import { updateSheetRow } from '../../../services/googleSheetsService.js';
-import { buildSocioSheetRow } from '../services/socioSheetSync.js';
+import { syncSocioToSheet } from '../services/socioSheetSync.js';
+
+/**
+ * @openapi
+ * /api/socios/{id}:
+ *   delete:
+ *     summary: Eliminar socio
+ *     tags: [Socios]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         description: ID del socio
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Socio eliminado con éxito
+ *       404:
+ *         description: Socio no encontrado
+ *       500:
+ *         description: Error al eliminar socio
+ */
 
 export const deleteSocioHandler = async (req, res) => {
   try {
@@ -17,15 +40,7 @@ export const deleteSocioHandler = async (req, res) => {
     );
     if (!socio) return res.status(404).json({ message: 'Socio no encontrado' });
 
-    const spreadsheetId = process.env.GOOGLE_SHEETS_SOCIOS_ID;
-    const sheetName = process.env.GOOGLE_SHEETS_SOCIOS_SHEET_NAME || 'Socios';
-    if (spreadsheetId && socio.sheetRowNumber) {
-      const sheetRow = buildSocioSheetRow(socio);
-      sheetRow.push('BAJA');
-      await updateSheetRow(spreadsheetId, sheetName, socio.sheetRowNumber, sheetRow);
-      socio.sheetUpdatedAt = new Date();
-      await socio.save();
-    }
+    await syncSocioToSheet(socio, { appendIfMissing: false, deleted: true });
 
     res.status(200).json({ message: 'Socio desactivado con éxito' });
   } catch (error) {

@@ -1,5 +1,6 @@
 import express from 'express';
 import { googleLogin, register, login, logout, changePassword } from './handlers/auth.handler.js';
+import { loginWithDniHandler } from './handlers/loginWithDni.handler.js';
 import { protect } from '../../middleware/auth.js';
 
 const router = express.Router();
@@ -8,7 +9,7 @@ const router = express.Router();
  * @openapi
  * /api/auth/google:
  *   post:
- *     summary: Login con Google Identity Services
+ *     summary: Login con Google OAuth (crea Usuario automáticamente si Socio existe)
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -16,9 +17,36 @@ const router = express.Router();
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - idToken
+ *               - clubId
  *             properties:
  *               idToken:
  *                 type: string
+ *                 description: Token de autenticación de Google
+ *               clubId:
+ *                 type: string
+ *                 description: ID del club al que pertenece el socio
+ *     responses:
+ *       200:
+ *         description: Login exitoso (nuevo o existente)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *                 socio:
+ *                   type: object
+ *       400:
+ *         description: Falta clubId
+ *       403:
+ *         description: Email no está registrado como socio en el club
+ *       401:
+ *         description: Token de Google inválido
  */
 router.post('/google', googleLogin);
 
@@ -84,6 +112,40 @@ router.post('/register', register);
  *       400: { description: Credenciales inválidas }
  */
 router.post('/login', login);
+
+/**
+ * @openapi
+ * /api/auth/login-dni:
+ *   post:
+ *     summary: Login con email y DNI (primer acceso socio)
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - dni
+ *               - clubId
+ *             properties:
+ *               email: 
+ *                 type: string
+ *                 format: email
+ *                 description: Email del socio
+ *               dni: 
+ *                 type: string
+ *                 description: DNI del socio
+ *               clubId:
+ *                 type: string
+ *     responses:
+ *       200: 
+ *         description: Login exitoso
+ *       401: 
+ *         description: Email o DNI inválidos
+ */
+router.post('/login-dni', loginWithDniHandler);
 
 /**
  * @openapi

@@ -21,6 +21,8 @@ describe('Socios handlers (unit)', () => {
     Socio.find = vi.fn();
     Socio.findOne = vi.fn();
     Socio.findOneAndUpdate = vi.fn();
+    Socio.countDocuments = vi.fn();
+    delete process.env.GOOGLE_SHEETS_SOCIOS_ID;
     if (Socio.prototype && !Socio.prototype.save.isMockFunction) {
       vi.spyOn(Socio.prototype, 'save').mockImplementation(async function () { return this; });
     }
@@ -29,6 +31,15 @@ describe('Socios handlers (unit)', () => {
   afterEach(() => {
     vi.resetAllMocks();
   });
+
+  const mockSocioFindQuery = (result) => {
+    const query = {};
+    query.sort = vi.fn(() => query);
+    query.skip = vi.fn(() => query);
+    query.limit = vi.fn(() => Promise.resolve(result));
+    Socio.find.mockReturnValue(query);
+    return query;
+  };
 
   it('createSocioHandler should create a socio and return 201', async () => {
     const req = { body: { apellido: 'Perez', nombre: 'Juan', dni: '123' }, user: { clubId: 'club1', id: 'user1' } };
@@ -45,15 +56,22 @@ describe('Socios handlers (unit)', () => {
 
   it('getSociosHandler should return array of socios', async () => {
     const fake = [{ apellido: 'Perez', nombre: 'Juan' }];
-    Socio.find.mockResolvedValueOnce(fake);
-    const req = { user: { clubId: 'club1' } };
+    Socio.countDocuments.mockResolvedValueOnce(1);
+    mockSocioFindQuery(fake);
+    const req = { user: { clubId: 'club1' }, query: {} };
     const res = mockRes();
 
     await getSociosHandler(req, res);
 
-    expect(Socio.find).toHaveBeenCalled();
+    expect(Socio.find).toHaveBeenCalledWith({ clubId: 'club1', active: true });
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(fake);
+    expect(res.json).toHaveBeenCalledWith({
+      page: 1,
+      limit: 10,
+      total: 1,
+      totalPages: 1,
+      socios: fake,
+    });
   });
 
   it('getSocioByIdHandler should return socio when found', async () => {
@@ -97,7 +115,8 @@ describe('Socios handlers (unit)', () => {
 
   it('getSociosHandler should return trashed socios when trash=true', async () => {
     const fake = [{ apellido: 'Perez', nombre: 'Juan', active: false }];
-    Socio.find.mockResolvedValueOnce(fake);
+    Socio.countDocuments.mockResolvedValueOnce(1);
+    mockSocioFindQuery(fake);
     const req = { user: { clubId: 'club1' }, query: { trash: 'true' } };
     const res = mockRes();
 
@@ -105,7 +124,13 @@ describe('Socios handlers (unit)', () => {
 
     expect(Socio.find).toHaveBeenCalledWith({ clubId: 'club1', active: false });
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(fake);
+    expect(res.json).toHaveBeenCalledWith({
+      page: 1,
+      limit: 10,
+      total: 1,
+      totalPages: 1,
+      socios: fake,
+    });
   });
 
   it('restoreSocioHandler should restore a trashed socio', async () => {

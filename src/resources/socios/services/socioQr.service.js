@@ -70,6 +70,32 @@ export const resolveSocioFromQrToken = async (token, clubId) => {
   return socio;
 };
 
+export const resolveSocioFromQrTokenOrDni = async ({
+  token,
+  dni,
+  clubId,
+  missingMessage = 'Se requiere token QR o DNI',
+  dniNotFoundMessage = 'Socio no encontrado por DNI',
+}) => {
+  if (token) {
+    return {
+      socio: await resolveSocioFromQrToken(token, clubId),
+      method: 'QR',
+    };
+  }
+
+  if (dni) {
+    const socio = await findActiveSocioByDni(dni, clubId);
+    if (!socio) {
+      throw new BusinessError(dniNotFoundMessage, 404);
+    }
+
+    return { socio, method: 'DNI' };
+  }
+
+  throw new BusinessError(missingMessage, 400);
+};
+
 export const getSocioDebtSummary = async (socioId, clubId) => {
   const [summary] = await Cuota.aggregate([
     {

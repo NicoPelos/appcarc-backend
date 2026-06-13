@@ -1,5 +1,43 @@
 import Escuelita from '../models/Escuelita.js';
 
+/**
+ * @openapi
+ * /api/escuelita:
+ *   get:
+ *     summary: Obtener lista de alumnos de escuelita
+ *     tags: [Escuelita]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         required: false
+ *         description: Número de página
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *         required: false
+ *         description: Cantidad de resultados por página
+ *       - in: query
+ *         name: estado
+ *         schema:
+ *           type: string
+ *           enum: [activo, pausado, baja, todos]
+ *         required: false
+ *         description: Estado del alumno en escuelita (activo, pausado, baja o todos)
+ *     responses:
+ *       200:
+ *         description: Lista de alumnos de escuelita obtenida exitosamente
+ *       500:
+ *         description: Error al obtener alumnos de escuelita
+ */
+
 export const getAlumnosHandler = async (req, res) => {
   try {
     const { page = 1, limit = 20, estado = 'activo' } = req.query;

@@ -1,4 +1,5 @@
 import { formatISO } from 'date-fns';
+import { appendToSheet, updateSheetRow } from '../../../services/googleSheetsService.js';
 
 export const socioSheetHeaders = [
   'socioNumber',
@@ -83,15 +84,6 @@ const headerMap = {
   'estado': 'estado',
   'activo adherente baja': 'estado',
   'condicion obs': 'condicionObs',
-  'condicion obs': 'condicionObs',
-  'condicion obs': 'condicionObs',
-  'condicion obs': 'condicionObs',
-  'condicion obs': 'condicionObs',
-  'condicion obs': 'condicionObs',
-  'condicion obs': 'condicionObs',
-  'condicion obs': 'condicionObs',
-  'condicion obs': 'condicionObs',
-  'correo electronico': 'correoElectronico',
   'correo electronico': 'correoElectronico',
   'email': 'correoElectronico',
   'e mail': 'correoElectronico',
@@ -150,4 +142,42 @@ export const buildHeaderRow = () => {
     'telefonoEmergencia',
     'observaciones',
   ];
+};
+
+const getSocioSheetConfig = () => ({
+  spreadsheetId: process.env.GOOGLE_SHEETS_SOCIOS_ID,
+  sheetName: process.env.GOOGLE_SHEETS_SOCIOS_SHEET_NAME || 'Socios',
+});
+
+const saveSheetMetadata = async (socio, { spreadsheetId, sheetName, rowNumber } = {}) => {
+  if (rowNumber) {
+    socio.sheetRowNumber = rowNumber;
+    socio.sheetName = sheetName;
+    socio.spreadsheetId = spreadsheetId;
+  }
+  socio.sheetUpdatedAt = new Date();
+  await socio.save();
+};
+
+export const syncSocioToSheet = async (socio, { appendIfMissing = true, deleted = false } = {}) => {
+  const { spreadsheetId, sheetName } = getSocioSheetConfig();
+  if (!spreadsheetId) return socio;
+
+  const sheetRow = buildSocioSheetRow(socio);
+  if (deleted) sheetRow.push('BAJA');
+
+  if (socio.sheetRowNumber) {
+    await updateSheetRow(spreadsheetId, sheetName, socio.sheetRowNumber, sheetRow);
+    await saveSheetMetadata(socio);
+    return socio;
+  }
+
+  if (!appendIfMissing) return socio;
+
+  const { rowNumber } = await appendToSheet(spreadsheetId, `${sheetName}!A:Z`, sheetRow);
+  if (rowNumber) {
+    await saveSheetMetadata(socio, { spreadsheetId, sheetName, rowNumber });
+  }
+
+  return socio;
 };

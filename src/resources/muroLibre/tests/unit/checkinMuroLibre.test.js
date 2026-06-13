@@ -13,8 +13,7 @@ const mockRes = () => {
 describe('checkinMuroLibreHandler', () => {
   beforeEach(() => {
     vi.spyOn(muroLibreService, 'registrarMuroLibre').mockResolvedValue({ registro: { _id: 'ml1' }, movimiento: null });
-    vi.spyOn(socioQrService, 'resolveSocioFromQrToken').mockResolvedValue({ _id: 'socio1' });
-    vi.spyOn(socioQrService, 'findActiveSocioByDni').mockResolvedValue({ _id: 'socio1' });
+    vi.spyOn(socioQrService, 'resolveSocioFromQrTokenOrDni').mockResolvedValue({ socio: { _id: 'socio1' }, method: 'QR' });
   });
 
   afterEach(() => {
@@ -30,7 +29,12 @@ describe('checkinMuroLibreHandler', () => {
 
     await checkinMuroLibreHandler(req, res);
 
-    expect(socioQrService.resolveSocioFromQrToken).toHaveBeenCalledWith('qr-token', 'club1');
+    expect(socioQrService.resolveSocioFromQrTokenOrDni).toHaveBeenCalledWith({
+      token: 'qr-token',
+      dni: undefined,
+      clubId: 'club1',
+      missingMessage: 'Se requiere token QR o DNI para identificar el socio',
+    });
     expect(muroLibreService.registrarMuroLibre).toHaveBeenCalledWith(expect.objectContaining({
       clubId: 'club1',
       user: req.user,
@@ -48,9 +52,15 @@ describe('checkinMuroLibreHandler', () => {
     };
     const res = mockRes();
 
+    socioQrService.resolveSocioFromQrTokenOrDni.mockResolvedValueOnce({ socio: { _id: 'socio1' }, method: 'DNI' });
     await checkinMuroLibreHandler(req, res);
 
-    expect(socioQrService.findActiveSocioByDni).toHaveBeenCalledWith('123', 'club1');
+    expect(socioQrService.resolveSocioFromQrTokenOrDni).toHaveBeenCalledWith({
+      token: undefined,
+      dni: '123',
+      clubId: 'club1',
+      missingMessage: 'Se requiere token QR o DNI para identificar el socio',
+    });
     expect(muroLibreService.registrarMuroLibre).toHaveBeenCalledWith(expect.objectContaining({
       checkinMethod: 'DNI',
     }));
@@ -61,6 +71,9 @@ describe('checkinMuroLibreHandler', () => {
     const req = { body: { tipoPase: 'diario' }, user: { clubId: 'club1', id: 'staff1' } };
     const res = mockRes();
 
+    socioQrService.resolveSocioFromQrTokenOrDni.mockRejectedValueOnce(
+      Object.assign(new Error('Se requiere token QR o DNI para identificar el socio'), { status: 400 })
+    );
     await checkinMuroLibreHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(400);

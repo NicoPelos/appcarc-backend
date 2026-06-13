@@ -1,5 +1,34 @@
 import Movimiento from '../models/Movimiento.js';
 
+/**
+ * @openapi
+ * /api/movimientos:
+ *   get:
+ *     summary: Obtener lista de movimientos
+ *     tags: [Movimientos]
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *         required: false
+ *         description: Número de página
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *         required: false
+ *         description: Cantidad de resultados por página
+ *     responses:
+ *       200:
+ *         description: Lista de movimientos obtenida exitosamente
+ *       500:
+ *         description: Error al obtener movimientos
+ */
+
 export const getMovimientosHandler = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;

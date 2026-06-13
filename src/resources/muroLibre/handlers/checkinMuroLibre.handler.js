@@ -1,21 +1,68 @@
 import { BusinessError, registrarMuroLibre } from '../services/registrarMuroLibre.service.js';
-import { resolveSocioFromQrToken, findActiveSocioByDni } from '../../socios/services/socioQr.service.js';
+import { resolveSocioFromQrTokenOrDni } from '../../socios/services/socioQr.service.js';
+
+/**
+ * @openapi
+ * /api/muro-libre/checkin:
+ *   post:
+ *     summary: Registrar check-in en muro libre
+ *     tags: [MuroLibre]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - tipoPase
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Token QR del socio
+ *               dni:
+ *                 type: string
+ *                 description: DNI del socio
+ *               tipoPase:
+ *                 type: string
+ *                 enum: [diario, mensual]
+ *                 description: Tipo de pase
+ *               estadoPago:
+ *                 type: string
+ *                 enum: [pagado, pendiente, exento]
+ *                 description: Estado de pago
+ *               paymentMethod:
+ *                 type: string
+ *                 enum: [Efectivo, Transferencia]
+ *                 description: Forma de pago
+ *               enviarComprobanteWp:
+ *                 type: boolean
+ *                 description: Indica si se debe enviar comprobante por WhatsApp
+ *               observaciones:
+ *                 type: string
+ *                 description: Observaciones adicionales
+ *     responses:
+ *       201:
+ *         description: Check-in registrado exitosamente
+ *       400:
+ *         description: Error en los datos enviados para el check-in
+ *       404:
+ *         description: Socio no encontrado
+ *       500:
+ *         description: Error al registrar check-in
+ */
 
 export const checkinMuroLibreHandler = async (req, res) => {
   try {
     const { token, dni, tipoPase, estadoPago, paymentMethod, enviarComprobanteWp, observaciones } = req.body;
 
-    let socio = null;
-    if (token) {
-      socio = await resolveSocioFromQrToken(token, req.user?.clubId);
-    } else if (dni) {
-      socio = await findActiveSocioByDni(dni, req.user?.clubId);
-      if (!socio) {
-        throw new BusinessError('Socio no encontrado por DNI', 404);
-      }
-    } else {
-      throw new BusinessError('Se requiere token QR o DNI para identificar el socio', 400);
-    }
+    const { socio, method } = await resolveSocioFromQrTokenOrDni({
+      token,
+      dni,
+      clubId: req.user?.clubId,
+      missingMessage: 'Se requiere token QR o DNI para identificar el socio',
+    });
 
     const result = await registrarMuroLibre({
       clubId: req.user?.clubId,
@@ -29,12 +76,12 @@ export const checkinMuroLibreHandler = async (req, res) => {
         observaciones,
       },
       scannedBy: req.user?.id,
-      checkinMethod: token ? 'QR' : 'DNI',
+      checkinMethod: method,
     });
 
     res.status(201).json(result);
   } catch (error) {
-    if (error instanceof BusinessError) {
+    if (error instanceof BusinessError || error.status) {
       return res.status(error.status).json({ message: error.message });
     }
 

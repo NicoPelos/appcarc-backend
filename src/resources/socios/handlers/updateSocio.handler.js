@@ -1,23 +1,72 @@
 import Socio from '../models/Socio.js';
-import { updateSheetRow, appendToSheet } from '../../../services/googleSheetsService.js';
-import { buildSocioSheetRow } from '../services/socioSheetSync.js';
-import { syncSocioUserFromSocio } from '../../usuarios/services/userSync.js';
+import { syncSocioToSheet } from '../services/socioSheetSync.js';
+import { prepareSocioUpdateData, syncSocioUserIfPossible } from '../services/socioData.service.js';
+
+/**
+ * @openapi
+ * /api/socios/{id}:
+ *   put:
+ *     summary: Actualizar socio
+ *     tags: [Socios]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         description: ID del socio
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               dni:
+ *                 type: string
+ *                 description: DNI del socio
+ *               nombre:
+ *                 type: string
+ *                 description: Nombre del socio
+ *               apellido:
+ *                 type: string
+ *                 description: Apellido del socio
+ *               correoElectronico:
+ *                 type: string
+ *                 description: Correo electrónico del socio
+ *               telefono:
+ *                 type: string
+ *                 description: Teléfono del socio
+ *               domicilioCompleto:
+ *                 type: string
+ *                 description: Domicilio completo del socio
+ *               calle:
+ *                 type: string
+ *                 description: Calle del socio
+ *               altura:
+ *                 type: string
+ *                 description: Altura del socio
+ *               direccionActual:
+ *                 type: string
+ *                 description: Dirección actual del socio
+ *     responses:
+*       200:
+*         description: Socio actualizado exitosamente
+*       400:
+*         description: Error en los datos enviados para la actualización
+*       404:
+*         description: Socio no encontrado
+*       500:
+*         description: Error al actualizar socio
+ */
+
 
 export const updateSocioHandler = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = {
-      ...req.body,
-      updatedBy: req.user?.id,
-    };
-
-    if (!updateData.domicilioCompleto) {
-      if (updateData.calle) {
-        updateData.domicilioCompleto = `${updateData.calle}${updateData.altura ? ' ' + updateData.altura : ''}`;
-      } else if (updateData.direccionActual) {
-        updateData.domicilioCompleto = updateData.direccionActual;
-      }
-    }
+    const updateData = prepareSocioUpdateData(req.body, req.user);
 
     const socio = await Socio.findOneAndUpdate(
       { _id: id, clubId: req.user?.clubId },
@@ -26,29 +75,8 @@ export const updateSocioHandler = async (req, res) => {
     );
     if (!socio) return res.status(404).json({ message: 'Socio no encontrado' });
 
-    const spreadsheetId = process.env.GOOGLE_SHEETS_SOCIOS_ID;
-    const sheetName = process.env.GOOGLE_SHEETS_SOCIOS_SHEET_NAME || 'Socios';
-    if (spreadsheetId) {
-      const sheetRow = buildSocioSheetRow(socio);
-      if (socio.sheetRowNumber) {
-        await updateSheetRow(spreadsheetId, sheetName, socio.sheetRowNumber, sheetRow);
-        socio.sheetUpdatedAt = new Date();
-        await socio.save();
-      } else {
-        const { rowNumber } = await appendToSheet(spreadsheetId, `${sheetName}!A:Z`, sheetRow);
-        if (rowNumber) {
-          socio.sheetRowNumber = rowNumber;
-          socio.sheetName = sheetName;
-          socio.spreadsheetId = spreadsheetId;
-          socio.sheetUpdatedAt = new Date();
-          await socio.save();
-        }
-      }
-    }
-
-    if (socio.correoElectronico && socio.dni) {
-      await syncSocioUserFromSocio(socio);
-    }
+    await syncSocioToSheet(socio);
+    await syncSocioUserIfPossible(socio);
 
     res.status(200).json(socio);
   } catch (error) {

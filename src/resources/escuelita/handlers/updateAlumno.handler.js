@@ -1,5 +1,54 @@
 import Escuelita from '../models/Escuelita.js';
 
+/**
+ * @openapi
+ * /api/escuelita/{id}:
+ *   put:
+ *     summary: Actualizar información de un alumno de escuelita
+ *     tags: [Escuelita]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: ID del alumno de escuelita a actualizar
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/AlumnoUpdateRequest'
+ *     responses:
+ *       200:
+ *         description: Alumno de escuelita actualizado exitosamente
+ *       400:
+ *         description: Error en los datos enviados para actualizar el alumno de escuelita
+ *       404:
+ *         description: Alumno de escuelita no encontrado
+ *       500:
+ *         description: Error al actualizar alumno de escuelita
+ *
+ * components:
+ *   schemas:
+ *     AlumnoUpdateRequest:
+ *       type: object
+ *       properties:
+ *         estado:
+ *           type: string
+ *           enum: [activo, pausado, baja]
+ *           description: Estado del alumno en escuelita (activo, pausado o baja)
+ *         fechaInscripcion:
+ *           type: string
+ *           format: date-time
+ *           description: Fecha de inscripción del alumno en escuelita
+ *         observaciones:
+ *           type: string
+ *           description: Observaciones adicionales sobre el alumno de escuelita (opcional)
+ */
+
 export const updateAlumnoHandler = async (req, res) => {
   try {
     const updates = {};

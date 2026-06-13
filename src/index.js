@@ -35,6 +35,15 @@ const swaggerOptions = {
         description: 'Servidor de Desarrollo',
       },
     ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
   },
   apis: ['./src/appRoutes.js', './src/resources/**/*.js'], // Ahora Swagger escanea los recursos y el router global
 };

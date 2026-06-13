@@ -7,6 +7,8 @@ import { deleteSocioHandler } from './handlers/deleteSocio.handler.js';
 import { restoreSocioHandler } from './handlers/restoreSocio.handler.js';
 import { getSocioQrHandler } from './handlers/getSocioQr.handler.js';
 import { verifySocioQrHandler } from './handlers/verifySocioQr.handler.js';
+import { getMyProfileHandler } from './handlers/getMyProfile.handler.js';
+import { updateMyProfileHandler } from './handlers/updateMyProfile.handler.js';
 import { protect, authorize } from '../../middleware/auth.js';
 
 const router = express.Router();
@@ -88,6 +90,11 @@ router.get('/', protect, authorize('admin', 'secretary', 'viewer'), getSociosHan
  *         description: Socio creado exitosamente
  */
 router.post('/', protect, authorize('admin', 'secretary'), createSocioHandler);
+
+// Rutas de perfil personal
+router.get('/me/profile', protect, getMyProfileHandler);
+router.put('/me/profile', protect, updateMyProfileHandler);
+
 router.get('/:id/qr', protect, authorize('admin', 'secretary'), getSocioQrHandler);
 router.post('/verify', protect, authorize('admin', 'secretary', 'viewer'), verifySocioQrHandler);
 
