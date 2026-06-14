@@ -17,7 +17,7 @@ const router = express.Router();
  *       200:
  *         description: Lista de cobros disponible
  */
-router.get('/', protect, authorize('admin', 'secretary', 'viewer'), getCobrosHandler);
+router.get('/', protect, authorize('admin', 'secretary', 'socio'), getCobrosHandler);
 
 /**
  * @openapi

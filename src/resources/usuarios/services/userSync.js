@@ -23,7 +23,7 @@ export const syncSocioUserFromSocio = async (socio) => {
     user.clubId = socio.clubId || user.clubId;
     user.email = email;
     user.socioId = user.socioId || socio._id?.toString();
-    if (user.role !== 'admin' && user.role !== 'secretary' && user.role !== 'viewer') {
+    if (user.role !== 'admin' && user.role !== 'secretary' && user.role !== 'socio') {
       user.role = 'socio';
       user.active = true;
       const salt = await bcrypt.genSalt(10);

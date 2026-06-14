@@ -6,7 +6,7 @@ import { checkinMuroLibreHandler } from './handlers/checkinMuroLibre.handler.js'
 
 const router = express.Router();
 
-router.get('/', protect, authorize('admin', 'secretary', 'viewer'), getMuroLibreHandler);
+router.get('/', protect, authorize('admin', 'secretary', 'socio'), getMuroLibreHandler);
 router.post('/', protect, authorize('admin', 'secretary'), createMuroLibreHandler);
 router.post('/checkin', protect, authorize('admin', 'secretary'), checkinMuroLibreHandler);
 

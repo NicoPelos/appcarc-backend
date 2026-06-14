@@ -7,7 +7,7 @@ import { deleteAlumnoHandler } from './handlers/deleteAlumno.handler.js';
 
 const router = express.Router();
 
-router.get('/', protect, authorize('admin', 'secretary', 'viewer'), getAlumnosHandler);
+router.get('/', protect, authorize('admin', 'secretary', 'socio'), getAlumnosHandler);
 router.post('/', protect, authorize('admin', 'secretary'), createAlumnoHandler);
 router.put('/:id', protect, authorize('admin', 'secretary'), updateAlumnoHandler);
 router.delete('/:id', protect, authorize('admin', 'secretary'), deleteAlumnoHandler);

@@ -77,7 +77,7 @@ router.post('/google', googleLogin);
  *                 type: string
  *               role:
  *                 type: string
- *                 enum: [admin, secretary, viewer, socio]
+ *                 enum: [admin, secretary, socio]
  *                 default: secretary
  *               clubId:
  *                 type: string

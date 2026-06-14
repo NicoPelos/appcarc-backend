@@ -25,7 +25,7 @@ const router = express.Router();
  *       200:
  *         description: Lista de socios disponible
  */
-router.get('/', protect, authorize('admin', 'secretary', 'viewer'), getSociosHandler);
+router.get('/', protect, authorize('admin', 'secretary', 'socio'), getSociosHandler);
 
 /**
  * @openapi
@@ -96,9 +96,9 @@ router.get('/me/profile', protect, getMyProfileHandler);
 router.put('/me/profile', protect, updateMyProfileHandler);
 
 router.get('/:id/qr', protect, authorize('admin', 'secretary'), getSocioQrHandler);
-router.post('/verify', protect, authorize('admin', 'secretary', 'viewer'), verifySocioQrHandler);
+router.post('/verify', protect, authorize('admin', 'secretary', 'socio'), verifySocioQrHandler);
 
-router.get('/:id', protect, authorize('admin', 'secretary', 'viewer'), getSocioByIdHandler);
+router.get('/:id', protect, authorize('admin', 'secretary', 'socio'), getSocioByIdHandler);
 
 /**
  * @openapi
