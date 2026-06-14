@@ -2,10 +2,16 @@
 node_modules/
 dist/
 .env
+.env.local
 npm-debug.log
+*.log
 
 # Google credentials
 google-credentials.json
+
+# Docker & Data
+data/
+mongo-data/
 
 # Mac
 .DS_Store

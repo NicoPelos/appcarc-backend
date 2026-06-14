@@ -26,6 +26,8 @@ services:
   mongo-express:
     image: mongo-express:1.0
     restart: unless-stopped
+    depends_on:
+      - mongo
     ports:
       - "8081:8081"
     environment:
