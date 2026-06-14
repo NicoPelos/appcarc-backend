@@ -63,8 +63,12 @@ export const googleLogin = async (req, res) => {
       idToken,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
-    
-    const { email, name, picture } = ticket.getPayload();
+    const payload = ticket.getPayload();
+    const { email, name, picture, sub: googleId, email_verified } = payload;
+
+    if (email_verified === false) {
+      return res.status(400).json({ message: 'Email de Google no verificado.' });
+    }
 
     // 2. Buscar si el usuario ya existe en nuestra DB
     let user = await User.findOne({ email });
@@ -79,6 +83,12 @@ export const googleLogin = async (req, res) => {
 
     if (!user.active) {
       return res.status(403).json({ message: 'Usuario desactivado' });
+    }
+
+    // Si el usuario no tiene googleId guardado, almacenarlo
+    if (!user.googleId) {
+      user.googleId = googleId;
+      await user.save();
     }
 
     // 3. Generar nuestro JWT con la info de multi-tenencia

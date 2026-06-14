@@ -1,5 +1,5 @@
 import express from 'express';
-import { googleLogin, register, login, logout, changePassword } from './handlers/auth.handler.js';
+import { googleLogin, googleCallback, register, login, logout, changePassword } from './handlers/auth.handler.js';
 import { loginWithDniHandler } from './handlers/loginWithDni.handler.js';
 import { protect } from '../../middleware/auth.js';
 
@@ -49,6 +49,7 @@ const router = express.Router();
  *         description: Token de Google inválido
  */
 router.post('/google', googleLogin);
+router.get('/google/callback', googleCallback);
 
 /**
  * @openapi

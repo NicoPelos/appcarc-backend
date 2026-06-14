@@ -23,6 +23,7 @@ Resumen del flujo de autenticación
 
 - `POST /api/auth/google` — body: `{ idToken, clubId }`.
   - Login con Google; si el socio existe, se crea el usuario y se devuelve `mustChangePassword` (por defecto `false` salvo casos especiales).
+  - Login con Google; se verifica `email_verified` y se guarda `googleId` (payload.sub) en el usuario cuando procede.
 
 3) Señales que el frontend debe usar
 - Si la respuesta de login contiene `mustChangePassword: true` o `firstLogin: true`, mostrar pantalla de cambio de contraseña inmediatamente antes de permitir navegación al resto de la app.
