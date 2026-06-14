@@ -1,6 +1,7 @@
 import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import Socio from '../../socios/models/Socio.js';
 import bcrypt from 'bcryptjs';
 import tokenService from '../../../services/tokenBlacklistService.js';
 
@@ -43,7 +44,6 @@ export const googleLogin = async (req, res) => {
     // Si no existe usuario, intentar crear uno vinculado a un socio
     if (!user) {
       // Buscar si existe un socio con ese email
-      const Socio = require('../../socios/models/Socio.js').default;
       const socio = await Socio.findOne({
         correoElectronico: email,
         clubId: clubId,
@@ -80,7 +80,6 @@ export const googleLogin = async (req, res) => {
     }
 
     // Obtener datos del socio si existen
-    const Socio = require('../../socios/models/Socio.js').default;
     const socio = user.socioId ? await Socio.findById(user.socioId) : null;
 
     const token = jwt.sign(
