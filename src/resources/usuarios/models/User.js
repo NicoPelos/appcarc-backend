@@ -3,6 +3,11 @@ import mongoose from 'mongoose';
 const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
+  // DNI no se almacena en texto plano por privacidad; el sistema puede
+  // inicializar la contraseña a partir del DNI y marcar mustChangePassword.
+  mustChangePassword: { type: Boolean, default: false },
+  passwordChangedAt: { type: Date },
+  googleId: { type: String, default: null },
   nombre: String,
   role: { 
     type: String, 

@@ -89,6 +89,7 @@ export const loginWithDniHandler = async (req, res) => {
         clubId,
         socioId: socio._id.toString(),
         active: true,
+        mustChangePassword: true,
       });
 
       await user.save();
@@ -103,6 +104,13 @@ export const loginWithDniHandler = async (req, res) => {
           message: 'Credenciales inválidas. Si olvidaste tu contraseña, contacta al administrador.',
         });
       }
+      // Si la contraseña coincide con el DNI, forzamos cambio de contraseña
+      // para que el usuario establezca una contraseña propia.
+      if (!user.mustChangePassword) {
+        user.mustChangePassword = true;
+        await user.save();
+      }
+      firstLogin = true;
     }
 
     if (!user.active) {

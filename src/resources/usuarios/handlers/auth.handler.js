@@ -8,21 +8,30 @@ import tokenService from '../../../services/tokenBlacklistService.js';
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const register = async (req, res) => {
-  const { email, password, nombre, role, clubId } = req.body;
+  const { email, password, dni, nombre, role, clubId } = req.body;
 
   try {
     let user = await User.findOne({ email });
     if (user) return res.status(400).json({ message: 'El usuario ya existe con este email.' });
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    // Encriptar la contraseña (si no viene password, usar DNI como contraseña temporal)
+    let mustChangePassword = false;
+    let hashedPassword;
+    if (!password && dni) {
+      mustChangePassword = true;
+      const salt = await bcrypt.genSalt(10);
+      hashedPassword = await bcrypt.hash(dni, salt);
+    } else {
+      const salt = await bcrypt.genSalt(10);
+      hashedPassword = await bcrypt.hash(password, salt);
+    }
 
-    user = new User({ email, password: hashedPassword, nombre, role: role || 'secretary', clubId });
+    user = new User({ email, password: hashedPassword, nombre, role: role || 'secretary', clubId, mustChangePassword });
     await user.save();
 
     const token = jwt.sign({ id: user._id, role: user.role, clubId: user.clubId }, process.env.JWT_SECRET, { expiresIn: '8h' });
 
-    res.status(201).json({ token, user: { id: user._id, email: user.email, nombre: user.nombre, role: user.role, clubId: user.clubId } });
+    res.status(201).json({ token, user: { id: user._id, email: user.email, nombre: user.nombre, role: user.role, clubId: user.clubId, mustChangePassword: user.mustChangePassword } });
   } catch (error) {
     console.error('Error en el registro de usuario:', error);
     res.status(500).json({ message: 'Error en el servidor al registrar usuario.' });
@@ -98,6 +107,7 @@ export const googleLogin = async (req, res) => {
         clubId: user.clubId,
         socioId: user.socioId,
         picture,
+        mustChangePassword: !!user.mustChangePassword,
       },
       socio: socio ? {
         id: socio._id,
@@ -122,7 +132,7 @@ export const login = async (req, res) => {
     if (!isMatch) return res.status(400).json({ message: 'Credenciales inválidas.' });
     if (!user.active) return res.status(403).json({ message: 'Usuario desactivado' });
     const token = jwt.sign({ id: user._id, role: user.role, clubId: user.clubId }, process.env.JWT_SECRET, { expiresIn: '8h' });
-    res.status(200).json({ token, user: { id: user._id, email: user.email, nombre: user.nombre, role: user.role, clubId: user.clubId } });
+    res.status(200).json({ token, user: { id: user._id, email: user.email, nombre: user.nombre, role: user.role, clubId: user.clubId, mustChangePassword: !!user.mustChangePassword } });
   } catch (error) {
     console.error('Error en el login de usuario:', error);
     res.status(500).json({ message: 'Error en el servidor al iniciar sesión.' });
@@ -144,8 +154,8 @@ export const logout = async (req, res) => {
 export const changePassword = async (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ message: 'currentPassword y newPassword son requeridos.' });
+  if (!newPassword) {
+    return res.status(400).json({ message: 'newPassword es requerido.' });
   }
 
   try {
@@ -154,13 +164,22 @@ export const changePassword = async (req, res) => {
       return res.status(404).json({ message: 'Usuario no encontrado.' });
     }
 
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Contraseña actual inválida.' });
+    // Permitir cambio sin currentPassword si el usuario está marcado para cambiar (primer login)
+    if (!currentPassword && !user.mustChangePassword) {
+      return res.status(400).json({ message: 'currentPassword requerido.' });
+    }
+
+    if (currentPassword) {
+      const isMatch = await bcrypt.compare(currentPassword, user.password);
+      if (!isMatch) {
+        return res.status(400).json({ message: 'Contraseña actual inválida.' });
+      }
     }
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
+    user.mustChangePassword = false;
+    user.passwordChangedAt = new Date();
     await user.save();
 
     res.status(200).json({ message: 'Contraseña actualizada correctamente.' });
