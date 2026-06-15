@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Socio from '../../socios/models/Socio.js';
 import Cuota from '../../cuotas/models/Cuota.js';
 import Precios from '../../cuotas/models/Precios.js';
@@ -55,8 +56,8 @@ const getPeriodosFromItem = (item, index) => {
   return Array.from({ length: cantidad }, (_, offset) => addMonthsToPeriodo(periodoInicial, offset));
 };
 
-const findPrecioVigente = async ({ clubId, codigo, date }) => {
-  return Precios.findOne({
+const findPrecioVigente = async ({ clubId, codigo, date, session = null }) => {
+  const query = Precios.findOne({
     clubId,
     codigo,
     active: true,
@@ -66,9 +67,11 @@ const findPrecioVigente = async ({ clubId, codigo, date }) => {
       { vigenteHasta: { $gte: date } },
     ],
   }).sort({ vigenteDesde: -1 });
+
+  return session ? query.session(session) : query;
 };
 
-const normalizeItem = async ({ item, index, clubId, date, precioCache }) => {
+const normalizeItem = async ({ item, index, clubId, date, precioCache, session = null }) => {
   const socioId = String(item?.socioId || '').trim();
   const tipo = normalizeTipo(item?.tipo);
   const periodos = getPeriodosFromItem(item, index);
@@ -95,9 +98,9 @@ const normalizeItem = async ({ item, index, clubId, date, precioCache }) => {
 
   const precioCodigo = PRECIO_CODIGO_BY_TIPO[tipo];
 
-  if (precioSugeridoSnapshot === null) {
+  if (precioSugeridoSnapshot === null && amount === null) {
     if (!precioCache.has(precioCodigo)) {
-      precioCache.set(precioCodigo, await findPrecioVigente({ clubId, codigo: precioCodigo, date }));
+      precioCache.set(precioCodigo, await findPrecioVigente({ clubId, codigo: precioCodigo, date, session }));
     }
 
     const precio = precioCache.get(precioCodigo);
@@ -142,146 +145,158 @@ export const registrarCobro = async ({ clubId, user, body }) => {
     throw new BusinessError('La fecha del cobro es inválida');
   }
 
-  const precioCache = new Map();
-  const items = Array.isArray(body?.items)
-    ? (await Promise.all(body.items.map((item, index) => normalizeItem({
-      item,
-      index,
-      clubId,
-      date,
-      precioCache,
-    })))).flat()
-    : [];
+  const session = await mongoose.startSession();
+  try {
+    let result = null;
 
-  if (!items.length) {
-    throw new BusinessError('El cobro debe incluir al menos una cuota');
-  }
+    await session.withTransaction(async () => {
+      const precioCache = new Map();
+      const items = Array.isArray(body?.items)
+        ? (await Promise.all(body.items.map((item, index) => normalizeItem({
+          item,
+          index,
+          clubId,
+          date,
+          precioCache,
+          session,
+        })))).flat()
+        : [];
 
-  const duplicated = items.find((item, index) => (
-    items.findIndex((candidate) => buildItemKey(candidate) === buildItemKey(item)) !== index
-  ));
+      if (!items.length) {
+        throw new BusinessError('El cobro debe incluir al menos una cuota');
+      }
 
-  if (duplicated) {
-    throw new BusinessError(`El cobro incluye una cuota duplicada para socio ${duplicated.socioId}, ${duplicated.tipo}, ${duplicated.periodo}`);
-  }
+      const duplicated = items.find((item, index) => (
+        items.findIndex((candidate) => buildItemKey(candidate) === buildItemKey(item)) !== index
+      ));
 
-  const responsable = String(body?.responsable || user?.email || user?.id || '').trim();
-  if (!responsable) {
-    throw new BusinessError('El responsable del cobro es obligatorio');
-  }
+      if (duplicated) {
+        throw new BusinessError(`El cobro incluye una cuota duplicada para socio ${duplicated.socioId}, ${duplicated.tipo}, ${duplicated.periodo}`);
+      }
 
-  const paymentMethod = String(body?.paymentMethod || '').trim();
-  if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
-    throw new BusinessError('La forma de pago debe ser Efectivo o Transferencia');
-  }
+      const responsable = String(body?.responsable || user?.email || user?.id || '').trim();
+      if (!responsable) {
+        throw new BusinessError('El responsable del cobro es obligatorio');
+      }
 
-  const description = String(body?.description || '').trim();
+      const paymentMethod = String(body?.paymentMethod || '').trim();
+      if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
+        throw new BusinessError('La forma de pago debe ser Efectivo o Transferencia');
+      }
 
-  const socioIds = [...new Set(items.map((item) => item.socioId))];
-  const socios = await Socio.find({ _id: { $in: socioIds }, clubId, active: true });
-  const sociosEncontrados = new Set(socios.map((socio) => String(socio._id)));
-  const socioFaltante = socioIds.find((socioId) => !sociosEncontrados.has(socioId));
+      const description = String(body?.description || '').trim();
 
-  if (socioFaltante) {
-    throw new BusinessError(`El socio ${socioFaltante} no existe, está inactivo o pertenece a otro club`, 404);
-  }
+      const socioIds = [...new Set(items.map((item) => item.socioId))];
+      const socios = await Socio.find({ _id: { $in: socioIds }, clubId, active: true }).session(session);
+      const sociosEncontrados = new Set(socios.map((socio) => String(socio._id)));
+      const socioFaltante = socioIds.find((socioId) => !sociosEncontrados.has(socioId));
 
-  const cuotaFilters = items.map((item) => ({
-    clubId,
-    socioId: item.socioId,
-    tipo: item.tipo,
-    periodo: item.periodo,
-    active: true,
-  }));
+      if (socioFaltante) {
+        throw new BusinessError(`El socio ${socioFaltante} no existe, está inactivo o pertenece a otro club`, 404);
+      }
 
-  const existingCuotas = await Cuota.find({ $or: cuotaFilters });
-  const cuotaPagada = existingCuotas.find((cuota) => cuota.estado === 'pagada');
+      const cuotaFilters = items.map((item) => ({
+        clubId,
+        socioId: item.socioId,
+        tipo: item.tipo,
+        periodo: item.periodo,
+        active: true,
+      }));
 
-  if (cuotaPagada) {
-    throw new BusinessError(`La cuota ${cuotaPagada.tipo} ${cuotaPagada.periodo} del socio ${cuotaPagada.socioId} ya está pagada`, 409);
-  }
+      const existingCuotas = await Cuota.find({ $or: cuotaFilters }).session(session);
+      const cuotaPagada = existingCuotas.find((cuota) => cuota.estado === 'pagada');
 
-  const totalAmount = items.reduce((total, item) => total + item.amount, 0);
-  const actor = user?.email || user?.id;
+      if (cuotaPagada) {
+        throw new BusinessError(`La cuota ${cuotaPagada.tipo} ${cuotaPagada.periodo} del socio ${cuotaPagada.socioId} ya está pagada`, 409);
+      }
 
-  const cobro = new Cobro({
-    clubId,
-    responsable,
-    paymentMethod,
-    totalAmount,
-    description,
-    date,
-    items,
-    createdBy: actor,
-    updatedBy: actor,
-  });
-  await cobro.save();
+      const totalAmount = items.reduce((total, item) => total + item.amount, 0);
+      const actor = user?.email || user?.id;
 
-  const movimiento = new Movimiento({
-    clubId,
-    userId: user.id,
-    responsable,
-    type: 'Ingreso',
-    amount: totalAmount,
-    concept: buildCobroConcept(items),
-    paymentMethod,
-    formId: String(cobro._id),
-    description: description || `Cobro con ${items.length} cuota${items.length === 1 ? '' : 's'}`,
-    date,
-    sourceType: 'cobro',
-    sourceId: cobro._id,
-    sourceModel: 'Cobro',
-    createdBy: actor,
-    updatedBy: actor,
-  });
-  await movimiento.save();
-
-  const cuotas = [];
-  for (const item of items) {
-    const existing = existingCuotas.find((cuota) => (
-      String(cuota.socioId) === item.socioId
-      && cuota.tipo === item.tipo
-      && cuota.periodo === item.periodo
-    ));
-
-    const cuotaData = {
-      clubId,
-      socioId: item.socioId,
-      tipo: item.tipo,
-      periodo: item.periodo,
-      estado: 'pagada',
-      montoEsperadoSnapshot: item.precioSugeridoSnapshot ?? item.amount,
-      montoPagadoSnapshot: item.amount,
-      precioSugeridoSnapshot: item.precioSugeridoSnapshot,
-      precioCodigo: item.precioCodigo,
-      cobroId: cobro._id,
-      movimientoId: movimiento._id,
-      fechaPago: date,
-      paymentMethod,
-      description: item.description,
-      updatedBy: actor,
-      active: true,
-    };
-
-    if (existing) {
-      Object.assign(existing, cuotaData);
-      await existing.save();
-      cuotas.push(existing);
-    } else {
-      const cuota = new Cuota({
-        ...cuotaData,
+      const cobro = new Cobro({
+        clubId,
+        responsable,
+        paymentMethod,
+        totalAmount,
+        description,
+        date,
+        items,
         createdBy: actor,
+        updatedBy: actor,
       });
-      await cuota.save();
-      cuotas.push(cuota);
-    }
+      await cobro.save({ session });
+
+      const movimiento = new Movimiento({
+        clubId,
+        userId: user.id,
+        responsable,
+        type: 'Ingreso',
+        amount: totalAmount,
+        concept: buildCobroConcept(items),
+        paymentMethod,
+        formId: String(cobro._id),
+        description: description || `Cobro con ${items.length} cuota${items.length === 1 ? '' : 's'}`,
+        date,
+        sourceType: 'cobro',
+        sourceId: cobro._id,
+        sourceModel: 'Cobro',
+        createdBy: actor,
+        updatedBy: actor,
+      });
+      await movimiento.save({ session });
+
+      const cuotas = [];
+      for (const item of items) {
+        const existing = existingCuotas.find((cuota) => (
+          String(cuota.socioId) === item.socioId
+          && cuota.tipo === item.tipo
+          && cuota.periodo === item.periodo
+        ));
+
+        const cuotaData = {
+          clubId,
+          socioId: item.socioId,
+          tipo: item.tipo,
+          periodo: item.periodo,
+          estado: 'pagada',
+          montoEsperadoSnapshot: item.precioSugeridoSnapshot ?? item.amount,
+          montoPagadoSnapshot: item.amount,
+          precioSugeridoSnapshot: item.precioSugeridoSnapshot,
+          precioCodigo: item.precioCodigo,
+          cobroId: cobro._id,
+          movimientoId: movimiento._id,
+          fechaPago: date,
+          paymentMethod,
+          description: item.description,
+          updatedBy: actor,
+          active: true,
+        };
+
+        if (existing) {
+          Object.assign(existing, cuotaData);
+          await existing.save({ session });
+          cuotas.push(existing);
+        } else {
+          const cuota = new Cuota({
+            ...cuotaData,
+            createdBy: actor,
+          });
+          await cuota.save({ session });
+          cuotas.push(cuota);
+        }
+      }
+
+      cobro.movimientoId = movimiento._id;
+      cobro.updatedBy = actor;
+      await cobro.save({ session });
+
+      result = { cobro, movimiento, cuotas };
+    });
+
+    return result;
+  } finally {
+    session.endSession();
   }
-
-  cobro.movimientoId = movimiento._id;
-  cobro.updatedBy = actor;
-  await cobro.save();
-
-  return { cobro, movimiento, cuotas };
 };
 
 export { BusinessError };

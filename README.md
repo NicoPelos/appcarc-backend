@@ -162,6 +162,7 @@ Roles actuales:
     DEFAULT_CLUB_ID=<CLUB_ID_POR_DEFECTO_PARA_IMPORT>
     REDIS_URL=<URL_REDIS_OPCIONAL>
     ```
+4.  Para despliegues con Docker Compose y transacciones MongoDB, usa el archivo `docker-compose.yml` del repositorio. Este compose configura MongoDB como un replica set `rs0` de un solo nodo, lo que permite que operaciones como cobros y registros de muro libre sean atómicas.
 3.  Coloca `google-credentials.json` en la raíz de `backend/`.
 
 ## Scripts
