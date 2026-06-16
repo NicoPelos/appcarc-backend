@@ -1,4 +1,4 @@
-import MuroLibre from '../models/MuroLibre.js';
+import Asistencia from '../../asistencias/models/Asistencia.js';
 
 /**
  * @openapi
@@ -33,11 +33,11 @@ export const getMuroLibreHandler = async (req, res) => {
     const { page = 1, limit = 20 } = req.query;
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
-    const filter = { clubId: req.user?.clubId, active: true };
+    const filter = { clubId: req.user?.clubId, tipo: 'muro_libre', active: true };
 
     const [total, registros] = await Promise.all([
-      MuroLibre.countDocuments(filter),
-      MuroLibre.find(filter)
+      Asistencia.countDocuments(filter),
+      Asistencia.find(filter)
         .sort({ fecha: -1, createdAt: -1 })
         .skip((pageNumber - 1) * pageSize)
         .limit(pageSize),

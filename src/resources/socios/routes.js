@@ -9,6 +9,7 @@ import { getSocioQrHandler } from './handlers/getSocioQr.handler.js';
 import { verifySocioQrHandler } from './handlers/verifySocioQr.handler.js';
 import { getMyProfileHandler } from './handlers/getMyProfile.handler.js';
 import { updateMyProfileHandler } from './handlers/updateMyProfile.handler.js';
+import { getSocioDeudaHandler } from './handlers/getSocioDeuda.handler.js';
 import { protect, authorize } from '../../middleware/auth.js';
 
 const router = express.Router();
@@ -94,6 +95,8 @@ router.post('/', protect, authorize('admin', 'secretary'), createSocioHandler);
 // Rutas de perfil personal
 router.get('/me/profile', protect, getMyProfileHandler);
 router.put('/me/profile', protect, updateMyProfileHandler);
+
+router.get('/:id/deuda', protect, authorize('admin', 'secretary', 'socio'), getSocioDeudaHandler);
 
 router.get('/:id/qr', protect, authorize('admin', 'secretary'), getSocioQrHandler);
 router.post('/verify', protect, authorize('admin', 'secretary', 'socio'), verifySocioQrHandler);

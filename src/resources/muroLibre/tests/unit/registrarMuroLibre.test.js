@@ -3,8 +3,9 @@ import mongoose from 'mongoose';
 
 import { BusinessError, registrarMuroLibre } from '../../services/registrarMuroLibre.service.js';
 import Socio from '../../../socios/models/Socio.js';
+import Cuota from '../../../cuotas/models/Cuota.js';
 import Precios from '../../../cuotas/models/Precios.js';
-import MuroLibre from '../../models/MuroLibre.js';
+import Asistencia from '../../../asistencias/models/Asistencia.js';
 import Movimiento from '../../../movimientos/models/Movimiento.js';
 
 const CLUB_ID = 'club1';
@@ -46,9 +47,10 @@ describe('registrarMuroLibre service (unit)', () => {
     vi.spyOn(mongoose, 'startSession').mockResolvedValue(sessionMock);
 
     Socio.findOne = vi.fn();
+    Cuota.findOne = vi.fn();
     Precios.findOne = vi.fn();
 
-    registroSaveSpy = vi.spyOn(MuroLibre.prototype, 'save').mockImplementation(async function () {
+    registroSaveSpy = vi.spyOn(Asistencia.prototype, 'save').mockImplementation(async function () {
       if (!this._id) this._id = new mongoose.Types.ObjectId();
       savedRegistros.push(this);
       return this;
@@ -200,9 +202,13 @@ describe('registrarMuroLibre service (unit)', () => {
     expect(result).toEqual({ registro: expect.anything(), movimiento: expect.anything() });
   });
 
-  it('should register a socio, mensual, pagado with explicit amount and set periodo', async () => {
-    mockSocioQuery({ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' });
+  it('should register mensual attendance as exento when socio has a valid Cuota muro_libre', async () => {
+    const socio = { _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' };
+    mockSocioQuery(socio);
     mockPrecioVigenteQuery({ monto: 8000 });
+    Cuota.findOne = vi.fn().mockReturnValue({
+      session: vi.fn().mockResolvedValue({ _id: new mongoose.Types.ObjectId(), estado: 'pagada' }),
+    });
 
     const result = await registrarMuroLibre({
       clubId: CLUB_ID,
@@ -210,32 +216,36 @@ describe('registrarMuroLibre service (unit)', () => {
       body: {
         socioId: SOCIO_ID,
         tipoPase: 'mensual',
-        estadoPago: 'pagado',
-        paymentMethod: 'Transferencia',
-        amount: 7500,
         fecha: '2026-06-15T00:00:00.000Z',
       },
     });
 
     expect(savedRegistros[0]).toMatchObject({
       nombre: 'Ana',
-      apellido: 'García',
       esSocio: true,
       tipoPase: 'mensual',
-      estadoPago: 'pagado',
-      monto: 7500,
-      precioSugeridoSnapshot: 8000,
+      estadoPago: 'exento',
+      monto: 0,
       periodo: '2026-06',
-      formaPago: 'Transferencia',
+      formaPago: 'Sin pago',
+    });
+    expect(movimientoSaveSpy).not.toHaveBeenCalled();
+    expect(result.movimiento).toBeNull();
+  });
+
+  it('should fail with 402 when socio has no valid Cuota muro_libre for current period', async () => {
+    mockSocioQuery({ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' });
+    Cuota.findOne = vi.fn().mockReturnValue({
+      session: vi.fn().mockResolvedValue(null),
     });
 
-    expect(savedMovimientos[0]).toMatchObject({
-      concept: 'Muro libre mensual',
-      amount: 7500,
-      paymentMethod: 'Transferencia',
-    });
+    await expect(registrarMuroLibre({
+      clubId: CLUB_ID,
+      user: USER,
+      body: { socioId: SOCIO_ID, tipoPase: 'mensual' },
+    })).rejects.toMatchObject({ status: 402 });
 
-    expect(result.movimiento).not.toBeNull();
+    expect(registroSaveSpy).not.toHaveBeenCalled();
   });
 
   it('should register pendiente without movimiento and monto zero', async () => {
@@ -282,18 +292,13 @@ describe('registrarMuroLibre service (unit)', () => {
     }));
   });
 
-  it('should use socio price code when esSocio flag is true without linked socio record', async () => {
-    mockPrecioVigenteQuery(null);
-
-    await registrarMuroLibre({
+  it('should fail when mensual is attempted without a linked socio', async () => {
+    await expect(registrarMuroLibre({
       clubId: CLUB_ID,
       user: USER,
       body: { tipoPase: 'mensual', nombre: 'Visitante', esSocio: true, estadoPago: 'pendiente' },
-    });
+    })).rejects.toMatchObject({ message: 'El pase mensual solo está disponible para socios' });
 
-    expect(Precios.findOne).toHaveBeenCalledWith(expect.objectContaining({
-      codigo: 'muro_libre_mensual_socio',
-    }));
-    expect(savedRegistros[0].esSocio).toBe(true);
+    expect(registroSaveSpy).not.toHaveBeenCalled();
   });
 });

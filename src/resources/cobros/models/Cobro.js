@@ -87,6 +87,18 @@ const cobroSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  anuladoAt: {
+    type: Date,
+    default: null,
+  },
+  anuladoPor: {
+    type: String,
+    default: null,
+  },
+  motivoAnulacion: {
+    type: String,
+    default: null,
+  },
 }, {
   timestamps: true,
 });

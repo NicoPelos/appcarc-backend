@@ -44,6 +44,7 @@ export const syncSocioUserFromSocio = async (socio) => {
     clubId: socio.clubId,
     socioId: socio._id?.toString(),
     active: true,
+    mustChangePassword: true,
   });
 
   await user.save();

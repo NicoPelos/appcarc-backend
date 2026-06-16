@@ -1,9 +1,9 @@
-import { randomUUID } from 'crypto';
 import mongoose from 'mongoose';
 import Socio from '../../socios/models/Socio.js';
+import Cuota from '../../cuotas/models/Cuota.js';
 import Precios from '../../cuotas/models/Precios.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
-import MuroLibre from '../models/MuroLibre.js';
+import Asistencia from '../../asistencias/models/Asistencia.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 const VALID_TIPO_PASE = ['diario', 'mensual'];
@@ -86,7 +86,31 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         throw new BusinessError('El nombre es obligatorio');
       }
 
-      const estadoPago = String(body?.estadoPago || 'pendiente').trim().toLowerCase();
+      // Pase mensual: solo socios con Cuota muro_libre pagada para el período
+      let estadoPagoOverride = null;
+      if (tipoPase === 'mensual') {
+        if (!socio) {
+          throw new BusinessError('El pase mensual solo está disponible para socios');
+        }
+        const periodoActual = buildPeriodo(fecha);
+        const cuotaVigente = await Cuota.findOne({
+          socioId: socio._id,
+          clubId,
+          tipo: 'muro_libre',
+          periodo: periodoActual,
+          estado: 'pagada',
+        }).session(session);
+
+        if (!cuotaVigente) {
+          throw new BusinessError(
+            `El socio no tiene pase mensual pagado para ${periodoActual}. Comprá el pase a través del cobro de cuotas.`,
+            402,
+          );
+        }
+        estadoPagoOverride = 'exento';
+      }
+
+      const estadoPago = estadoPagoOverride ?? String(body?.estadoPago || 'pendiente').trim().toLowerCase();
       if (!['pagado', 'pendiente', 'exento'].includes(estadoPago)) {
         throw new BusinessError('El estado de pago debe ser pagado, pendiente o exento');
       }
@@ -112,11 +136,10 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
       }
 
       const actor = user?.email || user?.id;
-      const registro = new MuroLibre({
+      const registro = new Asistencia({
         clubId,
+        tipo: 'muro_libre',
         socioId: socio?._id ?? null,
-        idSocio: socio?._id ? String(socio._id) : '',
-        idMuroLibre: randomUUID(),
         scannedBy: body?.scannedBy || null,
         checkinMethod: body?.checkinMethod || 'MANUAL',
         nombre,
@@ -153,7 +176,7 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
           date: fecha,
           sourceType: 'muro_libre',
           sourceId: registro._id,
-          sourceModel: 'MuroLibre',
+          sourceModel: 'Asistencia',
           createdBy: actor,
           updatedBy: actor,
         });

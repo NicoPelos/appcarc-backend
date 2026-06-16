@@ -14,7 +14,7 @@ const cuotaSchema = new mongoose.Schema({
   },
   tipo: {
     type: String,
-    enum: ['social', 'escuelita'],
+    enum: ['social', 'escuelita', 'muro_libre'],
     required: true,
     index: true,
   },

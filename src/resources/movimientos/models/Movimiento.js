@@ -49,7 +49,7 @@ const MovimientoSchema = new mongoose.Schema({
   },
   sourceModel: {
     type: String,
-    enum: ['Cobro', 'MuroLibre'],
+    enum: ['Cobro', 'Asistencia'],
     default: null,
   },
   description: {

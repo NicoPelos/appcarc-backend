@@ -1,6 +1,5 @@
 import express from 'express';
 import { googleLogin, googleCallback, register, login, logout, changePassword } from './handlers/auth.handler.js';
-import { loginWithDniHandler } from './handlers/loginWithDni.handler.js';
 import { protect } from '../../middleware/auth.js';
 
 const router = express.Router();
@@ -113,40 +112,6 @@ router.post('/register', register);
  *       400: { description: Credenciales inválidas }
  */
 router.post('/login', login);
-
-/**
- * @openapi
- * /api/auth/login-dni:
- *   post:
- *     summary: Login con email y DNI (primer acceso socio)
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - dni
- *               - clubId
- *             properties:
- *               email: 
- *                 type: string
- *                 format: email
- *                 description: Email del socio
- *               dni: 
- *                 type: string
- *                 description: DNI del socio
- *               clubId:
- *                 type: string
- *     responses:
- *       200: 
- *         description: Login exitoso
- *       401: 
- *         description: Email o DNI inválidos
- */
-router.post('/login-dni', loginWithDniHandler);
 
 /**
  * @openapi

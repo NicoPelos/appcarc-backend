@@ -5,12 +5,13 @@ import Precios from '../../cuotas/models/Precios.js';
 import Cobro from '../models/Cobro.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 
-const VALID_TIPOS = ['social', 'escuelita'];
+const VALID_TIPOS = ['social', 'escuelita', 'muro_libre'];
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const PRECIO_CODIGO_BY_TIPO = {
   social: 'cuota_social',
   escuelita: 'cuota_escuelita',
+  muro_libre: 'muro_libre_mensual_socio',
 };
 
 class BusinessError extends Error {
@@ -131,6 +132,7 @@ const buildCobroConcept = (items) => {
   const tipos = new Set(items.map((item) => item.tipo));
   if (tipos.size === 1 && tipos.has('social')) return 'Cobro de cuotas sociales';
   if (tipos.size === 1 && tipos.has('escuelita')) return 'Cobro de cuotas de escuelita';
+  if (tipos.size === 1 && tipos.has('muro_libre')) return 'Cobro de pases muro libre';
   return 'Cobro de cuotas';
 };
 
@@ -174,9 +176,9 @@ export const registrarCobro = async ({ clubId, user, body }) => {
         throw new BusinessError(`El cobro incluye una cuota duplicada para socio ${duplicated.socioId}, ${duplicated.tipo}, ${duplicated.periodo}`);
       }
 
-      const responsable = String(body?.responsable || user?.email || user?.id || '').trim();
+      const responsable = String(user?.email || user?.id || '').trim();
       if (!responsable) {
-        throw new BusinessError('El responsable del cobro es obligatorio');
+        throw new BusinessError('No se pudo determinar el responsable del cobro');
       }
 
       const paymentMethod = String(body?.paymentMethod || '').trim();

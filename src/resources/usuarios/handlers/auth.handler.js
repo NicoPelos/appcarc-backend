@@ -68,7 +68,7 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
 
   const socio = user.socioId ? await Socio.findById(user.socioId) : null;
 
-  const token = jwt.sign({ id: user._id, role: user.role, clubId: user.clubId }, process.env.JWT_SECRET, { expiresIn: '8h' });
+  const token = jwt.sign({ id: user._id, role: user.role, clubId: user.clubId, socioId: user.socioId || null }, process.env.JWT_SECRET, { expiresIn: '8h' });
 
   return {
     token,
@@ -78,7 +78,7 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
       email,
       role: user.role,
       clubId: user.clubId,
-      socioId: user.socioId,
+      socioId: user.socioId || null,
       picture,
       mustChangePassword: !!user.mustChangePassword,
     },
@@ -184,8 +184,8 @@ export const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Credenciales inválidas.' });
     if (!user.active) return res.status(403).json({ message: 'Usuario desactivado' });
-    const token = jwt.sign({ id: user._id, role: user.role, clubId: user.clubId }, process.env.JWT_SECRET, { expiresIn: '8h' });
-    res.status(200).json({ token, user: { id: user._id, email: user.email, nombre: user.nombre, role: user.role, clubId: user.clubId, mustChangePassword: !!user.mustChangePassword } });
+    const token = jwt.sign({ id: user._id, role: user.role, clubId: user.clubId, socioId: user.socioId || null }, process.env.JWT_SECRET, { expiresIn: '8h' });
+    res.status(200).json({ token, user: { id: user._id, email: user.email, nombre: user.nombre, role: user.role, clubId: user.clubId, socioId: user.socioId || null, mustChangePassword: !!user.mustChangePassword } });
   } catch (error) {
     console.error('Error en el login de usuario:', error);
     res.status(500).json({ message: 'Error en el servidor al iniciar sesión.' });

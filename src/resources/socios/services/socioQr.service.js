@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import Socio from '../models/Socio.js';
 import Cuota from '../../cuotas/models/Cuota.js';
-import MuroLibre from '../../muroLibre/models/MuroLibre.js';
+import Asistencia from '../../asistencias/models/Asistencia.js';
 
 const QR_TYPE = 'socio_qr';
 
@@ -123,17 +123,39 @@ export const getSocioDebtSummary = async (socioId, clubId) => {
 
 export const getLastMuroLibre = async (socioId, clubId) => {
   if (!mongoose.isValidObjectId(socioId)) return null;
-  return MuroLibre.findOne({ clubId, socioId, active: true }).sort({ fecha: -1 });
+  return Asistencia.findOne({ clubId, socioId, tipo: 'muro_libre', active: true }).sort({ fecha: -1 });
+};
+
+const periodoActual = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+};
+
+export const getPaseMuroLibreVigente = async (socioId, clubId) => {
+  const periodo = periodoActual();
+  const cuota = await Cuota.findOne({
+    socioId,
+    clubId,
+    tipo: 'muro_libre',
+    periodo,
+    estado: 'pagada',
+  }).lean();
+
+  return { vigente: Boolean(cuota), periodo };
 };
 
 export const buildSocioVerificationPayload = async (socio) => {
-  const debtSummary = await getSocioDebtSummary(socio._id, socio.clubId);
-  const lastMuroLibre = await getLastMuroLibre(socio._id, socio.clubId);
+  const [debtSummary, lastMuroLibre, paseMuroLibre] = await Promise.all([
+    getSocioDebtSummary(socio._id, socio.clubId),
+    getLastMuroLibre(socio._id, socio.clubId),
+    getPaseMuroLibreVigente(socio._id, socio.clubId),
+  ]);
 
   return {
     socio,
     debtSummary,
     lastMuroLibre,
+    paseMuroLibre,
   };
 };
 

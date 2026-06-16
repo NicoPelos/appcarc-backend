@@ -1,49 +1,67 @@
-Resumen del flujo de autenticación
+# Flujo de autenticación — AppCARC (app móvil Expo)
 
-1) Idea general
-- Las cuentas se identifican por `email` y, para el primer acceso de socios, el `DNI` puede usarse como contraseña temporal.
-- Cuando un usuario se crea usando DNI como contraseña temporal, el campo `mustChangePassword` se marca `true`.
-- El frontend debe forzar al usuario a cambiar la contraseña en su primer ingreso.
+## Decisiones de diseño
 
-2) Endpoints relevantes
-- `POST /api/auth/register` — body: `{ email, password?, dni?, nombre?, role?, clubId }`.
-  - Si no se envía `password` pero sí `dni`, se creará una contraseña temporal (hash del DNI) y `mustChangePassword=true`.
-  - Respuesta incluye `mustChangePassword`.
+- La API es consumida por una app móvil hecha en Expo.
+- Las cuentas de usuario las **crea el admin** previamente; los socios no se auto-registran.
+- El socio siempre ve un único formulario de email + contraseña, sin distinción de "primer login" a nivel UI.
+- En el primer login, la contraseña temporal es el DNI del socio (seteada por el admin al crear la cuenta).
+- El backend marca `mustChangePassword: true` cuando la cuenta se crea con DNI como contraseña temporal.
+- La app detecta `mustChangePassword: true` en la respuesta del login y redirige automáticamente a la pantalla de cambio de contraseña antes de permitir navegar al resto de la app.
 
-- `POST /api/auth/login` — body: `{ email, password }`.
-  - Respuesta: `{ token, user: { id, email, nombre, role, clubId, mustChangePassword } }`.
+## Flujo del primer acceso de un socio
 
-- `POST /api/auth/login-dni` — body: `{ email, dni, clubId }`.
-  - Flujo para primer acceso de socio: valida `Socio` por `dni` y `email`, crea usuario si no existía y devuelve `firstLogin: true` y `mustChangePassword`.
-  - Respuesta: `{ token, firstLogin, user, socio }`.
+1. Admin crea la cuenta via `POST /api/auth/register` con `{ email, dni, nombre, role: 'socio', clubId }` (sin `password`).
+   - El backend hashea el DNI como contraseña temporal y pone `mustChangePassword: true`.
+2. Socio abre la app → ve el formulario de login (email + contraseña).
+3. Ingresa su email y su DNI como contraseña → `POST /api/auth/login`.
+4. La respuesta incluye `mustChangePassword: true`.
+5. La app lo redirige automáticamente a la pantalla de cambio de contraseña.
+6. Socio elige su nueva contraseña → `PUT /api/auth/password` con `{ newPassword }` (no requiere `currentPassword` cuando `mustChangePassword` es `true`).
+7. El backend limpia `mustChangePassword` y guarda `passwordChangedAt`.
+8. La app navega al home normalmente.
 
-- `PUT /api/auth/password` — protected, body: `{ currentPassword?, newPassword }`.
-  - Si `mustChangePassword` es `true`, el frontend puede llamar este endpoint con sólo `newPassword` (no requiere `currentPassword`).
-  - Tras cambiar, se limpia `mustChangePassword` y se actualiza `passwordChangedAt`.
+## Flujo de login normal (accesos siguientes)
 
-- `POST /api/auth/google` — body: `{ idToken, clubId }`.
-  - Login con Google; si el socio existe, se crea el usuario y se devuelve `mustChangePassword` (por defecto `false` salvo casos especiales).
-  - Login con Google; se verifica `email_verified` y se guarda `googleId` (payload.sub) en el usuario cuando procede.
+1. Socio ingresa email + contraseña → `POST /api/auth/login`.
+2. La respuesta trae `mustChangePassword: false` → navegar al home directamente.
 
-3) Señales que el frontend debe usar
-- Si la respuesta de login contiene `mustChangePassword: true` o `firstLogin: true`, mostrar pantalla de cambio de contraseña inmediatamente antes de permitir navegación al resto de la app.
-- Para el cambio de contraseña, llamar `PUT /api/auth/password`.
+## Endpoints relevantes
 
-4) Biometría / desbloqueo por patrón (cliente)
-- Esto depende del cliente. Recomendación:
-  - No enviar huellas/patrón al servidor.
-  - Guardar credencial persistente (refresh token o token derivado) en almacenamiento seguro del dispositivo (Android Keystore / iOS Keychain / Web Credential Management API).
-  - Proteger el acceso a esa credencial con biometría/patrón en el dispositivo; al desbloquearla, usarla para renovar `accessToken` con el backend.
-  - Para web, usar WebAuthn para registrar credenciales públicas y autenticar sin mandar contraseñas.
+| Método | Ruta | Acceso | Descripción |
+|--------|------|--------|-------------|
+| `POST` | `/api/auth/register` | Admin | Crea usuario; si se envía `dni` sin `password`, usa DNI como contraseña temporal |
+| `POST` | `/api/auth/login` | Público | Login con email + contraseña; devuelve `mustChangePassword` |
+| `POST` | `/api/auth/google` | Público | Login con Google (idToken + clubId); crea usuario si el socio existe |
+| `GET`  | `/api/auth/google/callback` | Público | Callback OAuth2 de Google |
+| `PUT`  | `/api/auth/password` | Protegido | Cambiar contraseña; no requiere `currentPassword` si `mustChangePassword` es `true` |
+| `POST` | `/api/auth/logout` | Protegido | Invalida el token (blacklist en Redis o memoria) |
 
-5) Notas de seguridad
-- No almacenar DNI en texto plano.
-- Usar `bcrypt`/`argon2` para hashes de contraseña (ya implementado con `bcryptjs`).
-- Exponer a frontend sólo el booleano `mustChangePassword`, nunca la contraseña ni el DNI.
-- Implementar límites de intentos y monitorización para login.
+## Respuesta de `POST /api/auth/login`
 
-6) Próximos pasos sugeridos
-- Decidir si registrar `googleId` en el modelo `User` (ya se añadió el campo `googleId`).
-- Implementar expiración/rotación de refresh tokens y almacenamiento en `devices` por usuario si se desea revocar sesiones por dispositivo.
+```json
+{
+  "token": "<JWT>",
+  "user": {
+    "id": "...",
+    "email": "socio@example.com",
+    "nombre": "Juan Pérez",
+    "role": "socio",
+    "clubId": "...",
+    "mustChangePassword": true
+  }
+}
+```
 
+## Señales que la app móvil debe manejar
 
+- `mustChangePassword: true` → redirigir a pantalla de cambio de contraseña inmediatamente, sin acceso al resto de la app.
+- Tras cambiar la contraseña, el token sigue siendo válido; la app puede navegar sin re-login.
+
+## Seguridad
+
+- Contraseñas hasheadas con `bcryptjs` (costo 10).
+- JWT expira en 8h.
+- Logout invalida el token via blacklist (Redis si está disponible, memoria en caso contrario).
+- El DNI nunca se almacena en texto plano.
+- El campo `mustChangePassword` es el único dato sensible del flujo que se expone al frontend; nunca se expone la contraseña ni el DNI.

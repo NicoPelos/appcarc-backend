@@ -5,6 +5,7 @@ import movimientoRoutes from './resources/movimientos/routes.js';
 import cobroRoutes from './resources/cobros/routes.js';
 import muroLibreRoutes from './resources/muroLibre/routes.js';
 import escuelitaRoutes from './resources/escuelita/routes.js';
+import asistenciasRoutes from './resources/asistencias/routes.js';
 
 const router = express.Router();
 
@@ -14,5 +15,6 @@ router.use('/movimientos', movimientoRoutes);
 router.use('/cobros', cobroRoutes);
 router.use('/muro-libre', muroLibreRoutes);
 router.use('/escuelita', escuelitaRoutes);
+router.use('/asistencias', asistenciasRoutes);
 
 export default router;

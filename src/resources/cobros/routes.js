@@ -2,6 +2,7 @@ import express from 'express';
 import { protect, authorize } from '../../middleware/auth.js';
 import { createCobroHandler } from './handlers/createCobro.handler.js';
 import { getCobrosHandler } from './handlers/getCobros.handler.js';
+import { anularCobroHandler } from './handlers/anularCobro.handler.js';
 
 const router = express.Router();
 
@@ -85,5 +86,7 @@ router.get('/', protect, authorize('admin', 'secretary', 'socio'), getCobrosHand
  *         description: Cobro, cuotas y movimiento creados exitosamente
  */
 router.post('/', protect, authorize('admin', 'secretary'), createCobroHandler);
+
+router.post('/:id/anular', protect, authorize('admin', 'secretary'), anularCobroHandler);
 
 export default router;
