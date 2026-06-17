@@ -1,6 +1,15 @@
 import express from 'express';
-import { googleLogin, googleCallback, register, login, logout, changePassword } from './handlers/auth.handler.js';
-import { protect } from '../../middleware/auth.js';
+import rateLimit from 'express-rate-limit';
+import { googleLogin, googleCallback, register, login, logout, changePassword, registerPushToken } from './handlers/auth.handler.js';
+import { protect, authorize } from '../../middleware/auth.js';
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Demasiados intentos de login. Intentá de nuevo en 15 minutos.' },
+});
 
 const router = express.Router();
 
@@ -87,7 +96,7 @@ router.get('/google/callback', googleCallback);
  *       400:
  *         description: Error en los datos enviados o usuario ya existe
  */
-router.post('/register', register);
+router.post('/register', protect, authorize('admin'), register);
 
 /**
  * @openapi
@@ -111,7 +120,7 @@ router.post('/register', register);
  *       200: { description: Login exitoso }
  *       400: { description: Credenciales inválidas }
  */
-router.post('/login', login);
+router.post('/login', loginLimiter, login);
 
 /**
  * @openapi
@@ -149,5 +158,6 @@ router.put('/password', protect, changePassword);
  *       - bearerAuth: []
  */
 router.post('/logout', protect, logout);
+router.put('/push-token', protect, registerPushToken);
 
 export default router;

@@ -3,6 +3,49 @@ import Asistencia from '../models/Asistencia.js';
 
 const VALID_TIPOS = ['muro_libre', 'escuelita'];
 
+/**
+ * @openapi
+ * /api/asistencias:
+ *   get:
+ *     summary: Listar asistencias del club (muro libre y escuelita unificadas)
+ *     tags: [Asistencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: tipo
+ *         schema: { type: string, enum: [muro_libre, escuelita] }
+ *         description: Filtrar por tipo de asistencia
+ *       - in: query
+ *         name: socioId
+ *         schema: { type: string }
+ *         description: Filtrar por socio
+ *       - in: query
+ *         name: from
+ *         schema: { type: string, format: date }
+ *         description: Fecha desde (inclusive)
+ *       - in: query
+ *         name: to
+ *         schema: { type: string, format: date }
+ *         description: Fecha hasta (inclusive)
+ *       - in: query
+ *         name: categoria
+ *         schema: { type: string }
+ *         description: Filtrar por categoría (escuelita)
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20 }
+ *     responses:
+ *       200:
+ *         description: Lista paginada de asistencias
+ *       400:
+ *         description: Parámetros inválidos
+ *       500:
+ *         description: Error al obtener asistencias
+ */
 export const getAsistenciasHandler = async (req, res) => {
   try {
     const { page = 1, limit = 20, tipo, socioId, from, to, categoria } = req.query;

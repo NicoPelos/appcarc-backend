@@ -35,7 +35,7 @@ describe('Socio QR service', () => {
   it('should generate a signed QR token for socio', () => {
     const token = generateSocioQrToken({ clubId: 'club1', socioId: 'socio1' });
     expect(token).toBe('signed-socio1');
-    expect(jwt.sign).toHaveBeenCalledWith({ clubId: 'club1', socioId: 'socio1', type: 'socio_qr' }, process.env.JWT_SECRET, { algorithm: 'HS256' });
+    expect(jwt.sign).toHaveBeenCalledWith({ clubId: 'club1', socioId: 'socio1', type: 'socio_qr' }, process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '30d' });
   });
 
   it('should decode a valid QR token', () => {

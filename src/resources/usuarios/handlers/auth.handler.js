@@ -96,10 +96,9 @@ export const register = async (req, res) => {
   const { email, password, dni, nombre, role, clubId } = req.body;
 
   try {
-    let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: 'El usuario ya existe con este email.' });
+    const existingUser = await User.findOne({ email, clubId });
+    if (existingUser) return res.status(400).json({ message: 'El usuario ya existe con este email.' });
 
-    // Encriptar la contraseña (si no viene password, usar DNI como contraseña temporal)
     let mustChangePassword = false;
     let hashedPassword;
     if (!password && dni) {
@@ -111,12 +110,37 @@ export const register = async (req, res) => {
       hashedPassword = await bcrypt.hash(password, salt);
     }
 
-    user = new User({ email, password: hashedPassword, nombre, role: role || 'secretary', clubId, mustChangePassword });
+    const socio = await Socio.findOne({ correoElectronico: email, clubId, active: true });
+
+    const user = new User({
+      email,
+      password: hashedPassword,
+      nombre: nombre || socio?.nombre,
+      role: role || 'secretary',
+      clubId,
+      socioId: socio?._id?.toString() || null,
+      mustChangePassword,
+    });
     await user.save();
 
-    const token = jwt.sign({ id: user._id, role: user.role, clubId: user.clubId }, process.env.JWT_SECRET, { expiresIn: '8h' });
+    const token = jwt.sign(
+      { id: user._id, role: user.role, clubId: user.clubId, socioId: user.socioId || null },
+      process.env.JWT_SECRET,
+      { expiresIn: '8h' },
+    );
 
-    res.status(201).json({ token, user: { id: user._id, email: user.email, nombre: user.nombre, role: user.role, clubId: user.clubId, mustChangePassword: user.mustChangePassword } });
+    res.status(201).json({
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        nombre: user.nombre,
+        role: user.role,
+        clubId: user.clubId,
+        socioId: user.socioId || null,
+        mustChangePassword: user.mustChangePassword,
+      },
+    });
   } catch (error) {
     console.error('Error en el registro de usuario:', error);
     res.status(500).json({ message: 'Error en el servidor al registrar usuario.' });
@@ -184,11 +208,80 @@ export const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Credenciales inválidas.' });
     if (!user.active) return res.status(403).json({ message: 'Usuario desactivado' });
-    const token = jwt.sign({ id: user._id, role: user.role, clubId: user.clubId, socioId: user.socioId || null }, process.env.JWT_SECRET, { expiresIn: '8h' });
-    res.status(200).json({ token, user: { id: user._id, email: user.email, nombre: user.nombre, role: user.role, clubId: user.clubId, socioId: user.socioId || null, mustChangePassword: !!user.mustChangePassword } });
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role, clubId: user.clubId, socioId: user.socioId || null },
+      process.env.JWT_SECRET,
+      { expiresIn: '8h' },
+    );
+
+    const socio = user.socioId ? await Socio.findById(user.socioId).lean() : null;
+
+    res.status(200).json({
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        nombre: user.nombre,
+        role: user.role,
+        clubId: user.clubId,
+        socioId: user.socioId || null,
+        mustChangePassword: !!user.mustChangePassword,
+      },
+      socio: socio ? {
+        id: socio._id,
+        nombre: socio.nombre,
+        apellido: socio.apellido,
+        fotoPerfil: socio.fotoPerfil,
+        redesSociales: socio.redesSociales,
+      } : null,
+    });
   } catch (error) {
     console.error('Error en el login de usuario:', error);
     res.status(500).json({ message: 'Error en el servidor al iniciar sesión.' });
+  }
+};
+
+/**
+ * @openapi
+ * /api/auth/push-token:
+ *   put:
+ *     summary: Registrar token de notificaciones push de Expo
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [expoPushToken]
+ *             properties:
+ *               expoPushToken:
+ *                 type: string
+ *                 description: Token de Expo Push Notifications (ExponentPushToken[...])
+ *     responses:
+ *       200:
+ *         description: Token registrado correctamente
+ *       400:
+ *         description: Token inválido o faltante
+ *       500:
+ *         description: Error al registrar token
+ */
+export const registerPushToken = async (req, res) => {
+  const { expoPushToken } = req.body;
+
+  if (!expoPushToken || typeof expoPushToken !== 'string') {
+    return res.status(400).json({ message: 'expoPushToken es requerido' });
+  }
+
+  try {
+    await User.findByIdAndUpdate(req.user?.id, { expoPushToken });
+    res.status(200).json({ message: 'Token registrado correctamente' });
+  } catch (error) {
+    console.error('Error registrando push token:', error);
+    res.status(500).json({ message: 'Error al registrar push token' });
   }
 };
 

@@ -24,6 +24,7 @@ export const generateSocioQrToken = ({ clubId, socioId }) => {
   ensureJwtSecret();
   return jwt.sign({ clubId, socioId, type: QR_TYPE }, process.env.JWT_SECRET, {
     algorithm: 'HS256',
+    expiresIn: '30d',
   });
 };
 

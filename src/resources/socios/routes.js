@@ -98,7 +98,7 @@ router.put('/me/profile', protect, updateMyProfileHandler);
 
 router.get('/:id/deuda', protect, authorize('admin', 'secretary', 'socio'), getSocioDeudaHandler);
 
-router.get('/:id/qr', protect, authorize('admin', 'secretary'), getSocioQrHandler);
+router.get('/:id/qr', protect, authorize('admin', 'secretary', 'socio'), getSocioQrHandler);
 router.post('/verify', protect, authorize('admin', 'secretary', 'socio'), verifySocioQrHandler);
 
 router.get('/:id', protect, authorize('admin', 'secretary', 'socio'), getSocioByIdHandler);
