@@ -60,8 +60,17 @@ export const getSociosHandler = async (req, res) => {
     const filter = { clubId: req.user?.clubId };
     filter.active = req.query.trash === 'true' ? false : true;
 
+    if (req.query.estado) {
+      filter.estado = req.query.estado;
+    }
+
+    if (req.query.search) {
+      const re = new RegExp(req.query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [{ nombre: re }, { apellido: re }, { dni: re }];
+    }
+
     const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
-    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 50);
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 10, 1), 100);
     const skip = (page - 1) * limit;
 
     const [total, socios] = await Promise.all([
