@@ -7,6 +7,7 @@ import muroLibreRoutes from './resources/muroLibre/routes.js';
 import escuelitaRoutes from './resources/escuelita/routes.js';
 import asistenciasRoutes from './resources/asistencias/routes.js';
 import novedadesRoutes from './resources/novedades/routes.js';
+import horariosRoutes from './resources/muroLibre/horariosRoutes.js';
 
 const router = express.Router();
 
@@ -18,5 +19,6 @@ router.use('/muro-libre', muroLibreRoutes);
 router.use('/escuelita', escuelitaRoutes);
 router.use('/asistencias', asistenciasRoutes);
 router.use('/novedades', novedadesRoutes);
+router.use('/horarios', horariosRoutes);
 
 export default router;

@@ -47,13 +47,9 @@ const run = async () => {
           continue;
         }
 
-        // Determine active / deleted state from estado field
-        let active = true;
         const estadoVal = (record.estado || '').toString().toLowerCase();
         const isTrash = estadoVal.includes('papelera') || estadoVal.includes('trash') || estadoVal.includes('eliminad');
-        const isBaja = !isTrash && (estadoVal.includes('baja') || estadoVal === 'baja');
-        if (isBaja) active = false;
-        if (isTrash) active = false;
+        const active = !isTrash;
 
         // Ensure domicilioCompleto
         if (!record.domicilioCompleto) {
