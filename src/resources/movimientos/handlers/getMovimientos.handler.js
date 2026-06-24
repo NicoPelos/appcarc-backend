@@ -31,11 +31,13 @@ import Movimiento from '../models/Movimiento.js';
 
 export const getMovimientosHandler = async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20, trash, type } = req.query;
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
-    const filter = { clubId: req.user?.clubId, active: true };
+    const showTrash = trash === 'true';
+    const filter = { clubId: req.user?.clubId, active: !showTrash };
+    if (type && ['Ingreso', 'Egreso'].includes(type)) filter.type = type;
 
     const [total, movimientos] = await Promise.all([
       Movimiento.countDocuments(filter),
