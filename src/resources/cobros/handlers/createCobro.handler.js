@@ -1,4 +1,23 @@
 import { BusinessError, registrarCobro } from '../services/registrarCobro.service.js';
+import { sendPushNotification } from '../../../services/pushNotification.service.js';
+import User from '../../usuarios/models/User.js';
+
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const TIPO_LABEL = { social: 'cuota social', escuelita: 'cuota de escuelita', muro_libre: 'pase muro libre' };
+
+const formatPeriodo = (periodo) => {
+  const [year, month] = periodo.split('-');
+  return `${MESES[parseInt(month, 10) - 1]} ${year}`;
+};
+
+const buildCuotaBody = (cuotas) => {
+  if (cuotas.length === 1) {
+    const c = cuotas[0];
+    return `Se registró el pago de tu ${TIPO_LABEL[c.tipo] ?? c.tipo} para ${formatPeriodo(c.periodo)}`;
+  }
+  const lista = cuotas.map((c) => `${TIPO_LABEL[c.tipo] ?? c.tipo} ${formatPeriodo(c.periodo)}`).join(', ');
+  return `Se registraron ${cuotas.length} pagos: ${lista}`;
+};
 
 /**
  * @openapi
@@ -77,6 +96,30 @@ export const createCobroHandler = async (req, res) => {
     });
 
     res.status(201).json(result);
+
+    const cuotasBySocioId = result.cuotas.reduce((acc, cuota) => {
+      const key = cuota.socioId.toString();
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(cuota);
+      return acc;
+    }, {});
+
+    const socioIds = Object.keys(cuotasBySocioId);
+    const users = await User.find({
+      socioId: { $in: socioIds },
+      active: true,
+      expoPushToken: { $ne: null },
+    }).select('socioId expoPushToken').lean();
+
+    for (const user of users) {
+      const cuotas = cuotasBySocioId[user.socioId];
+      if (!cuotas?.length) continue;
+      sendPushNotification([user.expoPushToken], {
+        title: 'Pago registrado',
+        body: buildCuotaBody(cuotas),
+        data: { tipo: 'cobro_registrado', cobroId: result.cobro._id.toString() },
+      }).catch((err) => console.error('Error enviando push de cobro:', err));
+    }
   } catch (error) {
     if (error instanceof BusinessError) {
       return res.status(error.status).json({ message: error.message });

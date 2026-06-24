@@ -6,6 +6,7 @@ import swaggerJsDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import routes from './appRoutes.js';
 import { startInstagramSyncJob } from './jobs/syncInstagram.job.js';
+import { startRecordatorioCuotasJob } from './jobs/recordatorioCuotas.job.js';
 
 // Load environment variables
 dotenv.config();
@@ -84,6 +85,7 @@ if (process.env.NODE_ENV !== 'test') {
       clubId: process.env.DEFAULT_CLUB_ID,
       rssUrl: process.env.INSTAGRAM_RSS_URL,
     });
+    startRecordatorioCuotasJob();
   });
 }
 

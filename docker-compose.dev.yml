@@ -26,6 +26,15 @@ services:
       "try { rs.status(); print('RS already initiated') }
        catch(e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }) }"
 
+  rsshub:
+    image: diygod/rsshub:latest
+    restart: unless-stopped
+    ports:
+      - "1200:1200"
+    environment:
+      - NODE_ENV=production
+      - CACHE_TYPE=memory
+
   mongo-express:
     image: mongo-express:1.0
     restart: unless-stopped

@@ -9,7 +9,8 @@ src/
 ├── index.js                        # Entrada del servidor Express
 ├── appRoutes.js                    # Router principal bajo /api
 ├── middleware/auth.js              # JWT + autorización por rol
-├── jobs/syncInstagram.job.js       # Cron job de sync con Instagram (cada 30 min)
+├── jobs/syncInstagram.job.js         # Cron job de sync con Instagram (cada 30 min)
+├── jobs/recordatorioCuotas.job.js    # Cron job de recordatorio de deudas (1° de cada mes)
 ├── services/
 │   ├── tokenBlacklistService.js    # Blacklist de tokens (Redis o memoria)
 │   └── googleSheetsService.js      # Integración Google Sheets
@@ -22,7 +23,8 @@ src/
     ├── asistencias/    # Asistencias unificadas (muro libre + escuelita)
     ├── muroLibre/      # Registro y check-in de muro libre
     ├── escuelita/      # Alumnos inscriptos
-    └── novedades/      # Canal de noticias + sync con Instagram RSS
+    ├── novedades/      # Canal de noticias + sync con Instagram RSS
+    └── muroLibre/      # Registro y check-in de muro libre + gestión de horarios
 ```
 
 ## Setup
@@ -51,6 +53,10 @@ GOOGLE_SHEETS_SOCIOS_SHEET_NAME=Socios
 
 # Instagram RSS (opcional — sync de noticias)
 INSTAGRAM_RSS_URL=<URL_DEL_FEED_RSS>
+
+# Google Sheets — hojas adicionales (opcional)
+GOOGLE_SHEETS_HORARIOS_SHEET_NAME=Horarios
+GOOGLE_SHEETS_MOVIMIENTOS_SHEET_NAME=Movimientos
 ```
 
 Colocar `google-credentials.json` en la raíz del proyecto.
@@ -67,9 +73,11 @@ docker-compose up -d
 npm run dev            # Servidor con nodemon
 npm start              # Servidor producción
 npm test               # Suite de tests (Vitest)
-npm run import-socios  # Importar socios desde Google Sheets
-npm run import-cuotas  # Importar cuotas históricas desde Google Sheets
-npm run seed-admin     # Crear usuario admin inicial
+npm run import-socios      # Importar socios desde Google Sheets
+npm run import-cuotas      # Importar cuotas históricas desde Google Sheets
+npm run import-horarios    # Importar horarios de trabajo desde Google Sheets
+npm run import-movimientos # Importar movimientos históricos desde Google Sheets
+npm run seed-admin         # Crear usuario admin inicial
 ```
 
 ## Roles
@@ -172,7 +180,18 @@ El pase mensual de muro libre se gestiona como una `Cuota` de tipo `muro_libre`.
 | `POST /api/novedades`       | Crear novedad manual (admin/secretary)             |
 | `POST /api/novedades/sync`  | Forzar sync inmediato con Instagram RSS            |
 
-El servidor sincroniza el feed de Instagram automáticamente cada 30 minutos si `INSTAGRAM_RSS_URL` está configurado. La sincronización es idempotente: no duplica posts ya importados.
+El servidor sincroniza el feed de Instagram automáticamente cada 30 minutos si `INSTAGRAM_RSS_URL` está configurado. La sincronización es idempotente: no duplica posts ya importados. Cuando hay posts nuevos, se envía una push notification a todos los socios del club.
+
+## Horarios
+
+Registro de horas trabajadas por el personal (palestrero, profesor, secretaria).
+
+| Endpoint                  | Descripción                                              |
+|---------------------------|----------------------------------------------------------|
+| `GET /api/horarios`       | Listar (filtros: `nombre`, `tipoTarea`, `desde`, `hasta`, `trash`) |
+| `POST /api/horarios`      | Registrar horario                                        |
+| `PUT /api/horarios/:id`   | Actualizar horario                                       |
+| `DELETE /api/horarios/:id`| Eliminar horario (soft delete)                           |
 
 ## Precios
 
@@ -185,10 +204,20 @@ El modelo `Precios` es el catálogo económico del club. Códigos usados:
 
 Cada precio tiene `vigenteDesde` / `vigenteHasta`. Los cobros guardan snapshots del monto al momento del pago.
 
+## Push Notifications
+
+El backend usa Expo Push API para enviar notificaciones a la app móvil. Los tokens se registran con `PUT /api/auth/push-token`.
+
+Disparadores automáticos:
+- **Actualización de socio**: cuando cambia `estado`, `correoElectronico`, `telefono` o `domicilioCompleto`
+- **Cobro registrado**: confirmación al socio con detalle de cuotas pagadas
+- **Novedades de Instagram**: cuando el sync detecta posts nuevos
+- **Recordatorio mensual**: el 1° de cada mes a las 9am, a todos los socios con cuotas pendientes
+
 ## Testing
 
 ```bash
 npm test
 ```
 
-101 tests, 12 archivos. Los tests unitarios mockean modelos Mongoose y no requieren conexión a MongoDB.
+Los tests unitarios mockean modelos Mongoose y no requieren conexión a MongoDB.

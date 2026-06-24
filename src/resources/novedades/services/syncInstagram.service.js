@@ -2,6 +2,7 @@ import Parser from 'rss-parser';
 import Novedad from '../models/Novedad.js';
 
 const parser = new Parser({
+  headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AppCarc/1.0)' },
   customFields: {
     item: [
       ['media:content', 'mediaContent', { keepArray: false }],

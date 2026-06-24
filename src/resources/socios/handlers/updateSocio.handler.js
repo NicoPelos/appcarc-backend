@@ -1,6 +1,19 @@
 import Socio from '../models/Socio.js';
 import { syncSocioToSheet } from '../services/socioSheetSync.js';
 import { prepareSocioUpdateData, syncSocioUserIfPossible } from '../services/socioData.service.js';
+import { sendPushNotification } from '../../../services/pushNotification.service.js';
+import User from '../../usuarios/models/User.js';
+
+const ESTADO_LABEL = { Activo: 'Activo', Adherente: 'Adherente', Baja: 'Baja' };
+
+const buildNotificationMessage = (changes) => {
+  const lines = [];
+  if (changes.estado) lines.push(`Tu estado de socio cambió a: ${ESTADO_LABEL[changes.estado] ?? changes.estado}`);
+  if (changes.correoElectronico) lines.push('Tu correo electrónico fue actualizado');
+  if (changes.telefono) lines.push('Tu teléfono fue actualizado');
+  if (changes.domicilioCompleto) lines.push('Tu domicilio fue actualizado');
+  return lines.join(' · ');
+};
 
 /**
  * @openapi
@@ -63,20 +76,44 @@ import { prepareSocioUpdateData, syncSocioUserIfPossible } from '../services/soc
  */
 
 
+const NOTIFIABLE_FIELDS = ['estado', 'correoElectronico', 'telefono', 'domicilioCompleto'];
+
 export const updateSocioHandler = async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = prepareSocioUpdateData(req.body, req.user);
+
+    const socioAntes = await Socio.findOne({ _id: id, clubId: req.user?.clubId }).lean();
+    if (!socioAntes) return res.status(404).json({ message: 'Socio no encontrado' });
 
     const socio = await Socio.findOneAndUpdate(
       { _id: id, clubId: req.user?.clubId },
       updateData,
       { returnDocument: 'after', runValidators: true }
     );
-    if (!socio) return res.status(404).json({ message: 'Socio no encontrado' });
 
     await syncSocioToSheet(socio);
     await syncSocioUserIfPossible(socio);
+
+    const changes = {};
+    for (const field of NOTIFIABLE_FIELDS) {
+      if (updateData[field] !== undefined && updateData[field] !== socioAntes[field]) {
+        changes[field] = updateData[field];
+      }
+    }
+
+    if (Object.keys(changes).length > 0) {
+      const user = await User.findOne({ socioId: socioAntes.dni, active: true, expoPushToken: { $ne: null } })
+        .select('expoPushToken').lean();
+      if (user?.expoPushToken) {
+        const body = buildNotificationMessage(changes);
+        sendPushNotification([user.expoPushToken], {
+          title: 'Actualización de tu ficha de socio',
+          body,
+          data: { tipo: 'socio_update', socioId: id },
+        }).catch((err) => console.error('Error enviando push de socio update:', err));
+      }
+    }
 
     res.status(200).json(socio);
   } catch (error) {
