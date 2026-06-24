@@ -6,16 +6,32 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - ./data/mongo:/data/db
-      - ./init-replica.js:/docker-entrypoint-initdb.d/init-replica.js:ro
+      - /mnt/ssd/mongo-data:/data/db
     environment:
       - MONGO_INITDB_DATABASE=appcarc
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mongo-init:
+    image: mongo:6.0
+    restart: "no"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    command: >
+      mongosh --host mongo:27017 --eval
+      "try { rs.status(); print('RS already initiated') }
+       catch(e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongo:27017' }] }) }"
 
   mongo-express:
     image: mongo-express:1.0
     restart: unless-stopped
     depends_on:
-      - mongo
+      mongo-init:
+        condition: service_completed_successfully
     ports:
       - "8081:8081"
     environment:
