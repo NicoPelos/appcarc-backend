@@ -92,8 +92,8 @@ export const updateSocioHandler = async (req, res) => {
       { returnDocument: 'after', runValidators: true }
     );
 
-    await syncSocioToSheet(socio);
-    await syncSocioUserIfPossible(socio);
+    syncSocioToSheet(socio).catch((err) => console.error('Error actualizando Google Sheets:', err.message));
+    syncSocioUserIfPossible(socio).catch(() => {});
 
     const changes = {};
     for (const field of NOTIFIABLE_FIELDS) {
@@ -103,7 +103,7 @@ export const updateSocioHandler = async (req, res) => {
     }
 
     if (Object.keys(changes).length > 0) {
-      const user = await User.findOne({ socioId: socioAntes.dni, active: true, expoPushToken: { $ne: null } })
+      const user = await User.findOne({ socioId: socioAntes._id.toString(), active: true, expoPushToken: { $ne: null } })
         .select('expoPushToken').lean();
       if (user?.expoPushToken) {
         const body = buildNotificationMessage(changes);

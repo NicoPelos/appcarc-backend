@@ -13,6 +13,9 @@ google-credentials.json
 data/
 mongo-data/
 
+# Binarios / APKs
+public/downloads/
+
 # Mac
 .DS_Store
 

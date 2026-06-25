@@ -2,9 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import swaggerJsDoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import routes from './appRoutes.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 import { startInstagramSyncJob } from './jobs/syncInstagram.job.js';
 import { startRecordatorioCuotasJob } from './jobs/recordatorioCuotas.job.js';
 
@@ -55,6 +59,7 @@ const swaggerDocs = swaggerJsDoc(swaggerOptions);
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.static(join(__dirname, '../public')));
 
 // MongoDB Connection
 if (process.env.NODE_ENV !== 'test') {
