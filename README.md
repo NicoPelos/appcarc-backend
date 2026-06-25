@@ -22,9 +22,9 @@ src/
     ├── movimientos/    # Registro de caja
     ├── asistencias/    # Asistencias unificadas (muro libre + escuelita)
     ├── muroLibre/      # Registro y check-in de muro libre
-    ├── escuelita/      # Alumnos inscriptos
-    ├── novedades/      # Canal de noticias + sync con Instagram RSS
-    └── muroLibre/      # Registro y check-in de muro libre + gestión de horarios
+    ├── escuelita/      # Alumnos inscriptos + categorías con precio sugerido
+    ├── cuotas/         # Cuotas, cálculo de deuda y catálogo de precios (CRUD)
+    └── novedades/      # Canal de noticias + sync con Instagram RSS
 ```
 
 ## Setup
@@ -102,6 +102,8 @@ El login devuelve `{ token, user, socio }`. Si el usuario tiene `mustChangePassw
 
 Cuando se cambia la contraseña, todos los tokens emitidos anteriormente quedan inválidos de inmediato.
 
+**Creación automática de usuario**: al crear un socio con `correoElectronico` y `dni`, el sistema crea automáticamente un usuario con `role: socio`, contraseña = DNI y `mustChangePassword: true`.
+
 ## Socios
 
 | Endpoint                       | Descripción                                  |
@@ -165,12 +167,18 @@ El pase mensual de muro libre se gestiona como una `Cuota` de tipo `muro_libre`.
 
 ## Escuelita
 
-| Endpoint                  | Descripción               |
-|---------------------------|---------------------------|
-| `GET /api/escuelita`      | Listar alumnos            |
-| `POST /api/escuelita`     | Inscribir alumno          |
-| `PUT /api/escuelita/:id`  | Actualizar inscripción    |
-| `DELETE /api/escuelita/:id` | Dar de baja             |
+| Endpoint                              | Descripción                                      |
+|---------------------------------------|--------------------------------------------------|
+| `GET /api/escuelita`                  | Listar alumnos                                   |
+| `POST /api/escuelita`                 | Inscribir alumno                                 |
+| `PUT /api/escuelita/:id`              | Actualizar inscripción (incluye categoriaId)     |
+| `DELETE /api/escuelita/:id`           | Dar de baja                                      |
+| `GET /api/escuelita/categorias`       | Listar categorías                                |
+| `POST /api/escuelita/categorias`      | Crear categoría (solo admin)                     |
+| `PUT /api/escuelita/categorias/:id`   | Actualizar categoría (solo admin)                |
+| `DELETE /api/escuelita/categorias/:id`| Eliminar categoría — soft delete (solo admin)    |
+
+Cada alumno tiene un `categoriaId` que apunta a una `CategoriaEscuelita`. La categoría define el `nombre`, `frecuenciaSemanal` (1 o 2 veces por semana) y `precioMensual` sugerido. El precio final siempre es manual al momento del cobro.
 
 ## Novedades
 
@@ -195,14 +203,26 @@ Registro de horas trabajadas por el personal (palestrero, profesor, secretaria).
 
 ## Precios
 
-El modelo `Precios` es el catálogo económico del club. Códigos usados:
+Catálogo de precios vigentes del club, con historial por fecha.
 
-- `cuota_social`
-- `cuota_escuelita`
-- `muro_libre_diario_socio` / `muro_libre_diario_no_socio`
-- `muro_libre_mensual_socio` / `muro_libre_mensual_no_socio`
+| Endpoint               | Descripción                              |
+|------------------------|------------------------------------------|
+| `GET /api/precios`     | Listar precios (filtros: `categoria`, `codigo`, `trash`) |
+| `POST /api/precios`    | Crear precio (solo admin)                |
+| `PUT /api/precios/:id` | Actualizar precio (solo admin)           |
+| `DELETE /api/precios/:id` | Eliminar precio — soft delete (solo admin) |
 
-Cada precio tiene `vigenteDesde` / `vigenteHasta`. Los cobros guardan snapshots del monto al momento del pago.
+Códigos disponibles:
+
+| Código | Descripción |
+|--------|-------------|
+| `cuota_social` | Cuota mensual del socio |
+| `cuota_escuelita` | Cuota mensual de escuelita (precio base) |
+| `muro_libre_diario_socio` / `muro_libre_diario_no_socio` | Entrada diaria al muro |
+| `muro_libre_mensual_socio` / `muro_libre_mensual_no_socio` | Pase mensual al muro |
+| `hora_palestrero` / `hora_profesor` / `hora_secretaria` | Horas de personal |
+
+Cada precio tiene `vigenteDesde` / `vigenteHasta`. Los cobros guardan snapshots del monto al momento del pago. El precio sugerido para cada categoría de escuelita se gestiona directamente en `CategoriaEscuelita.precioMensual`.
 
 ## Push Notifications
 

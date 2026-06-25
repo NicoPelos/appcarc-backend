@@ -1,0 +1,40 @@
+import Precios from '../models/Precios.js';
+
+export const updatePrecioHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, monto, vigenteDesde, vigenteHasta } = req.body;
+
+    const precio = await Precios.findOne({ _id: id, clubId: req.user.clubId, active: true });
+    if (!precio) return res.status(404).json({ message: 'Precio no encontrado' });
+
+    if (nombre !== undefined) precio.nombre = nombre;
+
+    if (monto !== undefined) {
+      if (isNaN(Number(monto)) || Number(monto) < 0) {
+        return res.status(400).json({ message: 'monto debe ser un número mayor o igual a 0' });
+      }
+      precio.monto = Number(monto);
+    }
+
+    if (vigenteDesde !== undefined) {
+      const d = new Date(vigenteDesde);
+      if (isNaN(d.getTime())) return res.status(400).json({ message: 'vigenteDesde inválido' });
+      precio.vigenteDesde = d;
+    }
+
+    if (vigenteHasta !== undefined) {
+      precio.vigenteHasta = vigenteHasta ? new Date(vigenteHasta) : null;
+    }
+
+    precio.updatedBy = req.user.email || req.user.id;
+    await precio.save();
+
+    return res.status(200).json(precio);
+  } catch (error) {
+    console.error('Error actualizando precio:', error);
+    return res.status(500).json({ message: 'Error al actualizar precio' });
+  }
+};
+
+export default updatePrecioHandler;

@@ -83,7 +83,7 @@ export const updateSocioHandler = async (req, res) => {
     const { id } = req.params;
     const updateData = prepareSocioUpdateData(req.body, req.user);
 
-    const socioAntes = await Socio.findOne({ _id: id, clubId: req.user?.clubId }).lean();
+    const socioAntes = await Socio.findOne({ _id: id, clubId: req.user?.clubId });
     if (!socioAntes) return res.status(404).json({ message: 'Socio no encontrado' });
 
     const socio = await Socio.findOneAndUpdate(

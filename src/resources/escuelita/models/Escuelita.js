@@ -26,6 +26,11 @@ const escuelitaSchema = new mongoose.Schema({
     default: 'activo',
     index: true,
   },
+  categoriaId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CategoriaEscuelita',
+    default: null,
+  },
   observaciones: {
     type: String,
     default: '',

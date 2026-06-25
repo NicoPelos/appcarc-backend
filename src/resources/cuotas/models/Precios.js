@@ -61,6 +61,8 @@ const preciosSchema = new mongoose.Schema({
     default: true,
     index: true,
   },
+  deletedAt: { type: Date, default: null },
+  deletedBy: { type: String, default: null },
   createdBy: String,
   updatedBy: String,
 }, { timestamps: true });

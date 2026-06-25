@@ -1,5 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('../../services/socioSheetSync.js', () => ({ syncSocioToSheet: vi.fn().mockResolvedValue() }));
+vi.mock('../../services/socioData.service.js', () => ({
+  prepareSocioCreateData: vi.fn((body, user) => ({ ...body, createdBy: user?.id, updatedBy: user?.id })),
+  prepareSocioUpdateData: vi.fn((body) => body),
+  syncSocioUserIfPossible: vi.fn().mockResolvedValue(),
+}));
+vi.mock('../../../services/pushNotification.service.js', () => ({ sendPushNotification: vi.fn().mockResolvedValue() }));
+vi.mock('../../../usuarios/models/User.js', () => ({ default: { findOne: vi.fn().mockResolvedValue(null) } }));
+
 import { createSocioHandler } from '../../handlers/createSocio.handler.js';
 import { getSociosHandler } from '../../handlers/getSocios.handler.js';
 import { getSocioByIdHandler } from '../../handlers/getSocioById.handler.js';
@@ -29,7 +38,7 @@ describe('Socios handlers (unit)', () => {
   });
 
   afterEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
   });
 
   const mockSocioFindQuery = (result) => {
@@ -89,6 +98,7 @@ describe('Socios handlers (unit)', () => {
 
   it('updateSocioHandler should update and return socio', async () => {
     const fake = { _id: 'id1', apellido: 'Perez' };
+    Socio.findOne.mockResolvedValueOnce(fake);
     Socio.findOneAndUpdate.mockResolvedValueOnce(fake);
     const req = { params: { id: 'id1' }, body: { nombre: 'Updated' }, user: { clubId: 'club1', id: 'user1' } };
     const res = mockRes();
