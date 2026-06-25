@@ -79,7 +79,7 @@ export const checkinMuroLibreHandler = async (req, res) => {
       checkinMethod: method,
     });
 
-    res.status(201).json(result);
+    res.status(201).json({ asistencia: result.registro, movimiento: result.movimiento, socio });
   } catch (error) {
     if (error instanceof BusinessError || error.status) {
       return res.status(error.status).json({ message: error.message });

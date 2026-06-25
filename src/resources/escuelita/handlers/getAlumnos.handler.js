@@ -40,13 +40,16 @@ import Escuelita from '../models/Escuelita.js';
 
 export const getAlumnosHandler = async (req, res) => {
   try {
-    const { page = 1, limit = 20, estado = 'activo' } = req.query;
+    const { page = 1, limit = 20, estado = 'activo', socioId } = req.query;
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
     const filter = { clubId: req.user?.clubId, active: true };
 
     if (estado !== 'todos') {
       filter.estado = estado;
+    }
+    if (socioId) {
+      filter.socioId = socioId;
     }
 
     const [total, alumnos] = await Promise.all([
