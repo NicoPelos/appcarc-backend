@@ -45,6 +45,7 @@ export const getMyProfileHandler = async (req, res) => {
         nombre: user.nombre,
         role: user.role,
         clubId: user.clubId,
+        expoPushToken: user.expoPushToken ?? null,
       },
       socio,
     });
