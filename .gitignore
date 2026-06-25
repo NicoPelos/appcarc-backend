@@ -8,6 +8,7 @@ npm-debug.log
 
 # Google credentials
 google-credentials.json
+client_secret*.json
 
 # Docker & Data
 data/

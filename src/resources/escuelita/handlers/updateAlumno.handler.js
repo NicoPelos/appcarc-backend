@@ -52,7 +52,7 @@ import Escuelita from '../models/Escuelita.js';
 export const updateAlumnoHandler = async (req, res) => {
   try {
     const updates = {};
-    const { estado, fechaInscripcion, observaciones } = req.body;
+    const { estado, fechaInscripcion, observaciones, categoriaId } = req.body;
 
     if (estado !== undefined) {
       if (!['activo', 'pausado', 'baja'].includes(estado)) {
@@ -73,13 +73,19 @@ export const updateAlumnoHandler = async (req, res) => {
       updates.observaciones = observaciones;
     }
 
+    if (categoriaId !== undefined) {
+      updates.categoriaId = categoriaId || null;
+    }
+
     updates.updatedBy = req.user.email || req.user.id;
 
     const alumno = await Escuelita.findOneAndUpdate(
       { _id: req.params.id, clubId: req.user?.clubId, active: true },
       updates,
       { returnDocument: 'after' }
-    ).populate('socioId', 'socioNumber nombre apellido dni correoElectronico telefono estado active');
+    )
+      .populate('socioId', 'socioNumber nombre apellido dni correoElectronico telefono estado active')
+      .populate('categoriaId', 'nombre codigo frecuenciaSemanal precioMensual');
 
     if (!alumno) {
       return res.status(404).json({ message: 'Alumno de escuelita no encontrado' });

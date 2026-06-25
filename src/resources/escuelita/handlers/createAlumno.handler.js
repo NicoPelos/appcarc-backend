@@ -52,7 +52,7 @@ import Escuelita from '../models/Escuelita.js';
 
 export const createAlumnoHandler = async (req, res) => {
   try {
-    const { socioId, fechaInscripcion, estado = 'activo', observaciones = '' } = req.body;
+    const { socioId, fechaInscripcion, estado = 'activo', observaciones = '', categoriaId } = req.body;
 
     if (!socioId) {
       return res.status(400).json({ message: 'socioId es obligatorio' });
@@ -83,6 +83,7 @@ export const createAlumnoHandler = async (req, res) => {
       dni: socio.dni || '',
       fechaInscripcion: inscriptionDate,
       estado,
+      categoriaId: categoriaId || null,
       observaciones,
       createdBy: req.user.email || req.user.id,
       updatedBy: req.user.email || req.user.id,
@@ -90,6 +91,7 @@ export const createAlumnoHandler = async (req, res) => {
 
     await alumno.save();
     await alumno.populate('socioId', 'socioNumber nombre apellido dni correoElectronico telefono estado active');
+    await alumno.populate('categoriaId', 'nombre codigo frecuenciaSemanal precioMensual');
 
     res.status(201).json(alumno);
   } catch (error) {
