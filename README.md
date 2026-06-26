@@ -6,25 +6,29 @@ Backend de la aplicación Club Andino Río Cuarto, consumido por una app móvil 
 
 ```
 src/
-├── index.js                        # Entrada del servidor Express
-├── appRoutes.js                    # Router principal bajo /api
-├── middleware/auth.js              # JWT + autorización por rol
-├── jobs/syncInstagram.job.js         # Cron job de sync con Instagram (cada 30 min)
-├── jobs/recordatorioCuotas.job.js    # Cron job de recordatorio de deudas (1° de cada mes)
+├── index.js                          # Entrada del servidor Express
+├── appRoutes.js                      # Router principal bajo /api
+├── middleware/auth.js                # JWT + autorización por rol
+├── jobs/
+│   ├── syncInstagram.job.js          # Cron: sync Instagram RSS (cada 30 min)
+│   ├── recordatorioCuotas.job.js     # Cron: recordatorio deudas (1° de cada mes, 9am)
+│   └── syncSheets.job.js             # Cron: exportación a Google Sheets (todos los días, 3am)
 ├── services/
-│   ├── tokenBlacklistService.js    # Blacklist de tokens (Redis o memoria)
-│   └── googleSheetsService.js      # Integración Google Sheets
+│   ├── tokenBlacklistService.js      # Blacklist de tokens (Redis o memoria)
+│   ├── googleSheetsService.js        # Integración Google Sheets (importación)
+│   ├── sheetsExport.service.js       # Exportación a Google Sheets (panel autoridades)
+│   └── pushNotification.service.js   # Expo Push API
 └── resources/
-    ├── usuarios/       # Auth, registro, cambio de contraseña
-    ├── socios/         # CRUD socios, QR, verificación, deuda
+    ├── usuarios/       # Auth, registro, cambio de contraseña, push token
+    ├── socios/         # CRUD socios, QR, verificación, deuda, foto de perfil
     ├── cobros/         # Cobros de cuotas (batch), anulación
-    ├── cuotas/         # Modelo de cuotas y cálculo de deuda
+    ├── cuotas/         # Cuotas, cálculo de deuda y catálogo de precios
     ├── movimientos/    # Registro de caja
     ├── asistencias/    # Asistencias unificadas (muro libre + escuelita)
-    ├── muroLibre/      # Registro y check-in de muro libre
-    ├── escuelita/      # Alumnos inscriptos + categorías con precio sugerido
-    ├── cuotas/         # Cuotas, cálculo de deuda y catálogo de precios (CRUD)
-    └── novedades/      # Canal de noticias + sync con Instagram RSS
+    ├── muroLibre/      # Registro y check-in de muro libre, horarios de personal, etiquetas
+    ├── escuelita/      # Alumnos inscriptos + categorías vinculadas a precios
+    ├── novedades/      # Canal de noticias + sync con Instagram RSS
+    └── export/         # Exportación de datos (Google Sheets)
 ```
 
 ## Setup
@@ -182,7 +186,7 @@ El pase mensual de muro libre se gestiona como una `Cuota` de tipo `muro_libre`.
 | `PUT /api/escuelita/categorias/:id`   | Actualizar categoría (solo admin)                |
 | `DELETE /api/escuelita/categorias/:id`| Eliminar categoría — soft delete (solo admin)    |
 
-Cada alumno tiene un `categoriaId` que apunta a una `CategoriaEscuelita`. La categoría define el `nombre`, `frecuenciaSemanal` (1 o 2 veces por semana) y `precioMensual` sugerido. El precio final siempre es manual al momento del cobro.
+Cada alumno tiene un `categoriaId` que apunta a una `CategoriaEscuelita`. La categoría define `nombre`, `frecuenciaSemanal` (1 o 2 veces por semana) y `codigoPrecio` — que vincula la categoría a un registro del catálogo de precios para el cálculo de deuda.
 
 ## Novedades
 
@@ -216,17 +220,18 @@ Catálogo de precios vigentes del club, con historial por fecha.
 | `PUT /api/precios/:id` | Actualizar precio (solo admin)           |
 | `DELETE /api/precios/:id` | Eliminar precio — soft delete (solo admin) |
 
-Códigos disponibles:
+El código (`codigo`) puede ser cualquier string en minúsculas, números y guiones bajos (`[a-z0-9_]+`). Códigos base recomendados:
 
 | Código | Descripción |
 |--------|-------------|
 | `cuota_social` | Cuota mensual del socio |
-| `cuota_escuelita` | Cuota mensual de escuelita (precio base) |
+| `cuota_escuelita` | Cuota mensual de escuelita (precio base genérico) |
+| `cuota_escuelita_<categoria>` | Precio específico por categoría (ej: `cuota_escuelita_ninos_2x`) |
 | `muro_libre_diario_socio` / `muro_libre_diario_no_socio` | Entrada diaria al muro |
 | `muro_libre_mensual_socio` / `muro_libre_mensual_no_socio` | Pase mensual al muro |
 | `hora_palestrero` / `hora_profesor` / `hora_secretaria` | Horas de personal |
 
-Cada precio tiene `vigenteDesde` / `vigenteHasta`. Los cobros guardan snapshots del monto al momento del pago. El precio sugerido para cada categoría de escuelita se gestiona directamente en `CategoriaEscuelita.precioMensual`.
+Cada precio tiene `vigenteDesde` / `vigenteHasta`. Los cobros guardan snapshots del monto al momento del pago. Para calcular deuda de escuelita, el sistema busca el precio por `CategoriaEscuelita.codigoPrecio`; si no tiene, usa `cuota_escuelita` como fallback.
 
 ## Push Notifications
 
@@ -237,6 +242,34 @@ Disparadores automáticos:
 - **Cobro registrado**: confirmación al socio con detalle de cuotas pagadas
 - **Novedades de Instagram**: cuando el sync detecta posts nuevos
 - **Recordatorio mensual**: el 1° de cada mes a las 9am, a todos los socios con cuotas pendientes
+
+## Export a Google Sheets
+
+Panel de datos para autoridades del club que no usan la app.
+
+| Endpoint                  | Descripción                               |
+|---------------------------|-------------------------------------------|
+| `POST /api/export/sheets` | Exportar datos al Google Sheet (solo admin) |
+
+El servidor también ejecuta la exportación automáticamente **todos los días a las 3am** si `GOOGLE_SHEET_EXPORT_ID` está configurado.
+
+**Primera vez:**
+1. Llamar a `POST /api/export/sheets`
+2. El backend crea un nuevo Google Sheet y loguea en consola: `GOOGLE_SHEET_EXPORT_ID=1Bxi...`
+3. Agregar ese ID al `.env`
+4. Compartir el sheet manualmente desde Google Drive con las autoridades (solo lectura)
+
+**Pestañas generadas:**
+
+| Pestaña | Contenido |
+|---------|-----------|
+| Socios | Lista completa con estado y fecha de asociado |
+| Cuotas Sociales | Matriz 24 meses: ✓ pagada (verde) / ✗ pendiente (rojo) + deuda estimada |
+| Cuotas Escuelita | Igual que Cuotas Sociales, solo alumnos inscriptos |
+| Cobros | Historial de pagos expandido por ítem |
+| Escuelita | Alumnos con categoría y estado |
+| Movimientos | Caja general |
+| Horarios | Horas trabajadas por el personal |
 
 ## Testing
 
