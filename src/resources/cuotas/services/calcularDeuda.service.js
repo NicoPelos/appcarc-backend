@@ -2,6 +2,7 @@ import Cuota from '../models/Cuota.js';
 import Precios from '../models/Precios.js';
 import Socio from '../../socios/models/Socio.js';
 import Escuelita from '../../escuelita/models/Escuelita.js';
+import CategoriaEscuelita from '../../escuelita/models/CategoriaEscuelita.js';
 
 const PRECIO_CODIGO = {
   social: 'cuota_social',
@@ -115,9 +116,19 @@ export const calcularDeuda = async ({ socioId, clubId, tipo }) => {
   const pendientes = candidatos.filter((p) => !pagadasSet.has(p));
 
   const ahora = new Date();
+
+  let codigoPrecio = PRECIO_CODIGO[tipo];
+  if (tipo === 'escuelita') {
+    const alumno = await Escuelita.findOne({ socioId, clubId, active: true }).lean();
+    if (alumno?.categoriaId) {
+      const cat = await CategoriaEscuelita.findById(alumno.categoriaId).lean();
+      if (cat?.codigoPrecio) codigoPrecio = cat.codigoPrecio;
+    }
+  }
+
   const precio = await Precios.findOne({
     clubId,
-    codigo: PRECIO_CODIGO[tipo],
+    codigo: codigoPrecio,
     active: true,
     vigenteDesde: { $lte: ahora },
     $or: [{ vigenteHasta: null }, { vigenteHasta: { $gte: ahora } }],

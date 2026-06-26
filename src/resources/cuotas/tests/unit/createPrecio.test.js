@@ -64,8 +64,8 @@ describe('createPrecioHandler', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  it('retorna 400 si codigo es inválido', async () => {
-    const req = { user: mockUser, body: { ...validBody, codigo: 'invalido' } };
+  it('retorna 400 si codigo tiene caracteres inválidos', async () => {
+    const req = { user: mockUser, body: { ...validBody, codigo: 'Código Inválido!' } };
     const res = mockRes();
 
     await createPrecioHandler(req, res);

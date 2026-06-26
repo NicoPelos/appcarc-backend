@@ -7,6 +7,7 @@ const categoriaEscuelitaSchema = new mongoose.Schema({
   descripcion: { type: String, default: '' },
   frecuenciaSemanal: { type: Number, enum: [1, 2], required: true },
   precioMensual: { type: Number, default: null },
+  codigoPrecio: { type: String, default: null },
   active: { type: Boolean, default: true, index: true },
   deletedAt: { type: Date, default: null },
   deletedBy: { type: String, default: null },

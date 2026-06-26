@@ -85,7 +85,7 @@ export const updateAlumnoHandler = async (req, res) => {
       { returnDocument: 'after' }
     )
       .populate('socioId', 'socioNumber nombre apellido dni correoElectronico telefono estado active')
-      .populate('categoriaId', 'nombre codigo frecuenciaSemanal precioMensual');
+      .populate('categoriaId', 'nombre codigo frecuenciaSemanal precioMensual codigoPrecio');
 
     if (!alumno) {
       return res.status(404).json({ message: 'Alumno de escuelita no encontrado' });

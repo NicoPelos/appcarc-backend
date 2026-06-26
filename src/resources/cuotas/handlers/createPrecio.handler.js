@@ -44,13 +44,8 @@ import Precios from '../models/Precios.js';
  *         description: Error al crear precio
  */
 const VALID_CATEGORIAS = ['cuota', 'hora', 'pase'];
-const VALID_CODIGOS = [
-  'cuota_social', 'cuota_escuelita',
-  'hora_palestrero', 'hora_profesor', 'hora_secretaria',
-  'muro_libre_diario_socio', 'muro_libre_diario_no_socio',
-  'muro_libre_mensual_socio', 'muro_libre_mensual_no_socio',
-];
 const VALID_UNIDADES = ['mes', 'hora', 'dia', 'pase'];
+const CODIGO_PATTERN = /^[a-z0-9_]+$/;
 
 export const createPrecioHandler = async (req, res) => {
   try {
@@ -59,8 +54,8 @@ export const createPrecioHandler = async (req, res) => {
     if (!categoria || !VALID_CATEGORIAS.includes(categoria)) {
       return res.status(400).json({ message: `categoria debe ser: ${VALID_CATEGORIAS.join(', ')}` });
     }
-    if (!codigo || !VALID_CODIGOS.includes(codigo)) {
-      return res.status(400).json({ message: `codigo inválido` });
+    if (!codigo || !CODIGO_PATTERN.test(codigo)) {
+      return res.status(400).json({ message: 'codigo debe contener solo letras minúsculas, números y guiones bajos' });
     }
     if (!nombre) {
       return res.status(400).json({ message: 'nombre es requerido' });

@@ -91,7 +91,7 @@ export const createAlumnoHandler = async (req, res) => {
 
     await alumno.save();
     await alumno.populate('socioId', 'socioNumber nombre apellido dni correoElectronico telefono estado active');
-    await alumno.populate('categoriaId', 'nombre codigo frecuenciaSemanal precioMensual');
+    await alumno.populate('categoriaId', 'nombre codigo frecuenciaSemanal precioMensual codigoPrecio');
 
     res.status(201).json(alumno);
   } catch (error) {

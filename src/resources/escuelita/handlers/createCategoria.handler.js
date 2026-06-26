@@ -23,6 +23,9 @@ import CategoriaEscuelita from '../models/CategoriaEscuelita.js';
  *                 type: integer
  *                 enum: [1, 2]
  *               precioMensual: { type: number }
+*               codigoPrecio:
+*                 type: string
+*                 description: Código del precio en el catálogo (ej. cuota_escuelita_ninos_2x)
  *     responses:
  *       201:
  *         description: Categoría creada
@@ -35,7 +38,7 @@ import CategoriaEscuelita from '../models/CategoriaEscuelita.js';
  */
 export const createCategoriaHandler = async (req, res) => {
   try {
-    const { nombre, codigo, descripcion, frecuenciaSemanal, precioMensual } = req.body;
+    const { nombre, codigo, descripcion, frecuenciaSemanal, precioMensual, codigoPrecio } = req.body;
 
     if (!nombre) return res.status(400).json({ message: 'nombre es requerido' });
     if (!codigo) return res.status(400).json({ message: 'codigo es requerido' });
@@ -53,6 +56,7 @@ export const createCategoriaHandler = async (req, res) => {
       descripcion: descripcion || '',
       frecuenciaSemanal: Number(frecuenciaSemanal),
       precioMensual: precioMensual != null ? Number(precioMensual) : null,
+      codigoPrecio: codigoPrecio || null,
       createdBy: req.user.email || req.user.id,
       updatedBy: req.user.email || req.user.id,
     });

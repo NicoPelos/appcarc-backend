@@ -23,6 +23,9 @@ import CategoriaEscuelita from '../models/CategoriaEscuelita.js';
  *               descripcion: { type: string }
  *               frecuenciaSemanal: { type: integer, enum: [1, 2] }
  *               precioMensual: { type: number }
+ *               codigoPrecio:
+ *                 type: string
+ *                 description: Código del precio en el catálogo (ej. cuota_escuelita_ninos_2x)
  *     responses:
  *       200:
  *         description: Categoría actualizada
@@ -36,7 +39,7 @@ import CategoriaEscuelita from '../models/CategoriaEscuelita.js';
 export const updateCategoriaHandler = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, descripcion, frecuenciaSemanal, precioMensual } = req.body;
+    const { nombre, descripcion, frecuenciaSemanal, precioMensual, codigoPrecio } = req.body;
 
     const categoria = await CategoriaEscuelita.findOne({ _id: id, clubId: req.user.clubId, active: true });
     if (!categoria) return res.status(404).json({ message: 'Categoría no encontrada' });
@@ -51,6 +54,9 @@ export const updateCategoriaHandler = async (req, res) => {
     }
     if (precioMensual !== undefined) {
       categoria.precioMensual = precioMensual != null ? Number(precioMensual) : null;
+    }
+    if (codigoPrecio !== undefined) {
+      categoria.codigoPrecio = codigoPrecio || null;
     }
 
     categoria.updatedBy = req.user.email || req.user.id;

@@ -56,7 +56,7 @@ export const getAlumnosHandler = async (req, res) => {
       Escuelita.countDocuments(filter),
       Escuelita.find(filter)
         .populate('socioId', 'socioNumber nombre apellido dni correoElectronico telefono estado active')
-        .populate('categoriaId', 'nombre codigo frecuenciaSemanal precioMensual')
+        .populate('categoriaId', 'nombre codigo frecuenciaSemanal precioMensual codigoPrecio')
         .sort({ fechaInscripcion: -1, createdAt: -1 })
         .skip((pageNumber - 1) * pageSize)
         .limit(pageSize),
