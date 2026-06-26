@@ -9,6 +9,7 @@ import asistenciasRoutes from './resources/asistencias/routes.js';
 import novedadesRoutes from './resources/novedades/routes.js';
 import horariosRoutes from './resources/muroLibre/horariosRoutes.js';
 import preciosRoutes from './resources/cuotas/preciosRoutes.js';
+import exportRoutes from './resources/export/routes.js';
 
 const router = express.Router();
 
@@ -22,5 +23,6 @@ router.use('/asistencias', asistenciasRoutes);
 router.use('/novedades', novedadesRoutes);
 router.use('/horarios', horariosRoutes);
 router.use('/precios', preciosRoutes);
+router.use('/export', exportRoutes);
 
 export default router;

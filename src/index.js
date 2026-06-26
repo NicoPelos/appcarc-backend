@@ -11,6 +11,7 @@ import routes from './appRoutes.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 import { startInstagramSyncJob } from './jobs/syncInstagram.job.js';
 import { startRecordatorioCuotasJob } from './jobs/recordatorioCuotas.job.js';
+import { startSyncSheetsJob } from './jobs/syncSheets.job.js';
 
 // Load environment variables
 dotenv.config();
@@ -92,6 +93,7 @@ if (process.env.NODE_ENV !== 'test') {
       rssUrl: process.env.INSTAGRAM_RSS_URL,
     });
     startRecordatorioCuotasJob();
+    startSyncSheetsJob();
   });
 }
 

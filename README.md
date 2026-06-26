@@ -57,6 +57,10 @@ INSTAGRAM_RSS_URL=<URL_DEL_FEED_RSS>
 # Google Sheets — hojas adicionales (opcional)
 GOOGLE_SHEETS_HORARIOS_SHEET_NAME=Horarios
 GOOGLE_SHEETS_MOVIMIENTOS_SHEET_NAME=Movimientos
+
+# Google Sheets export — panel para autoridades (opcional)
+CLUB_NAME=CARC
+GOOGLE_SHEET_EXPORT_ID=<ID_del_sheet_generado_en_primer_export>
 ```
 
 Colocar `google-credentials.json` en la raíz del proyecto.
