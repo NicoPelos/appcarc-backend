@@ -1,5 +1,30 @@
 import Precios from '../models/Precios.js';
 
+/**
+ * @openapi
+ * /api/precios:
+ *   get:
+ *     summary: Listar precios del catálogo
+ *     tags: [Precios]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: categoria
+ *         in: query
+ *         schema: { type: string, enum: [cuota, hora, pase] }
+ *       - name: codigo
+ *         in: query
+ *         schema: { type: string }
+ *       - name: trash
+ *         in: query
+ *         description: Mostrar eliminados
+ *         schema: { type: string, enum: ['true'] }
+ *     responses:
+ *       200:
+ *         description: Lista de precios
+ *       500:
+ *         description: Error al obtener precios
+ */
 export const getPreciosHandler = async (req, res) => {
   try {
     const { categoria, codigo, trash } = req.query;

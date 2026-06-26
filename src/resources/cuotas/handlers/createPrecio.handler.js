@@ -1,5 +1,48 @@
 import Precios from '../models/Precios.js';
 
+/**
+ * @openapi
+ * /api/precios:
+ *   post:
+ *     summary: Crear precio en el catálogo (solo admin)
+ *     tags: [Precios]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [categoria, codigo, nombre, unidad, monto]
+ *             properties:
+ *               categoria:
+ *                 type: string
+ *                 enum: [cuota, hora, pase]
+ *               codigo:
+ *                 type: string
+ *                 example: cuota_social
+ *               nombre:
+ *                 type: string
+ *               unidad:
+ *                 type: string
+ *                 enum: [mes, hora, dia, pase]
+ *               monto:
+ *                 type: number
+ *               vigenteDesde:
+ *                 type: string
+ *                 format: date
+ *               vigenteHasta:
+ *                 type: string
+ *                 format: date
+ *     responses:
+ *       201:
+ *         description: Precio creado
+ *       400:
+ *         description: Datos inválidos
+ *       500:
+ *         description: Error al crear precio
+ */
 const VALID_CATEGORIAS = ['cuota', 'hora', 'pase'];
 const VALID_CODIGOS = [
   'cuota_social', 'cuota_escuelita',

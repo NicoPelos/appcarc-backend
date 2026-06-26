@@ -1,5 +1,34 @@
 import Asistencia from '../../asistencias/models/Asistencia.js';
 
+/**
+ * @openapi
+ * /api/muro-libre:
+ *   get:
+ *     summary: Listar asistencias de muro libre
+ *     tags: [MuroLibre]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         schema: { type: integer, default: 1 }
+ *       - name: limit
+ *         in: query
+ *         schema: { type: integer, default: 100 }
+ *       - name: from
+ *         in: query
+ *         description: Fecha desde (YYYY-MM-DD)
+ *         schema: { type: string, format: date }
+ *       - name: to
+ *         in: query
+ *         description: Fecha hasta (YYYY-MM-DD)
+ *         schema: { type: string, format: date }
+ *     responses:
+ *       200:
+ *         description: Lista paginada de asistencias de muro libre
+ *       500:
+ *         description: Error al obtener muro libre
+ */
 export const getMuroLibreHandler = async (req, res) => {
   try {
     const { page = 1, limit = 100, from, to } = req.query;

@@ -17,6 +17,47 @@ export const upload = multer({
   },
 });
 
+/**
+ * @openapi
+ * /api/socios/{id}/foto:
+ *   put:
+ *     summary: Subir o reemplazar foto de perfil del socio
+ *     tags: [Socios]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               foto:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: URL de la foto guardada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 fotoPerfil: { type: string }
+ *       400:
+ *         description: No se recibió imagen
+ *       403:
+ *         description: Sin permiso para modificar este socio
+ *       404:
+ *         description: Socio no encontrado
+ *       500:
+ *         description: Error al subir foto
+ */
 export const uploadFotoSocioHandler = async (req, res) => {
   try {
     const { id } = req.params;

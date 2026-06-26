@@ -1,5 +1,38 @@
 import CategoriaEscuelita from '../models/CategoriaEscuelita.js';
 
+/**
+ * @openapi
+ * /api/escuelita/categorias:
+ *   post:
+ *     summary: Crear categoría de escuelita (solo admin)
+ *     tags: [Escuelita]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [nombre, codigo, frecuenciaSemanal]
+ *             properties:
+ *               nombre: { type: string }
+ *               codigo: { type: string }
+ *               descripcion: { type: string }
+ *               frecuenciaSemanal:
+ *                 type: integer
+ *                 enum: [1, 2]
+ *               precioMensual: { type: number }
+ *     responses:
+ *       201:
+ *         description: Categoría creada
+ *       400:
+ *         description: Datos inválidos
+ *       409:
+ *         description: Código duplicado
+ *       500:
+ *         description: Error al crear categoría
+ */
 export const createCategoriaHandler = async (req, res) => {
   try {
     const { nombre, codigo, descripcion, frecuenciaSemanal, precioMensual } = req.body;

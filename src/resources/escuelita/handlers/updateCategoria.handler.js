@@ -1,5 +1,38 @@
 import CategoriaEscuelita from '../models/CategoriaEscuelita.js';
 
+/**
+ * @openapi
+ * /api/escuelita/categorias/{id}:
+ *   put:
+ *     summary: Actualizar categoría de escuelita (solo admin)
+ *     tags: [Escuelita]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nombre: { type: string }
+ *               descripcion: { type: string }
+ *               frecuenciaSemanal: { type: integer, enum: [1, 2] }
+ *               precioMensual: { type: number }
+ *     responses:
+ *       200:
+ *         description: Categoría actualizada
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Categoría no encontrada
+ *       500:
+ *         description: Error al actualizar categoría
+ */
 export const updateCategoriaHandler = async (req, res) => {
   try {
     const { id } = req.params;

@@ -1,5 +1,38 @@
 import Precios from '../models/Precios.js';
 
+/**
+ * @openapi
+ * /api/precios/{id}:
+ *   put:
+ *     summary: Actualizar precio (solo admin)
+ *     tags: [Precios]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nombre: { type: string }
+ *               monto: { type: number }
+ *               vigenteDesde: { type: string, format: date }
+ *               vigenteHasta: { type: string, format: date }
+ *     responses:
+ *       200:
+ *         description: Precio actualizado
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Precio no encontrado
+ *       500:
+ *         description: Error al actualizar precio
+ */
 export const updatePrecioHandler = async (req, res) => {
   try {
     const { id } = req.params;

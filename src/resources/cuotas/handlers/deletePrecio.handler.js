@@ -1,5 +1,26 @@
 import Precios from '../models/Precios.js';
 
+/**
+ * @openapi
+ * /api/precios/{id}:
+ *   delete:
+ *     summary: Eliminar precio (soft delete, solo admin)
+ *     tags: [Precios]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Precio eliminado
+ *       404:
+ *         description: Precio no encontrado
+ *       500:
+ *         description: Error al eliminar precio
+ */
 export const deletePrecioHandler = async (req, res) => {
   try {
     const { id } = req.params;

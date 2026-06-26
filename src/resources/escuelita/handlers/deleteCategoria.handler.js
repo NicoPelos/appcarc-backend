@@ -1,5 +1,26 @@
 import CategoriaEscuelita from '../models/CategoriaEscuelita.js';
 
+/**
+ * @openapi
+ * /api/escuelita/categorias/{id}:
+ *   delete:
+ *     summary: Eliminar categoría de escuelita (soft delete, solo admin)
+ *     tags: [Escuelita]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: id
+ *         in: path
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Categoría eliminada
+ *       404:
+ *         description: Categoría no encontrada
+ *       500:
+ *         description: Error al eliminar categoría
+ */
 export const deleteCategoriaHandler = async (req, res) => {
   try {
     const { id } = req.params;
