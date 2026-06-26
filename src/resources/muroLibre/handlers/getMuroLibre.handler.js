@@ -1,39 +1,17 @@
 import Asistencia from '../../asistencias/models/Asistencia.js';
 
-/**
- * @openapi
- * /api/muro-libre:
- *   get:
- *     summary: Obtener muros libres
- *     tags: [MuroLibre]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - name: page
- *         in: query
- *         description: Número de página
- *         schema:
- *           type: integer
- *           default: 1
- *       - name: limit
- *         in: query
- *         description: Límite de registros por página
- *         schema:
- *           type: integer
- *           default: 20
- *     responses:
- *       200:
- *         description: Lista de muros libres
- *       500:
- *         description: Error al obtener muros libres
- */
-
 export const getMuroLibreHandler = async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 100, from, to } = req.query;
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
-    const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
+    const pageSize = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 500);
     const filter = { clubId: req.user?.clubId, tipo: 'muro_libre', active: true };
+
+    if (from || to) {
+      filter.fecha = {};
+      if (from) filter.fecha.$gte = new Date(`${from}T00:00:00.000Z`);
+      if (to)   filter.fecha.$lte = new Date(`${to}T23:59:59.999Z`);
+    }
 
     const [total, registros] = await Promise.all([
       Asistencia.countDocuments(filter),
