@@ -10,6 +10,7 @@ import { verifySocioQrHandler } from './handlers/verifySocioQr.handler.js';
 import { getMyProfileHandler } from './handlers/getMyProfile.handler.js';
 import { updateMyProfileHandler } from './handlers/updateMyProfile.handler.js';
 import { getSocioDeudaHandler } from './handlers/getSocioDeuda.handler.js';
+import { upload, uploadFotoSocioHandler } from './handlers/uploadFotoSocio.handler.js';
 import { protect, authorize } from '../../middleware/auth.js';
 
 const router = express.Router();
@@ -97,6 +98,7 @@ router.get('/me/profile', protect, getMyProfileHandler);
 router.put('/me/profile', protect, updateMyProfileHandler);
 
 router.get('/:id/deuda', protect, authorize('admin', 'secretary', 'socio'), getSocioDeudaHandler);
+router.put('/:id/foto', protect, authorize('admin', 'secretary', 'socio'), upload.single('foto'), uploadFotoSocioHandler);
 
 router.get('/:id/qr', protect, authorize('admin', 'secretary', 'socio'), getSocioQrHandler);
 router.post('/verify', protect, authorize('admin', 'secretary', 'socio'), verifySocioQrHandler);

@@ -1,0 +1,50 @@
+import path from 'path';
+import sharp from 'sharp';
+import multer from 'multer';
+import Socio from '../models/Socio.js';
+
+const FOTO_DIR = path.resolve('uploads/fotos');
+const MAX_SIZE_MB = 5;
+
+export const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_SIZE_MB * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) {
+      return cb(new Error('Solo se permiten imágenes'));
+    }
+    cb(null, true);
+  },
+});
+
+export const uploadFotoSocioHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (req.user.role === 'socio' && req.user.socioId !== id) {
+      return res.status(403).json({ message: 'No tenés permiso para modificar este socio' });
+    }
+
+    const socio = await Socio.findOne({ _id: id, clubId: req.user.clubId, active: true });
+    if (!socio) return res.status(404).json({ message: 'Socio no encontrado' });
+
+    if (!req.file) return res.status(400).json({ message: 'No se recibió ninguna imagen' });
+
+    const filename = `socio_${id}.jpg`;
+    const filepath = path.join(FOTO_DIR, filename);
+
+    await sharp(req.file.buffer)
+      .resize(256, 256, { fit: 'cover', position: 'center' })
+      .jpeg({ quality: 80 })
+      .toFile(filepath);
+
+    socio.fotoPerfil = `/uploads/fotos/${filename}`;
+    socio.updatedBy = req.user.email || req.user.id;
+    await socio.save();
+
+    return res.status(200).json({ fotoPerfil: socio.fotoPerfil });
+  } catch (error) {
+    console.error('Error subiendo foto de socio:', error);
+    return res.status(500).json({ message: 'Error al subir foto' });
+  }
+};

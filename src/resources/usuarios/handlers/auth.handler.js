@@ -68,6 +68,12 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
 
   const socio = user.socioId ? await Socio.findById(user.socioId) : null;
 
+  // Guardar foto de Google en el socio si no tiene una propia
+  if (socio && picture && !socio.fotoPerfil) {
+    socio.fotoPerfil = picture;
+    await socio.save();
+  }
+
   const token = jwt.sign({ id: user._id, role: user.role, clubId: user.clubId, socioId: user.socioId || null }, process.env.JWT_SECRET, { expiresIn: '8h' });
 
   return {

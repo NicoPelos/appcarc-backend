@@ -60,6 +60,7 @@ const swaggerDocs = swaggerJsDoc(swaggerOptions);
 app.use(cors());
 app.use(express.json());
 app.use(express.static(join(__dirname, '../public')));
+app.use('/uploads', express.static(join(__dirname, '../uploads')));
 
 // MongoDB Connection
 if (process.env.NODE_ENV !== 'test') {

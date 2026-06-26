@@ -13,6 +13,7 @@ client_secret*.json
 # Docker & Data
 data/
 mongo-data/
+uploads/
 
 # Binarios / APKs
 public/downloads/

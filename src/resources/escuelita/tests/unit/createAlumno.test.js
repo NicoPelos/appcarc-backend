@@ -83,7 +83,7 @@ describe('createAlumnoHandler', () => {
     await createAlumnoHandler({ body: { socioId: SOCIO_ID }, user: USER }, res);
 
     expect(Escuelita.prototype.save).toHaveBeenCalledTimes(1);
-    expect(Escuelita.prototype.populate).toHaveBeenCalledTimes(1);
+    expect(Escuelita.prototype.populate).toHaveBeenCalledTimes(2);
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
