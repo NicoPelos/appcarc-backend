@@ -9,6 +9,8 @@ import asistenciasRoutes from './resources/asistencias/routes.js';
 import novedadesRoutes from './resources/novedades/routes.js';
 import horariosRoutes from './resources/muroLibre/horariosRoutes.js';
 import preciosRoutes from './resources/cuotas/preciosRoutes.js';
+import etiquetasRoutes from './resources/etiquetas/routes.js';
+import suscripcionesRoutes from './resources/suscripciones/routes.js';
 import exportRoutes from './resources/export/routes.js';
 
 const router = express.Router();
@@ -23,6 +25,8 @@ router.use('/asistencias', asistenciasRoutes);
 router.use('/novedades', novedadesRoutes);
 router.use('/horarios', horariosRoutes);
 router.use('/precios', preciosRoutes);
+router.use('/etiquetas', etiquetasRoutes);
+router.use('/suscripciones', suscripcionesRoutes);
 router.use('/export', exportRoutes);
 
 export default router;

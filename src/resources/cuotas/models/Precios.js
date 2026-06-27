@@ -6,26 +6,11 @@ const preciosSchema = new mongoose.Schema({
     required: true,
     index: true,
   },
-  categoria: {
-    type: String,
-    enum: ['cuota', 'hora', 'pase'],
-    required: true,
-    index: true,
-  },
-  codigo: {
-    type: String,
-    enum: [
-      'cuota_social',
-      'cuota_escuelita',
-      'hora_palestrero',
-      'hora_profesor',
-      'hora_secretaria',
-      'muro_libre_diario_socio',
-      'muro_libre_diario_no_socio',
-      'muro_libre_mensual_socio',
-      'muro_libre_mensual_no_socio',
-    ],
-    required: true,
+  // Nueva arquitectura: precio pertenece a una Etiqueta (concepto de precio)
+  etiquetaId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Etiqueta',
+    default: null,
     index: true,
   },
   nombre: {
@@ -67,13 +52,7 @@ const preciosSchema = new mongoose.Schema({
   updatedBy: String,
 }, { timestamps: true });
 
-preciosSchema.index({ clubId: 1, codigo: 1, vigenteDesde: -1 });
-
-preciosSchema.virtual('tipoCuota').get(function getTipoCuota() {
-  if (this.codigo === 'cuota_social') return 'social';
-  if (this.codigo === 'cuota_escuelita') return 'escuelita';
-  return undefined;
-});
+preciosSchema.index({ clubId: 1, etiquetaId: 1, vigenteDesde: -1 });
 
 const Precios = mongoose.model('Precios', preciosSchema);
 

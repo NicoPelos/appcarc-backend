@@ -5,6 +5,11 @@ const mockSave = vi.fn();
 vi.mock('../../models/Precios.js', () => ({
   default: vi.fn().mockImplementation((data) => ({ ...data, save: mockSave })),
 }));
+vi.mock('../../../etiquetas/models/Etiqueta.js', () => ({
+  default: { findOne: vi.fn() },
+}));
+
+import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 
 const mockUser = { clubId: 'CARC', email: 'admin@carc.com' };
 
@@ -16,14 +21,16 @@ const mockRes = () => {
 };
 
 const validBody = {
-  categoria: 'cuota',
-  codigo: 'cuota_social',
-  nombre: 'Cuota Social',
+  etiquetaId: '6650000000000000000000aa',
+  nombre: 'Cuota Social Enero 2025',
   unidad: 'mes',
-  monto: 5000,
+  monto: 15000,
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  Etiqueta.findOne.mockResolvedValue({ _id: validBody.etiquetaId, nombre: 'Cuota Social' });
+});
 
 describe('createPrecioHandler', () => {
   it('crea precio correctamente', async () => {
@@ -37,8 +44,8 @@ describe('createPrecioHandler', () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  it('retorna 400 si falta categoria', async () => {
-    const req = { user: mockUser, body: { ...validBody, categoria: undefined } };
+  it('retorna 400 si falta etiquetaId', async () => {
+    const req = { user: mockUser, body: { ...validBody, etiquetaId: undefined } };
     const res = mockRes();
 
     await createPrecioHandler(req, res);
@@ -55,6 +62,15 @@ describe('createPrecioHandler', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
+  it('retorna 400 si unidad es inválida', async () => {
+    const req = { user: mockUser, body: { ...validBody, unidad: 'quincenal' } };
+    const res = mockRes();
+
+    await createPrecioHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
   it('retorna 400 si monto es negativo', async () => {
     const req = { user: mockUser, body: { ...validBody, monto: -100 } };
     const res = mockRes();
@@ -64,13 +80,14 @@ describe('createPrecioHandler', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  it('retorna 400 si codigo tiene caracteres inválidos', async () => {
-    const req = { user: mockUser, body: { ...validBody, codigo: 'Código Inválido!' } };
+  it('retorna 404 si etiqueta no existe', async () => {
+    Etiqueta.findOne.mockResolvedValue(null);
+    const req = { user: mockUser, body: validBody };
     const res = mockRes();
 
     await createPrecioHandler(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(404);
   });
 
   it('retorna 500 si hay error al guardar', async () => {

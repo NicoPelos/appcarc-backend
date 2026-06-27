@@ -12,10 +12,22 @@ const cuotaSchema = new mongoose.Schema({
     required: true,
     index: true,
   },
+  suscripcionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Suscripcion',
+    default: null,
+    index: true,
+  },
+  etiquetaId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Etiqueta',
+    default: null,
+    index: true,
+  },
   tipo: {
     type: String,
     enum: ['social', 'escuelita', 'muro_libre'],
-    required: true,
+    default: null,
     index: true,
   },
   periodo: {
@@ -88,8 +100,8 @@ const cuotaSchema = new mongoose.Schema({
 });
 
 cuotaSchema.index(
-  { clubId: 1, socioId: 1, tipo: 1, periodo: 1, active: 1 },
-  { unique: true }
+  { clubId: 1, socioId: 1, suscripcionId: 1, periodo: 1, active: 1 },
+  { unique: true, sparse: true }
 );
 
 export default mongoose.model('Cuota', cuotaSchema);

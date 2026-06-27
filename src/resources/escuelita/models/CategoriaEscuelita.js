@@ -5,9 +5,14 @@ const categoriaEscuelitaSchema = new mongoose.Schema({
   nombre: { type: String, required: true },
   codigo: { type: String, required: true },
   descripcion: { type: String, default: '' },
-  frecuenciaSemanal: { type: Number, enum: [1, 2], required: true },
-  precioMensual: { type: Number, default: null },
-  codigoPrecio: { type: String, default: null },
+  frecuenciaSemanal: { type: Number, min: 1, max: 6, required: true },
+  // Etiqueta de precio asociada (nueva arquitectura)
+  etiquetaId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Etiqueta',
+    default: null,
+    index: true,
+  },
   active: { type: Boolean, default: true, index: true },
   deletedAt: { type: Date, default: null },
   deletedBy: { type: String, default: null },

@@ -2,17 +2,12 @@ import mongoose from 'mongoose';
 import Socio from '../../socios/models/Socio.js';
 import Cuota from '../../cuotas/models/Cuota.js';
 import Precios from '../../cuotas/models/Precios.js';
+import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import Cobro from '../models/Cobro.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 
-const VALID_TIPOS = ['social', 'escuelita', 'muro_libre'];
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
-const PRECIO_CODIGO_BY_TIPO = {
-  social: 'cuota_social',
-  escuelita: 'cuota_escuelita',
-  muro_libre: 'muro_libre_mensual_socio',
-};
 
 class BusinessError extends Error {
   constructor(message, status = 400) {
@@ -22,25 +17,17 @@ class BusinessError extends Error {
   }
 }
 
-const normalizeTipo = (tipo) => String(tipo || '').trim().toLowerCase();
-
 const addMonthsToPeriodo = (periodo, monthsToAdd) => {
   const [year, month] = periodo.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1 + monthsToAdd, 1));
-  const nextYear = date.getUTCFullYear();
-  const nextMonth = String(date.getUTCMonth() + 1).padStart(2, '0');
-  return `${nextYear}-${nextMonth}`;
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 };
 
 const getPeriodosFromItem = (item, index) => {
   if (Array.isArray(item?.periodos) && item.periodos.length) {
-    const periodos = item.periodos.map((periodo) => String(periodo || '').trim());
-    const invalid = periodos.find((periodo) => !PERIODO_PATTERN.test(periodo));
-
-    if (invalid) {
-      throw new BusinessError(`El item ${index + 1} contiene un período inválido`);
-    }
-
+    const periodos = item.periodos.map((p) => String(p || '').trim());
+    const invalid = periodos.find((p) => !PERIODO_PATTERN.test(p));
+    if (invalid) throw new BusinessError(`El item ${index + 1} contiene un período inválido`);
     return periodos;
   }
 
@@ -57,16 +44,13 @@ const getPeriodosFromItem = (item, index) => {
   return Array.from({ length: cantidad }, (_, offset) => addMonthsToPeriodo(periodoInicial, offset));
 };
 
-const findPrecioVigente = async ({ clubId, codigo, date, session = null }) => {
+const findPrecioVigente = async ({ clubId, etiquetaId, date, session = null }) => {
   const query = Precios.findOne({
     clubId,
-    codigo,
+    etiquetaId,
     active: true,
     vigenteDesde: { $lte: date },
-    $or: [
-      { vigenteHasta: null },
-      { vigenteHasta: { $gte: date } },
-    ],
+    $or: [{ vigenteHasta: null }, { vigenteHasta: { $gte: date } }],
   }).sort({ vigenteDesde: -1 });
 
   return session ? query.session(session) : query;
@@ -74,20 +58,15 @@ const findPrecioVigente = async ({ clubId, codigo, date, session = null }) => {
 
 const normalizeItem = async ({ item, index, clubId, date, precioCache, session = null }) => {
   const socioId = String(item?.socioId || '').trim();
-  const tipo = normalizeTipo(item?.tipo);
+  const suscripcionId = String(item?.suscripcionId || '').trim();
   const periodos = getPeriodosFromItem(item, index);
   const amount = item?.amount == null ? null : Number(item.amount);
   let precioSugeridoSnapshot = item?.precioSugeridoSnapshot == null
     ? null
     : Number(item.precioSugeridoSnapshot);
 
-  if (!socioId) {
-    throw new BusinessError(`El item ${index + 1} debe indicar socioId`);
-  }
-
-  if (!VALID_TIPOS.includes(tipo)) {
-    throw new BusinessError(`El item ${index + 1} tiene un tipo de cuota inválido`);
-  }
+  if (!socioId) throw new BusinessError(`El item ${index + 1} debe indicar socioId`);
+  if (!suscripcionId) throw new BusinessError(`El item ${index + 1} debe indicar suscripcionId`);
 
   if (amount !== null && (!Number.isFinite(amount) || amount <= 0)) {
     throw new BusinessError(`El item ${index + 1} debe tener un importe mayor que cero`);
@@ -97,19 +76,30 @@ const normalizeItem = async ({ item, index, clubId, date, precioCache, session =
     throw new BusinessError(`El item ${index + 1} tiene un precio sugerido inválido`);
   }
 
-  const precioCodigo = PRECIO_CODIGO_BY_TIPO[tipo];
+  // Buscar suscripcion para obtener etiquetaId
+  const suscripcion = await Suscripcion.findOne({
+    _id: suscripcionId,
+    socioId,
+    clubId,
+    active: true,
+  }).lean();
+
+  if (!suscripcion) {
+    throw new BusinessError(`Suscripción ${suscripcionId} no encontrada para el socio ${socioId}`, 404);
+  }
+
+  const etiquetaId = String(suscripcion.etiquetaId);
 
   if (precioSugeridoSnapshot === null && amount === null) {
-    if (!precioCache.has(precioCodigo)) {
-      precioCache.set(precioCodigo, await findPrecioVigente({ clubId, codigo: precioCodigo, date, session }));
+    if (!precioCache.has(etiquetaId)) {
+      precioCache.set(etiquetaId, await findPrecioVigente({ clubId, etiquetaId, date, session }));
     }
-
-    const precio = precioCache.get(precioCodigo);
+    const precio = precioCache.get(etiquetaId);
     precioSugeridoSnapshot = precio?.monto ?? null;
   }
 
   const unitAmount = amount ?? precioSugeridoSnapshot;
-  if (!Number.isFinite(unitAmount) || unitAmount <= 0) {
+  if (!Number.isFinite(unitAmount) || unitAmount < 0) {
     throw new BusinessError(`El item ${index + 1} necesita un importe o un precio vigente configurado`);
   }
 
@@ -117,35 +107,22 @@ const normalizeItem = async ({ item, index, clubId, date, precioCache, session =
 
   return periodos.map((periodo) => ({
     socioId,
-    tipo,
+    suscripcionId,
+    etiquetaId,
     periodo,
     amount: unitAmount,
     precioSugeridoSnapshot,
-    precioCodigo,
     description,
   }));
 };
 
-const buildItemKey = (item) => `${item.socioId}:${item.tipo}:${item.periodo}`;
-
-const buildCobroConcept = (items) => {
-  const tipos = new Set(items.map((item) => item.tipo));
-  if (tipos.size === 1 && tipos.has('social')) return 'Cobro de cuotas sociales';
-  if (tipos.size === 1 && tipos.has('escuelita')) return 'Cobro de cuotas de escuelita';
-  if (tipos.size === 1 && tipos.has('muro_libre')) return 'Cobro de pases muro libre';
-  return 'Cobro de cuotas';
-};
+const buildItemKey = (item) => `${item.socioId}:${item.suscripcionId}:${item.periodo}`;
 
 export const registrarCobro = async ({ clubId, user, body }) => {
-  if (!clubId) {
-    throw new BusinessError('No se pudo determinar el club del usuario', 401);
-  }
+  if (!clubId) throw new BusinessError('No se pudo determinar el club del usuario', 401);
 
   const date = body?.date ? new Date(body.date) : new Date();
-
-  if (Number.isNaN(date.getTime())) {
-    throw new BusinessError('La fecha del cobro es inválida');
-  }
+  if (Number.isNaN(date.getTime())) throw new BusinessError('La fecha del cobro es inválida');
 
   const session = await mongoose.startSession();
   try {
@@ -155,31 +132,21 @@ export const registrarCobro = async ({ clubId, user, body }) => {
       const precioCache = new Map();
       const items = Array.isArray(body?.items)
         ? (await Promise.all(body.items.map((item, index) => normalizeItem({
-          item,
-          index,
-          clubId,
-          date,
-          precioCache,
-          session,
+          item, index, clubId, date, precioCache, session,
         })))).flat()
         : [];
 
-      if (!items.length) {
-        throw new BusinessError('El cobro debe incluir al menos una cuota');
-      }
+      if (!items.length) throw new BusinessError('El cobro debe incluir al menos una cuota');
 
       const duplicated = items.find((item, index) => (
-        items.findIndex((candidate) => buildItemKey(candidate) === buildItemKey(item)) !== index
+        items.findIndex((c) => buildItemKey(c) === buildItemKey(item)) !== index
       ));
-
       if (duplicated) {
-        throw new BusinessError(`El cobro incluye una cuota duplicada para socio ${duplicated.socioId}, ${duplicated.tipo}, ${duplicated.periodo}`);
+        throw new BusinessError(`El cobro incluye una cuota duplicada para socio ${duplicated.socioId}, suscripción ${duplicated.suscripcionId}, ${duplicated.periodo}`);
       }
 
       const responsable = String(user?.email || user?.id || '').trim();
-      if (!responsable) {
-        throw new BusinessError('No se pudo determinar el responsable del cobro');
-      }
+      if (!responsable) throw new BusinessError('No se pudo determinar el responsable del cobro');
 
       const paymentMethod = String(body?.paymentMethod || '').trim();
       if (!VALID_PAYMENT_METHODS.includes(paymentMethod)) {
@@ -190,9 +157,8 @@ export const registrarCobro = async ({ clubId, user, body }) => {
 
       const socioIds = [...new Set(items.map((item) => item.socioId))];
       const socios = await Socio.find({ _id: { $in: socioIds }, clubId, active: true }).session(session);
-      const sociosEncontrados = new Set(socios.map((socio) => String(socio._id)));
-      const socioFaltante = socioIds.find((socioId) => !sociosEncontrados.has(socioId));
-
+      const sociosEncontrados = new Set(socios.map((s) => String(s._id)));
+      const socioFaltante = socioIds.find((id) => !sociosEncontrados.has(id));
       if (socioFaltante) {
         throw new BusinessError(`El socio ${socioFaltante} no existe, está inactivo o pertenece a otro club`, 404);
       }
@@ -200,16 +166,15 @@ export const registrarCobro = async ({ clubId, user, body }) => {
       const cuotaFilters = items.map((item) => ({
         clubId,
         socioId: item.socioId,
-        tipo: item.tipo,
+        suscripcionId: item.suscripcionId,
         periodo: item.periodo,
         active: true,
       }));
 
       const existingCuotas = await Cuota.find({ $or: cuotaFilters }).session(session);
-      const cuotaPagada = existingCuotas.find((cuota) => cuota.estado === 'pagada');
-
+      const cuotaPagada = existingCuotas.find((c) => c.estado === 'pagada');
       if (cuotaPagada) {
-        throw new BusinessError(`La cuota ${cuotaPagada.tipo} ${cuotaPagada.periodo} del socio ${cuotaPagada.socioId} ya está pagada`, 409);
+        throw new BusinessError(`La cuota ${cuotaPagada.periodo} de la suscripción ${cuotaPagada.suscripcionId} del socio ${cuotaPagada.socioId} ya está pagada`, 409);
       }
 
       const totalAmount = items.reduce((total, item) => total + item.amount, 0);
@@ -234,7 +199,7 @@ export const registrarCobro = async ({ clubId, user, body }) => {
         responsable,
         type: 'Ingreso',
         amount: totalAmount,
-        concept: buildCobroConcept(items),
+        concept: 'Cobro de cuotas',
         paymentMethod,
         formId: String(cobro._id),
         description: description || `Cobro con ${items.length} cuota${items.length === 1 ? '' : 's'}`,
@@ -249,22 +214,22 @@ export const registrarCobro = async ({ clubId, user, body }) => {
 
       const cuotas = [];
       for (const item of items) {
-        const existing = existingCuotas.find((cuota) => (
-          String(cuota.socioId) === item.socioId
-          && cuota.tipo === item.tipo
-          && cuota.periodo === item.periodo
+        const existing = existingCuotas.find((c) => (
+          String(c.socioId) === item.socioId
+          && String(c.suscripcionId) === item.suscripcionId
+          && c.periodo === item.periodo
         ));
 
         const cuotaData = {
           clubId,
           socioId: item.socioId,
-          tipo: item.tipo,
+          suscripcionId: item.suscripcionId,
+          etiquetaId: item.etiquetaId,
           periodo: item.periodo,
           estado: 'pagada',
           montoEsperadoSnapshot: item.precioSugeridoSnapshot ?? item.amount,
           montoPagadoSnapshot: item.amount,
           precioSugeridoSnapshot: item.precioSugeridoSnapshot,
-          precioCodigo: item.precioCodigo,
           cobroId: cobro._id,
           movimientoId: movimiento._id,
           fechaPago: date,
@@ -279,10 +244,7 @@ export const registrarCobro = async ({ clubId, user, body }) => {
           await existing.save({ session });
           cuotas.push(existing);
         } else {
-          const cuota = new Cuota({
-            ...cuotaData,
-            createdBy: actor,
-          });
+          const cuota = new Cuota({ ...cuotaData, createdBy: actor });
           await cuota.save({ session });
           cuotas.push(cuota);
         }

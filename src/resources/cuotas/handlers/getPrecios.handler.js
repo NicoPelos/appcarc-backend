@@ -4,16 +4,14 @@ import Precios from '../models/Precios.js';
  * @openapi
  * /api/precios:
  *   get:
- *     summary: Listar precios del catálogo
+ *     summary: Listar precios históricos
  *     tags: [Precios]
  *     security:
  *       - bearerAuth: []
  *     parameters:
- *       - name: categoria
+ *       - name: etiquetaId
  *         in: query
- *         schema: { type: string, enum: [cuota, hora, pase] }
- *       - name: codigo
- *         in: query
+ *         description: Filtrar por etiqueta
  *         schema: { type: string }
  *       - name: trash
  *         in: query
@@ -27,7 +25,7 @@ import Precios from '../models/Precios.js';
  */
 export const getPreciosHandler = async (req, res) => {
   try {
-    const { categoria, codigo, trash } = req.query;
+    const { etiquetaId, trash } = req.query;
     const showTrash = trash === 'true';
 
     const filter = {
@@ -35,10 +33,12 @@ export const getPreciosHandler = async (req, res) => {
       active: !showTrash,
     };
 
-    if (categoria) filter.categoria = categoria;
-    if (codigo) filter.codigo = codigo;
+    if (etiquetaId) filter.etiquetaId = etiquetaId;
 
-    const precios = await Precios.find(filter).sort({ codigo: 1, vigenteDesde: -1 }).lean();
+    const precios = await Precios.find(filter)
+      .populate('etiquetaId', 'nombre unidad uso_sistema')
+      .sort({ etiquetaId: 1, vigenteDesde: -1 })
+      .lean();
 
     return res.status(200).json(precios);
   } catch (error) {

@@ -5,7 +5,7 @@ import { calcularDeuda } from '../../cuotas/services/calcularDeuda.service.js';
  * @openapi
  * /api/socios/{id}/deuda:
  *   get:
- *     summary: Calcular deuda de cuotas (social y escuelita) de un socio
+ *     summary: Calcular deuda de un socio basada en sus suscripciones activas
  *     tags: [Socios]
  *     security:
  *       - bearerAuth: []
@@ -17,39 +17,35 @@ import { calcularDeuda } from '../../cuotas/services/calcularDeuda.service.js';
  *           type: string
  *     responses:
  *       200:
- *         description: Deuda calculada
+ *         description: Array de deudas por suscripción
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 social:
- *                   type: object
- *                   properties:
- *                     ultimoPeriodoPagado:
- *                       type: string
- *                       nullable: true
- *                     periodoActual:
- *                       type: string
- *                     mesesDeuda:
- *                       type: integer
- *                     periodos:
- *                       type: array
- *                       items:
- *                         type: string
- *                     precioUnitario:
- *                       type: number
- *                       nullable: true
- *                     totalDeuda:
- *                       type: number
- *                       nullable: true
- *                 escuelita:
- *                   nullable: true
- *                   description: null si el socio no es alumno de escuelita
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   suscripcionId: { type: string }
+ *                   etiqueta:
+ *                     type: object
+ *                     properties:
+ *                       nombre: { type: string }
+ *                       unidad: { type: string }
+ *                       uso_sistema: { type: string, nullable: true }
+ *                   fechaDesde: { type: string }
+ *                   fechaHasta: { type: string, nullable: true }
+ *                   ultimoPeriodoPagado: { type: string, nullable: true }
+ *                   periodoActual: { type: string }
+ *                   mesesDeuda: { type: integer }
+ *                   periodos: { type: array, items: { type: string } }
+ *                   precioUnitario: { type: number, nullable: true }
+ *                   totalDeuda: { type: number, nullable: true }
  *       403:
  *         description: Sin permiso para ver la deuda de este socio
  *       404:
  *         description: Socio no encontrado
+ *       500:
+ *         description: Error al calcular deuda
  */
 export const getSocioDeudaHandler = async (req, res) => {
   const { id } = req.params;
@@ -63,16 +59,8 @@ export const getSocioDeudaHandler = async (req, res) => {
   }
 
   try {
-    const [social, escuelita] = await Promise.all([
-      calcularDeuda({ socioId: id, clubId: req.user.clubId, tipo: 'social' }),
-      calcularDeuda({ socioId: id, clubId: req.user.clubId, tipo: 'escuelita' }),
-    ]);
-
-    if (social === null) {
-      return res.status(404).json({ message: 'Socio no encontrado' });
-    }
-
-    return res.status(200).json({ social, escuelita });
+    const deuda = await calcularDeuda({ socioId: id, clubId: req.user.clubId });
+    return res.status(200).json(deuda);
   } catch (error) {
     console.error('Error calculando deuda:', error);
     return res.status(500).json({ message: 'Error al calcular deuda' });

@@ -2,13 +2,14 @@ import mongoose from 'mongoose';
 import Socio from '../../socios/models/Socio.js';
 import Cuota from '../../cuotas/models/Cuota.js';
 import Precios from '../../cuotas/models/Precios.js';
+import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 const VALID_TIPO_PASE = ['diario', 'mensual'];
 
-const PRECIO_CODIGO_BY_TIPO = {
+const USO_SISTEMA_BY_TIPO = {
   diario: {
     socio: 'muro_libre_diario_socio',
     noSocio: 'muro_libre_diario_no_socio',
@@ -33,16 +34,16 @@ const buildPeriodo = (date) => {
   return `${year}-${month}`;
 };
 
-const findPrecioVigente = ({ clubId, codigo, date, session = null }) => {
+const findPrecioVigenteByUsoSistema = async ({ clubId, uso_sistema, date, session = null }) => {
+  const etiqueta = await Etiqueta.findOne({ clubId, uso_sistema, active: true }).lean();
+  if (!etiqueta) return null;
+
   const query = Precios.findOne({
     clubId,
-    codigo,
+    etiquetaId: etiqueta._id,
     active: true,
     vigenteDesde: { $lte: date },
-    $or: [
-      { vigenteHasta: null },
-      { vigenteHasta: { $gte: date } },
-    ],
+    $or: [{ vigenteHasta: null }, { vigenteHasta: { $gte: date } }],
   }).sort({ vigenteDesde: -1 });
 
   return session ? query.session(session) : query;
@@ -120,8 +121,8 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         throw new BusinessError('La forma de pago debe ser Efectivo o Transferencia');
       }
 
-      const precioCodigo = PRECIO_CODIGO_BY_TIPO[tipoPase][esSocio ? 'socio' : 'noSocio'];
-      const precio = await findPrecioVigente({ clubId, codigo: precioCodigo, date: fecha, session });
+      const uso_sistema = USO_SISTEMA_BY_TIPO[tipoPase][esSocio ? 'socio' : 'noSocio'];
+      const precio = await findPrecioVigenteByUsoSistema({ clubId, uso_sistema, date: fecha, session });
       const precioSugeridoSnapshot = precio?.monto ?? null;
       const monto = body?.amount == null && body?.monto == null
         ? precioSugeridoSnapshot
@@ -150,7 +151,7 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         estadoPago,
         monto: estadoPago === 'pagado' ? monto : 0,
         precioSugeridoSnapshot,
-        precioCodigo,
+        uso_sistema,
         fecha,
         periodo: tipoPase === 'mensual' ? buildPeriodo(fecha) : '',
         formaPago: estadoPago === 'pagado' ? paymentMethod : 'Sin pago',

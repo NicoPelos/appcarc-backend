@@ -16,12 +16,19 @@ const mockRes = () => {
   return res;
 };
 
+const mockFind = (result = []) => {
+  Precios.find.mockReturnValue({
+    populate: vi.fn().mockReturnThis(),
+    sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(result) }),
+  });
+};
+
 beforeEach(() => vi.clearAllMocks());
 
 describe('getPreciosHandler', () => {
   it('devuelve lista de precios activos', async () => {
-    const precios = [{ codigo: 'cuota_social', monto: 5000 }];
-    Precios.find.mockReturnValue({ sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(precios) }) });
+    const precios = [{ nombre: 'Cuota Social', monto: 15000 }];
+    mockFind(precios);
 
     const req = { user: mockUser, query: {} };
     const res = mockRes();
@@ -32,30 +39,19 @@ describe('getPreciosHandler', () => {
     expect(res.json).toHaveBeenCalledWith(precios);
   });
 
-  it('filtra por categoria', async () => {
-    Precios.find.mockReturnValue({ sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }) });
+  it('filtra por etiquetaId', async () => {
+    mockFind([]);
 
-    const req = { user: mockUser, query: { categoria: 'cuota' } };
+    const req = { user: mockUser, query: { etiquetaId: '6650000000000000000000aa' } };
     const res = mockRes();
 
     await getPreciosHandler(req, res);
 
-    expect(Precios.find).toHaveBeenCalledWith(expect.objectContaining({ categoria: 'cuota' }));
-  });
-
-  it('filtra por codigo', async () => {
-    Precios.find.mockReturnValue({ sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }) });
-
-    const req = { user: mockUser, query: { codigo: 'cuota_social' } };
-    const res = mockRes();
-
-    await getPreciosHandler(req, res);
-
-    expect(Precios.find).toHaveBeenCalledWith(expect.objectContaining({ codigo: 'cuota_social' }));
+    expect(Precios.find).toHaveBeenCalledWith(expect.objectContaining({ etiquetaId: '6650000000000000000000aa' }));
   });
 
   it('muestra eliminados con trash=true', async () => {
-    Precios.find.mockReturnValue({ sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }) });
+    mockFind([]);
 
     const req = { user: mockUser, query: { trash: 'true' } };
     const res = mockRes();
@@ -66,7 +62,10 @@ describe('getPreciosHandler', () => {
   });
 
   it('retorna 500 si hay error', async () => {
-    Precios.find.mockReturnValue({ sort: vi.fn().mockReturnValue({ lean: vi.fn().mockRejectedValue(new Error('DB error')) }) });
+    Precios.find.mockReturnValue({
+      populate: vi.fn().mockReturnThis(),
+      sort: vi.fn().mockReturnValue({ lean: vi.fn().mockRejectedValue(new Error('DB error')) }),
+    });
 
     const req = { user: mockUser, query: {} };
     const res = mockRes();

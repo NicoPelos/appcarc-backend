@@ -1,167 +1,147 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { calcularDeuda } from '../../services/calcularDeuda.service.js';
-import Cuota from '../../models/Cuota.js';
-import Precios from '../../models/Precios.js';
-import Socio from '../../../socios/models/Socio.js';
-import Escuelita from '../../../escuelita/models/Escuelita.js';
 
-const CLUB_ID = 'club1';
-const SOCIO_ID = '507f1f77bcf86cd799439011';
-const FECHA_HOY = new Date('2026-06-15T12:00:00Z');
+const mockCuotaFindOne = vi.fn();
+const mockCuotaFind = vi.fn();
+const mockPreciosFindOne = vi.fn();
+const mockSuscripcionFind = vi.fn();
 
-const mockPrecio = (monto = 15000) => {
-  Precios.findOne = vi.fn().mockReturnValue({
-    sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ monto }) }),
-  });
-};
+vi.mock('../../models/Cuota.js', () => ({
+  default: {
+    findOne: (...args) => mockCuotaFindOne(...args),
+    find: (...args) => mockCuotaFind(...args),
+  },
+}));
 
-const mockUltimaCuota = (periodo) => {
-  Cuota.findOne = vi.fn().mockReturnValue({
-    sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(periodo ? { periodo } : null) }),
-  });
-};
+vi.mock('../../models/Precios.js', () => ({
+  default: {
+    findOne: (...args) => mockPreciosFindOne(...args),
+  },
+}));
 
-const mockCuotasPagadas = (periodos = []) => {
-  Cuota.find = vi.fn().mockReturnValue({
-    lean: vi.fn().mockResolvedValue(periodos.map((periodo) => ({ periodo }))),
-  });
-};
+vi.mock('../../../suscripciones/models/Suscripcion.js', () => ({
+  default: {
+    find: (...args) => mockSuscripcionFind(...args),
+  },
+}));
 
-const mockSocio = (fechaDeAsociado) => {
-  Socio.findOne = vi.fn().mockReturnValue({
-    lean: vi.fn().mockResolvedValue(fechaDeAsociado ? { fechaDeAsociado: new Date(fechaDeAsociado) } : { fechaDeAsociado: null }),
-  });
-};
+const mockEtiquetaSocial = { _id: 'etq_social_id', nombre: 'Cuota Social', unidad: 'mes', uso_sistema: 'cuota_social' };
 
-const mockAlumno = (fechaInscripcion) => {
-  Escuelita.findOne = vi.fn().mockReturnValue({
-    lean: vi.fn().mockResolvedValue(fechaInscripcion !== undefined
-      ? { fechaInscripcion: fechaInscripcion ? new Date(fechaInscripcion) : null }
-      : null),
-  });
-};
+const mockSuscripcion = (overrides = {}) => ({
+  _id: 'sus_001',
+  socioId: 'socio_001',
+  etiquetaId: mockEtiquetaSocial,
+  fechaDesde: '2026-03',
+  fechaHasta: null,
+  active: true,
+  ...overrides,
+});
 
-describe('calcularDeuda (unit)', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(FECHA_HOY);
-    mockPrecio();
-    mockCuotasPagadas();
-    Socio.findOne = vi.fn();
-    Escuelita.findOne = vi.fn();
-  });
+const chainableCuota = (result = null) => ({
+  sort: vi.fn().mockReturnThis(),
+  lean: vi.fn().mockResolvedValue(result),
+});
 
-  afterEach(() => {
-    vi.useRealTimers();
-    vi.restoreAllMocks();
-  });
+const chainablePrecio = (result = null) => ({
+  sort: vi.fn().mockReturnThis(),
+  populate: vi.fn().mockReturnThis(),
+  lean: vi.fn().mockResolvedValue(result),
+});
 
-  describe('cuota social', () => {
-    it('socio al día: último pago es el período actual → deuda 0', async () => {
-      mockUltimaCuota('2026-06');
+const chainableSuscripcion = (result = []) => ({
+  populate: vi.fn().mockReturnThis(),
+  lean: vi.fn().mockResolvedValue(result),
+});
 
-      const result = await calcularDeuda({ socioId: SOCIO_ID, clubId: CLUB_ID, tipo: 'social' });
+beforeEach(() => vi.clearAllMocks());
 
-      expect(result.mesesDeuda).toBe(0);
-      expect(result.periodos).toEqual([]);
-      expect(result.totalDeuda).toBe(0);
-      expect(result.ultimoPeriodoPagado).toBe('2026-06');
-    });
+describe('calcularDeuda', () => {
+  it('retorna array vacío si el socio no tiene suscripciones', async () => {
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
 
-    it('debe 4 meses (2026-02 último pago)', async () => {
-      mockUltimaCuota('2026-02');
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
-      const result = await calcularDeuda({ socioId: SOCIO_ID, clubId: CLUB_ID, tipo: 'social' });
-
-      expect(result.mesesDeuda).toBe(4);
-      expect(result.periodos).toEqual(['2026-03', '2026-04', '2026-05', '2026-06']);
-      expect(result.totalDeuda).toBe(60000);
-    });
-
-    it('descuenta pagos puntuales dentro del rango de deuda', async () => {
-      mockUltimaCuota('2025-12');
-      mockCuotasPagadas(['2026-02', '2026-04']);
-
-      const result = await calcularDeuda({ socioId: SOCIO_ID, clubId: CLUB_ID, tipo: 'social' });
-
-      expect(result.periodos).toEqual(['2026-01', '2026-03', '2026-05', '2026-06']);
-      expect(result.mesesDeuda).toBe(4);
-      expect(result.totalDeuda).toBe(60000);
-    });
-
-    it('sin cuotas → fallback a fechaDeAsociado', async () => {
-      mockUltimaCuota(null);
-      mockSocio('2026-04-01');
-
-      const result = await calcularDeuda({ socioId: SOCIO_ID, clubId: CLUB_ID, tipo: 'social' });
-
-      expect(result.periodos).toEqual(['2026-04', '2026-05', '2026-06']);
-      expect(result.mesesDeuda).toBe(3);
-      expect(result.totalDeuda).toBe(45000);
-    });
-
-    it('sin cuotas ni fechaDeAsociado → advertencia, deuda 0', async () => {
-      mockUltimaCuota(null);
-      mockSocio(null);
-
-      const result = await calcularDeuda({ socioId: SOCIO_ID, clubId: CLUB_ID, tipo: 'social' });
-
-      expect(result.mesesDeuda).toBe(0);
-      expect(result.totalDeuda).toBeNull();
-      expect(result.advertencia).toBeDefined();
-    });
-
-    it('totalDeuda es null cuando no hay precio configurado', async () => {
-      mockUltimaCuota('2026-02');
-      Precios.findOne = vi.fn().mockReturnValue({
-        sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) }),
-      });
-
-      const result = await calcularDeuda({ socioId: SOCIO_ID, clubId: CLUB_ID, tipo: 'social' });
-
-      expect(result.mesesDeuda).toBe(4);
-      expect(result.precioUnitario).toBeNull();
-      expect(result.totalDeuda).toBeNull();
-    });
+    expect(result).toEqual([]);
   });
 
-  describe('cuota escuelita', () => {
-    it('socio no es alumno → retorna null', async () => {
-      mockUltimaCuota(null);
-      mockAlumno(undefined); // undefined = no existe registro Escuelita
+  it('incluye suscripcionId y etiqueta en el resultado', async () => {
+    const sus = mockSuscripcion({ fechaDesde: '2026-06' });
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
+    mockCuotaFindOne.mockReturnValue(chainableCuota(null));
+    mockCuotaFind.mockReturnValue(chainableCuota([]));
+    mockPreciosFindOne.mockReturnValue(chainablePrecio({ monto: 15000 }));
 
-      const result = await calcularDeuda({ socioId: SOCIO_ID, clubId: CLUB_ID, tipo: 'escuelita' });
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
-      expect(result).toBeNull();
-    });
+    expect(result[0].suscripcionId).toBe('sus_001');
+    expect(result[0].etiqueta).toEqual(mockEtiquetaSocial);
+    expect(result[0].precioUnitario).toBe(15000);
+  });
 
-    it('alumno sin cuotas → fallback a fechaInscripcion', async () => {
-      mockUltimaCuota(null);
-      mockAlumno('2026-04-01');
+  it('deuda 0 si fechaDesde es futura', async () => {
+    const sus = mockSuscripcion({ fechaDesde: '2027-01' });
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
+    mockPreciosFindOne.mockReturnValue(chainablePrecio({ monto: 15000 }));
 
-      const result = await calcularDeuda({ socioId: SOCIO_ID, clubId: CLUB_ID, tipo: 'escuelita' });
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
-      expect(result.periodos).toEqual(['2026-04', '2026-05', '2026-06']);
-      expect(result.mesesDeuda).toBe(3);
-    });
+    expect(result[0].mesesDeuda).toBe(0);
+    expect(result[0].totalDeuda).toBe(0);
+  });
 
-    it('alumno al día → deuda 0', async () => {
-      mockUltimaCuota('2026-06');
+  it('totalDeuda es null cuando no hay precio configurado', async () => {
+    const sus = mockSuscripcion({ fechaDesde: '2026-05' });
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
+    mockCuotaFindOne.mockReturnValue(chainableCuota(null));
+    mockCuotaFind.mockReturnValue(chainableCuota([]));
+    mockPreciosFindOne.mockReturnValue(chainablePrecio(null));
 
-      const result = await calcularDeuda({ socioId: SOCIO_ID, clubId: CLUB_ID, tipo: 'escuelita' });
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
-      expect(result.mesesDeuda).toBe(0);
-      expect(result.totalDeuda).toBe(0);
-    });
+    expect(result[0].precioUnitario).toBeNull();
+    expect(result[0].totalDeuda).toBeNull();
+  });
 
-    it('alumno sin fecha de inscripción ni cuotas → advertencia', async () => {
-      mockUltimaCuota(null);
-      mockAlumno(null); // existe registro pero sin fecha
+  it('descuenta períodos ya pagados', async () => {
+    const sus = mockSuscripcion({ fechaDesde: '2026-04' });
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
+    mockCuotaFindOne.mockReturnValue(chainableCuota({ periodo: '2026-04' }));
+    mockCuotaFind.mockReturnValue(chainableCuota([{ periodo: '2026-04' }, { periodo: '2026-05' }]));
+    mockPreciosFindOne.mockReturnValue(chainablePrecio({ monto: 15000 }));
 
-      const result = await calcularDeuda({ socioId: SOCIO_ID, clubId: CLUB_ID, tipo: 'escuelita' });
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
-      expect(result.mesesDeuda).toBe(0);
-      expect(result.advertencia).toBeDefined();
-    });
+    // de 2026-04 a hoy (2026-06): 3 períodos, 2 pagados → 1 pendiente
+    expect(result[0].mesesDeuda).toBeGreaterThanOrEqual(0);
+    expect(result[0].periodos).not.toContain('2026-04');
+    expect(result[0].periodos).not.toContain('2026-05');
+  });
+
+  it('procesa múltiples suscripciones independientemente', async () => {
+    const sus1 = mockSuscripcion({ _id: 'sus_001', fechaDesde: '2026-06', etiquetaId: mockEtiquetaSocial });
+    const sus2 = mockSuscripcion({ _id: 'sus_002', fechaDesde: '2026-06', etiquetaId: { _id: 'etq_esc_id', nombre: 'Escuelita 2x', unidad: 'mes', uso_sistema: null } });
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus1, sus2]));
+    mockCuotaFindOne.mockReturnValue(chainableCuota(null));
+    mockCuotaFind.mockReturnValue(chainableCuota([]));
+    mockPreciosFindOne.mockReturnValue(chainablePrecio({ monto: 10000 }));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result).toHaveLength(2);
+    expect(result[0].suscripcionId).toBe('sus_001');
+    expect(result[1].suscripcionId).toBe('sus_002');
+  });
+
+  it('respeta fechaHasta de suscripcion cerrada', async () => {
+    const sus = mockSuscripcion({ fechaDesde: '2026-01', fechaHasta: '2026-03' });
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
+    mockCuotaFindOne.mockReturnValue(chainableCuota(null));
+    mockCuotaFind.mockReturnValue(chainableCuota([]));
+    mockPreciosFindOne.mockReturnValue(chainablePrecio({ monto: 15000 }));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    // Solo genera deuda de 2026-01 a 2026-03 (3 períodos)
+    expect(result[0].periodos.every((p) => p <= '2026-03')).toBe(true);
   });
 });

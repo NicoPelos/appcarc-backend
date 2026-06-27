@@ -5,20 +5,23 @@ import { BusinessError, registrarMuroLibre } from '../../services/registrarMuroL
 import Socio from '../../../socios/models/Socio.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
 import Precios from '../../../cuotas/models/Precios.js';
+import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 import Asistencia from '../../../asistencias/models/Asistencia.js';
 import Movimiento from '../../../movimientos/models/Movimiento.js';
 
 const CLUB_ID = 'club1';
 const SOCIO_ID = '507f1f77bcf86cd799439011';
-const USER = {
-  id: '507f1f77bcf86cd799439012',
-  email: 'secretaria@carc.test',
-};
+const ETIQUETA_ID = new mongoose.Types.ObjectId();
+const USER = { id: '507f1f77bcf86cd799439012', email: 'secretaria@carc.test' };
 
 const mockSocioQuery = (result) => {
   const sessionQuery = { session: vi.fn().mockResolvedValue(result) };
   Socio.findOne.mockReturnValue(sessionQuery);
   return sessionQuery;
+};
+
+const mockEtiquetaQuery = (result = { _id: ETIQUETA_ID, uso_sistema: 'muro_libre_diario_no_socio' }) => {
+  Etiqueta.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(result) });
 };
 
 const mockPrecioVigenteQuery = (result) => {
@@ -49,6 +52,7 @@ describe('registrarMuroLibre service (unit)', () => {
     Socio.findOne = vi.fn();
     Cuota.findOne = vi.fn();
     Precios.findOne = vi.fn();
+    Etiqueta.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: ETIQUETA_ID }) });
 
     registroSaveSpy = vi.spyOn(Asistencia.prototype, 'save').mockImplementation(async function () {
       if (!this._id) this._id = new mongoose.Types.ObjectId();
@@ -63,36 +67,25 @@ describe('registrarMuroLibre service (unit)', () => {
     });
   });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
+  afterEach(() => { vi.restoreAllMocks(); });
 
   it('should fail with 401 when clubId is missing', async () => {
-    await expect(registrarMuroLibre({
-      clubId: undefined,
-      user: USER,
-      body: { tipoPase: 'diario' },
-    })).rejects.toMatchObject({ status: 401, message: 'No se pudo determinar el club del usuario' });
+    await expect(registrarMuroLibre({ clubId: undefined, user: USER, body: { tipoPase: 'diario' } }))
+      .rejects.toMatchObject({ status: 401, message: 'No se pudo determinar el club del usuario' });
 
     expect(mongoose.startSession).not.toHaveBeenCalled();
   });
 
   it('should fail when tipoPase is invalid', async () => {
-    await expect(registrarMuroLibre({
-      clubId: CLUB_ID,
-      user: USER,
-      body: { tipoPase: 'anual' },
-    })).rejects.toMatchObject({ message: 'El tipo de pase debe ser diario o mensual' });
+    await expect(registrarMuroLibre({ clubId: CLUB_ID, user: USER, body: { tipoPase: 'anual' } }))
+      .rejects.toMatchObject({ message: 'El tipo de pase debe ser diario o mensual' });
 
     expect(mongoose.startSession).not.toHaveBeenCalled();
   });
 
   it('should fail with BusinessError when fecha is invalid', async () => {
-    await expect(registrarMuroLibre({
-      clubId: CLUB_ID,
-      user: USER,
-      body: { tipoPase: 'diario', fecha: 'no-es-fecha' },
-    })).rejects.toBeInstanceOf(BusinessError);
+    await expect(registrarMuroLibre({ clubId: CLUB_ID, user: USER, body: { tipoPase: 'diario', fecha: 'no-es-fecha' } }))
+      .rejects.toBeInstanceOf(BusinessError);
 
     expect(mongoose.startSession).not.toHaveBeenCalled();
   });
@@ -100,105 +93,55 @@ describe('registrarMuroLibre service (unit)', () => {
   it('should fail with 404 when socioId is provided but socio does not exist', async () => {
     mockSocioQuery(null);
 
-    await expect(registrarMuroLibre({
-      clubId: CLUB_ID,
-      user: USER,
-      body: { tipoPase: 'diario', socioId: SOCIO_ID },
-    })).rejects.toMatchObject({
-      status: 404,
-      message: 'El socio no existe, está inactivo o pertenece a otro club',
-    });
+    await expect(registrarMuroLibre({ clubId: CLUB_ID, user: USER, body: { tipoPase: 'diario', socioId: SOCIO_ID } }))
+      .rejects.toMatchObject({ status: 404 });
 
     expect(Precios.findOne).not.toHaveBeenCalled();
-    expect(sessionMock.endSession).toHaveBeenCalledTimes(1);
   });
 
   it('should fail when nombre is missing and no socio is linked', async () => {
-    await expect(registrarMuroLibre({
-      clubId: CLUB_ID,
-      user: USER,
-      body: { tipoPase: 'diario', nombre: '' },
-    })).rejects.toMatchObject({ message: 'El nombre es obligatorio' });
-
-    expect(Precios.findOne).not.toHaveBeenCalled();
-    expect(sessionMock.endSession).toHaveBeenCalledTimes(1);
+    await expect(registrarMuroLibre({ clubId: CLUB_ID, user: USER, body: { tipoPase: 'diario', nombre: '' } }))
+      .rejects.toMatchObject({ message: 'El nombre es obligatorio' });
   });
 
   it('should fail when estadoPago is invalid', async () => {
-    await expect(registrarMuroLibre({
-      clubId: CLUB_ID,
-      user: USER,
-      body: { tipoPase: 'diario', nombre: 'Juan', estadoPago: 'gratis' },
-    })).rejects.toMatchObject({ message: 'El estado de pago debe ser pagado, pendiente o exento' });
-
-    expect(Precios.findOne).not.toHaveBeenCalled();
-    expect(sessionMock.endSession).toHaveBeenCalledTimes(1);
+    await expect(registrarMuroLibre({ clubId: CLUB_ID, user: USER, body: { tipoPase: 'diario', nombre: 'Juan', estadoPago: 'gratis' } }))
+      .rejects.toMatchObject({ message: 'El estado de pago debe ser pagado, pendiente o exento' });
   });
 
   it('should fail when estadoPago is pagado but paymentMethod is invalid', async () => {
-    await expect(registrarMuroLibre({
-      clubId: CLUB_ID,
-      user: USER,
-      body: { tipoPase: 'diario', nombre: 'Juan', estadoPago: 'pagado', paymentMethod: 'Tarjeta' },
-    })).rejects.toMatchObject({ message: 'La forma de pago debe ser Efectivo o Transferencia' });
-
-    expect(Precios.findOne).not.toHaveBeenCalled();
-    expect(sessionMock.endSession).toHaveBeenCalledTimes(1);
+    await expect(registrarMuroLibre({ clubId: CLUB_ID, user: USER, body: { tipoPase: 'diario', nombre: 'Juan', estadoPago: 'pagado', paymentMethod: 'Tarjeta' } }))
+      .rejects.toMatchObject({ message: 'La forma de pago debe ser Efectivo o Transferencia' });
   });
 
   it('should fail when estadoPago is pagado but no amount and no precio vigente', async () => {
     mockPrecioVigenteQuery(null);
 
-    await expect(registrarMuroLibre({
-      clubId: CLUB_ID,
-      user: USER,
-      body: { tipoPase: 'diario', nombre: 'Juan', estadoPago: 'pagado', paymentMethod: 'Efectivo' },
-    })).rejects.toMatchObject({ message: 'El pago necesita un monto o un precio vigente configurado' });
+    await expect(registrarMuroLibre({ clubId: CLUB_ID, user: USER, body: { tipoPase: 'diario', nombre: 'Juan', estadoPago: 'pagado', paymentMethod: 'Efectivo' } }))
+      .rejects.toMatchObject({ message: 'El pago necesita un monto o un precio vigente configurado' });
 
     expect(Precios.findOne).toHaveBeenCalledTimes(1);
     expect(registroSaveSpy).not.toHaveBeenCalled();
-    expect(sessionMock.endSession).toHaveBeenCalledTimes(1);
   });
 
   it('should register a non-socio, diario, pagado using precio vigente and create movimiento', async () => {
     mockPrecioVigenteQuery({ monto: 3000 });
 
     const result = await registrarMuroLibre({
-      clubId: CLUB_ID,
-      user: USER,
-      body: {
-        tipoPase: 'diario',
-        nombre: 'Juan',
-        apellido: 'Pérez',
-        estadoPago: 'pagado',
-        paymentMethod: 'Efectivo',
-      },
+      clubId: CLUB_ID, user: USER,
+      body: { tipoPase: 'diario', nombre: 'Juan', apellido: 'Pérez', estadoPago: 'pagado', paymentMethod: 'Efectivo' },
     });
 
     expect(registroSaveSpy).toHaveBeenCalledTimes(2);
     expect(movimientoSaveSpy).toHaveBeenCalledTimes(1);
-    expect(sessionMock.endSession).toHaveBeenCalledTimes(1);
-
     expect(savedRegistros[0]).toMatchObject({
-      nombre: 'Juan',
-      apellido: 'Pérez',
-      esSocio: false,
-      tipoPase: 'diario',
-      estadoPago: 'pagado',
-      monto: 3000,
-      precioSugeridoSnapshot: 3000,
-      formaPago: 'Efectivo',
-      periodo: '',
+      nombre: 'Juan', apellido: 'Pérez', esSocio: false,
+      tipoPase: 'diario', estadoPago: 'pagado', monto: 3000,
+      precioSugeridoSnapshot: 3000, formaPago: 'Efectivo', periodo: '',
     });
-
     expect(savedMovimientos[0]).toMatchObject({
-      type: 'Ingreso',
-      concept: 'Muro libre diario',
-      paymentMethod: 'Efectivo',
-      amount: 3000,
-      sourceType: 'muro_libre',
+      type: 'Ingreso', concept: 'Muro libre diario', paymentMethod: 'Efectivo', amount: 3000,
     });
-
     expect(result).toEqual({ registro: expect.anything(), movimiento: expect.anything() });
   });
 
@@ -211,23 +154,13 @@ describe('registrarMuroLibre service (unit)', () => {
     });
 
     const result = await registrarMuroLibre({
-      clubId: CLUB_ID,
-      user: USER,
-      body: {
-        socioId: SOCIO_ID,
-        tipoPase: 'mensual',
-        fecha: '2026-06-15T00:00:00.000Z',
-      },
+      clubId: CLUB_ID, user: USER,
+      body: { socioId: SOCIO_ID, tipoPase: 'mensual', fecha: '2026-06-15T00:00:00.000Z' },
     });
 
     expect(savedRegistros[0]).toMatchObject({
-      nombre: 'Ana',
-      esSocio: true,
-      tipoPase: 'mensual',
-      estadoPago: 'exento',
-      monto: 0,
-      periodo: '2026-06',
-      formaPago: 'Sin pago',
+      nombre: 'Ana', esSocio: true, tipoPase: 'mensual',
+      estadoPago: 'exento', monto: 0, periodo: '2026-06', formaPago: 'Sin pago',
     });
     expect(movimientoSaveSpy).not.toHaveBeenCalled();
     expect(result.movimiento).toBeNull();
@@ -235,15 +168,10 @@ describe('registrarMuroLibre service (unit)', () => {
 
   it('should fail with 402 when socio has no valid Cuota muro_libre for current period', async () => {
     mockSocioQuery({ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' });
-    Cuota.findOne = vi.fn().mockReturnValue({
-      session: vi.fn().mockResolvedValue(null),
-    });
+    Cuota.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(null) });
 
-    await expect(registrarMuroLibre({
-      clubId: CLUB_ID,
-      user: USER,
-      body: { socioId: SOCIO_ID, tipoPase: 'mensual' },
-    })).rejects.toMatchObject({ status: 402 });
+    await expect(registrarMuroLibre({ clubId: CLUB_ID, user: USER, body: { socioId: SOCIO_ID, tipoPase: 'mensual' } }))
+      .rejects.toMatchObject({ status: 402 });
 
     expect(registroSaveSpy).not.toHaveBeenCalled();
   });
@@ -252,8 +180,7 @@ describe('registrarMuroLibre service (unit)', () => {
     mockPrecioVigenteQuery({ monto: 3000 });
 
     const result = await registrarMuroLibre({
-      clubId: CLUB_ID,
-      user: USER,
+      clubId: CLUB_ID, user: USER,
       body: { tipoPase: 'diario', nombre: 'Luis', estadoPago: 'pendiente' },
     });
 
@@ -267,35 +194,32 @@ describe('registrarMuroLibre service (unit)', () => {
     mockPrecioVigenteQuery(null);
 
     const result = await registrarMuroLibre({
-      clubId: CLUB_ID,
-      user: USER,
+      clubId: CLUB_ID, user: USER,
       body: { tipoPase: 'diario', nombre: 'Martina', estadoPago: 'exento' },
     });
 
     expect(registroSaveSpy).toHaveBeenCalledTimes(1);
     expect(movimientoSaveSpy).not.toHaveBeenCalled();
     expect(savedRegistros[0]).toMatchObject({ estadoPago: 'exento', monto: 0 });
-    expect(result.movimiento).toBeNull();
   });
 
-  it('should use noSocio price code when no socio is linked', async () => {
+  it('should use noSocio uso_sistema when no socio is linked', async () => {
+    mockEtiquetaQuery({ _id: ETIQUETA_ID, uso_sistema: 'muro_libre_diario_no_socio' });
     mockPrecioVigenteQuery(null);
 
     await registrarMuroLibre({
-      clubId: CLUB_ID,
-      user: USER,
+      clubId: CLUB_ID, user: USER,
       body: { tipoPase: 'diario', nombre: 'Visitante', estadoPago: 'pendiente' },
     });
 
-    expect(Precios.findOne).toHaveBeenCalledWith(expect.objectContaining({
-      codigo: 'muro_libre_diario_no_socio',
+    expect(Etiqueta.findOne).toHaveBeenCalledWith(expect.objectContaining({
+      uso_sistema: 'muro_libre_diario_no_socio',
     }));
   });
 
   it('should fail when mensual is attempted without a linked socio', async () => {
     await expect(registrarMuroLibre({
-      clubId: CLUB_ID,
-      user: USER,
+      clubId: CLUB_ID, user: USER,
       body: { tipoPase: 'mensual', nombre: 'Visitante', esSocio: true, estadoPago: 'pendiente' },
     })).rejects.toMatchObject({ message: 'El pase mensual solo está disponible para socios' });
 

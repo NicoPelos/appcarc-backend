@@ -1,4 +1,5 @@
 import CategoriaEscuelita from '../models/CategoriaEscuelita.js';
+import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 
 /**
  * @openapi
@@ -21,16 +22,18 @@ import CategoriaEscuelita from '../models/CategoriaEscuelita.js';
  *               descripcion: { type: string }
  *               frecuenciaSemanal:
  *                 type: integer
- *                 enum: [1, 2]
- *               precioMensual: { type: number }
-*               codigoPrecio:
-*                 type: string
-*                 description: Código del precio en el catálogo (ej. cuota_escuelita_ninos_2x)
+ *                 minimum: 1
+ *                 maximum: 6
+ *               etiquetaId:
+ *                 type: string
+ *                 description: ID de la etiqueta de precio asociada (opcional)
  *     responses:
  *       201:
  *         description: Categoría creada
  *       400:
  *         description: Datos inválidos
+ *       404:
+ *         description: Etiqueta no encontrada
  *       409:
  *         description: Código duplicado
  *       500:
@@ -38,25 +41,31 @@ import CategoriaEscuelita from '../models/CategoriaEscuelita.js';
  */
 export const createCategoriaHandler = async (req, res) => {
   try {
-    const { nombre, codigo, descripcion, frecuenciaSemanal, precioMensual, codigoPrecio } = req.body;
+    const { nombre, codigo, descripcion, frecuenciaSemanal, etiquetaId } = req.body;
 
     if (!nombre) return res.status(400).json({ message: 'nombre es requerido' });
     if (!codigo) return res.status(400).json({ message: 'codigo es requerido' });
-    if (![1, 2].includes(Number(frecuenciaSemanal))) {
-      return res.status(400).json({ message: 'frecuenciaSemanal debe ser 1 o 2' });
+
+    const freq = Number(frecuenciaSemanal);
+    if (!Number.isInteger(freq) || freq < 1 || freq > 6) {
+      return res.status(400).json({ message: 'frecuenciaSemanal debe ser un entero entre 1 y 6' });
     }
 
     const existe = await CategoriaEscuelita.findOne({ clubId: req.user.clubId, codigo });
     if (existe) return res.status(409).json({ message: `Ya existe una categoría con código "${codigo}"` });
+
+    if (etiquetaId) {
+      const etiqueta = await Etiqueta.findOne({ _id: etiquetaId, clubId: req.user.clubId, active: true });
+      if (!etiqueta) return res.status(404).json({ message: 'Etiqueta no encontrada' });
+    }
 
     const categoria = new CategoriaEscuelita({
       clubId: req.user.clubId,
       nombre,
       codigo: codigo.toLowerCase().replace(/\s+/g, '_'),
       descripcion: descripcion || '',
-      frecuenciaSemanal: Number(frecuenciaSemanal),
-      precioMensual: precioMensual != null ? Number(precioMensual) : null,
-      codigoPrecio: codigoPrecio || null,
+      frecuenciaSemanal: freq,
+      etiquetaId: etiquetaId || null,
       createdBy: req.user.email || req.user.id,
       updatedBy: req.user.email || req.user.id,
     });

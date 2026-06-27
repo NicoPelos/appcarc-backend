@@ -7,6 +7,9 @@ vi.mock('../../models/CategoriaEscuelita.js', () => {
   ctor.findOne = vi.fn();
   return { default: ctor };
 });
+vi.mock('../../../etiquetas/models/Etiqueta.js', () => ({
+  default: { findOne: vi.fn().mockResolvedValue(null) },
+}));
 
 import { getCategoriasHandler } from '../../handlers/getCategorias.handler.js';
 import { createCategoriaHandler } from '../../handlers/createCategoria.handler.js';
@@ -79,7 +82,7 @@ describe('createCategoriaHandler', () => {
   });
 
   it('retorna 400 si frecuenciaSemanal es inválida', async () => {
-    const req = { user: mockUser, body: { ...validBody, frecuenciaSemanal: 3 } };
+    const req = { user: mockUser, body: { ...validBody, frecuenciaSemanal: 0 } };
     const res = mockRes();
     await createCategoriaHandler(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
@@ -117,7 +120,7 @@ describe('updateCategoriaHandler', () => {
 
   it('retorna 400 si frecuenciaSemanal es inválida', async () => {
     CategoriaEscuelita.findOne.mockResolvedValue({ _id: '1', save: vi.fn() });
-    const req = { user: mockUser, params: { id: '1' }, body: { frecuenciaSemanal: 5 } };
+    const req = { user: mockUser, params: { id: '1' }, body: { frecuenciaSemanal: 7 } };
     const res = mockRes();
     await updateCategoriaHandler(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
