@@ -5,6 +5,7 @@ import Cobro from '../resources/cobros/models/Cobro.js';
 import Escuelita from '../resources/escuelita/models/Escuelita.js';
 import Movimiento from '../resources/movimientos/models/Movimiento.js';
 import Horarios from '../resources/muroLibre/models/Horarios.js';
+import Etiqueta from '../resources/etiquetas/models/Etiqueta.js';
 
 const auth = new google.auth.GoogleAuth({
   keyFile: 'google-credentials.json',
@@ -69,12 +70,17 @@ const buildSociosRows = async (clubId) => {
   return { headers, rows };
 };
 
-const buildCuotasMatrix = async ({ clubId, tipo, periodos, extraHeaders = [], extraCols = () => [] }) => {
+const buildCuotasMatrix = async ({ clubId, tipo, etiquetaIds = [], periodos, extraHeaders = [], extraCols = () => [] }) => {
   const socios = await Socio.find({ clubId, active: true }).sort({ apellido: 1, nombre: 1 }).lean();
 
-  const cuotas = await Cuota.find({
-    clubId, tipo, periodo: { $in: periodos }, active: true,
-  }).lean();
+  const cuotaFilter = { clubId, periodo: { $in: periodos }, active: true };
+  if (etiquetaIds.length > 0) {
+    cuotaFilter.$or = [{ tipo }, { etiquetaId: { $in: etiquetaIds } }];
+  } else {
+    cuotaFilter.tipo = tipo;
+  }
+
+  const cuotas = await Cuota.find(cuotaFilter).lean();
 
   const map = {};
   for (const c of cuotas) {
@@ -119,8 +125,14 @@ const buildCuotasMatrix = async ({ clubId, tipo, periodos, extraHeaders = [], ex
   return { headers, rows, dataStartCol: INFO_COLS, dataEndCol: INFO_COLS + periodos.length };
 };
 
-const buildCuotasSocialesRows = (clubId) =>
-  buildCuotasMatrix({ clubId, tipo: 'social', periodos: generatePeriodos(24) });
+const buildCuotasSocialesRows = async (clubId) => {
+  const etiquetas = await Etiqueta.find({ clubId, uso_sistema: 'cuota_social', active: true }).lean();
+  return buildCuotasMatrix({
+    clubId, tipo: 'social',
+    etiquetaIds: etiquetas.map((e) => e._id),
+    periodos: generatePeriodos(24),
+  });
+};
 
 const buildCuotasEscuelitaRows = async (clubId) => {
   const periodos = generatePeriodos(24);
@@ -141,9 +153,15 @@ const buildCuotasEscuelitaRows = async (clubId) => {
   }
 
   const socioIds = alumnos.map((a) => a.socioId?._id).filter(Boolean);
-  const cuotas = await Cuota.find({
-    clubId, tipo: 'escuelita', socioId: { $in: socioIds }, periodo: { $in: periodos }, active: true,
-  }).lean();
+  const etiquetasEsc = await Etiqueta.find({ clubId, uso_sistema: 'cuota_escuelita', active: true }).lean();
+  const etiquetaIdsEsc = etiquetasEsc.map((e) => e._id);
+  const cuotaFilter = { clubId, socioId: { $in: socioIds }, periodo: { $in: periodos }, active: true };
+  if (etiquetaIdsEsc.length > 0) {
+    cuotaFilter.$or = [{ tipo: 'escuelita' }, { etiquetaId: { $in: etiquetaIdsEsc } }];
+  } else {
+    cuotaFilter.tipo = 'escuelita';
+  }
+  const cuotas = await Cuota.find(cuotaFilter).lean();
 
   const map = {};
   for (const c of cuotas) {
