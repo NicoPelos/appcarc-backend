@@ -30,7 +30,6 @@ export const deleteAlumnoHandler = async (req, res) => {
     const alumno = await Escuelita.findOneAndUpdate(
       { _id: req.params.id, clubId: req.user?.clubId, active: true },
       {
-        active: false,
         estado: 'baja',
         updatedBy: req.user.email || req.user.id,
       },

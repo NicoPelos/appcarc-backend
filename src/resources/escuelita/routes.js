@@ -4,6 +4,7 @@ import { getAlumnosHandler } from './handlers/getAlumnos.handler.js';
 import { createAlumnoHandler } from './handlers/createAlumno.handler.js';
 import { updateAlumnoHandler } from './handlers/updateAlumno.handler.js';
 import { deleteAlumnoHandler } from './handlers/deleteAlumno.handler.js';
+import { purgarAlumnoHandler } from './handlers/purgarAlumno.handler.js';
 import { getCategoriasHandler } from './handlers/getCategorias.handler.js';
 import { createCategoriaHandler } from './handlers/createCategoria.handler.js';
 import { updateCategoriaHandler } from './handlers/updateCategoria.handler.js';
@@ -17,6 +18,7 @@ router.get('/', protect, authorize('admin', 'secretary', 'socio'), getAlumnosHan
 router.post('/', protect, authorize('admin', 'secretary'), createAlumnoHandler);
 router.put('/:id', protect, authorize('admin', 'secretary'), updateAlumnoHandler);
 router.delete('/:id', protect, authorize('admin', 'secretary'), deleteAlumnoHandler);
+router.delete('/:id/purgar', protect, authorize('admin'), purgarAlumnoHandler);
 
 router.get('/categorias', protect, authorize('admin', 'secretary'), getCategoriasHandler);
 router.post('/categorias', protect, authorize('admin'), createCategoriaHandler);
