@@ -6,6 +6,8 @@ import Etiqueta from '../src/resources/etiquetas/models/Etiqueta.js';
 import Precios from '../src/resources/cuotas/models/Precios.js';
 import Suscripcion from '../src/resources/suscripciones/models/Suscripcion.js';
 import Escuelita from '../src/resources/escuelita/models/Escuelita.js';
+import HorarioEtiqueta from '../src/resources/muroLibre/models/HorarioEtiqueta.js';
+import Horarios from '../src/resources/muroLibre/models/Horarios.js';
 
 dotenv.config();
 
@@ -249,6 +251,125 @@ const run = async () => {
       console.log(`    Ya tiene precio $${precioExiste.monto}`);
     }
   }
+
+  // ── 6. Etiqueta y Precio de Limpieza ─────────────────────────────────────
+  console.log('\n── Paso 6: Etiqueta Hora Limpieza ──');
+
+  let etiquetaLimpieza = await Etiqueta.findOne({ clubId: CLUB_ID, nombre: 'Hora Limpieza' });
+  if (!etiquetaLimpieza) {
+    etiquetaLimpieza = await Etiqueta.create({
+      clubId: CLUB_ID, nombre: 'Hora Limpieza', unidad: 'hora', uso_sistema: null,
+      createdBy: SYSTEM_USER, updatedBy: SYSTEM_USER,
+    });
+    console.log('  Creada etiqueta: Hora Limpieza');
+  } else {
+    console.log('  Ya existe: Hora Limpieza');
+  }
+  const precioLimpieza = await Precios.findOne({ clubId: CLUB_ID, etiquetaId: etiquetaLimpieza._id, active: true });
+  if (!precioLimpieza) {
+    await Precios.create({
+      clubId: CLUB_ID, etiquetaId: etiquetaLimpieza._id,
+      nombre: 'Hora Limpieza', unidad: 'hora', monto: 1000,
+      vigenteDesde: new Date(), createdBy: SYSTEM_USER, updatedBy: SYSTEM_USER,
+    });
+    console.log('  Creado precio $1000/hora');
+  } else {
+    console.log('  Ya tiene precio $' + precioLimpieza.monto);
+  }
+
+  // ── 7. Vincular HorarioEtiquetas a precios ────────────────────────────────
+  console.log('\n── Paso 7: Vincular tipos de tarea a etiquetas de precio ──');
+
+  const etiquetaHoras = await Etiqueta.find({ clubId: CLUB_ID, unidad: 'hora' }).lean();
+  const etiquetaByNombre = Object.fromEntries(etiquetaHoras.map(e => [e.nombre, e]));
+
+  // Mapeo: valor en HorarioEtiqueta → nombre de Etiqueta de precio
+  const MAPA_TAREA_ETIQUETA = {
+    'Palestrero': 'Hora Palestrero',
+    'Palestra':   'Hora Palestrero',
+    'Clase':      'Hora Profesor',
+    'Secretaria': 'Hora Secretaría',
+    'Secretaría': 'Hora Secretaría',
+    'Limpieza':   'Hora Limpieza',
+  };
+
+  const tiposTarea = await HorarioEtiqueta.find({ clubId: CLUB_ID, tipo: 'tipo_tarea' });
+  for (const ht of tiposTarea) {
+    const nombreEtiqueta = MAPA_TAREA_ETIQUETA[ht.valor];
+    const etiqueta = nombreEtiqueta ? etiquetaByNombre[nombreEtiqueta] : null;
+    if (etiqueta && !String(ht.etiquetaId) === String(etiqueta._id)) {
+      ht.etiquetaId = etiqueta._id;
+      ht.updatedBy = SYSTEM_USER;
+      await ht.save();
+      console.log(`  ${ht.valor} → ${nombreEtiqueta}`);
+    } else if (etiqueta) {
+      ht.etiquetaId = etiqueta._id;
+      ht.updatedBy = SYSTEM_USER;
+      await ht.save();
+      console.log(`  ${ht.valor} → ${nombreEtiqueta}`);
+    } else {
+      console.log(`  ${ht.valor} → sin precio configurado`);
+    }
+  }
+
+  // ── 8. Vincular HorarioEtiquetas de nombre a socioId ─────────────────────
+  console.log('\n── Paso 8: Vincular nombres de staff a socioId ──');
+
+  // Mapeo: valor en HorarioEtiqueta → búsqueda en Socio
+  const MAPA_NOMBRE_SOCIO = {
+    'Vladimir':  { nombre: /vladimir/i },
+    'Carina':    { nombre: /carina/i },
+    'Luciana':   { apellido: /molina/i },
+    'Lu Molina': { apellido: /molina/i },
+  };
+
+  const nombresStaff = await HorarioEtiqueta.find({ clubId: CLUB_ID, tipo: 'nombre' });
+  for (const ht of nombresStaff) {
+    const query = MAPA_NOMBRE_SOCIO[ht.valor];
+    if (!query) { console.log(`  ${ht.valor} → sin mapeo`); continue; }
+
+    const socio = await Socio.findOne({ ...query, clubId: CLUB_ID, active: true }).lean();
+    if (socio) {
+      ht.socioId = socio._id;
+      ht.updatedBy = SYSTEM_USER;
+      await ht.save();
+      console.log(`  ${ht.valor} → ${socio.nombre} ${socio.apellido}`);
+    } else {
+      console.log(`  ${ht.valor} → socio no encontrado`);
+    }
+  }
+
+  // ── 9. Vincular Horarios a socioId y clubId ───────────────────────────────
+  console.log('\n── Paso 9: Vincular Horarios a socioId y clubId ──');
+
+  const MAPA_HORARIO_SOCIO = {
+    'Vladimir':  { nombre: /vladimir/i },
+    'Carina':    { nombre: /carina/i },
+    'Lu Molina': { apellido: /molina/i },
+  };
+
+  let hLinked = 0, hSkipped = 0;
+  const horariosSinSocio = await Horarios.find({ $or: [{ socioId: null }, { socioId: { $exists: false } }] });
+  for (const h of horariosSinSocio) {
+    const query = MAPA_HORARIO_SOCIO[h.nombre];
+    if (!query) { hSkipped++; continue; }
+
+    const socio = await Socio.findOne({ ...query, active: true }).lean();
+    if (socio) {
+      h.socioId = socio._id;
+      h.clubId  = CLUB_ID;
+      await h.save();
+      hLinked++;
+    } else {
+      hSkipped++;
+    }
+  }
+
+  // También actualizar los que ya tienen socioId pero les falta clubId
+  await Horarios.updateMany({ clubId: { $exists: false } }, { $set: { clubId: CLUB_ID } });
+  await Horarios.updateMany({ clubId: null }, { $set: { clubId: CLUB_ID } });
+
+  console.log(`  Horarios vinculados: ${hLinked} | Sin mapeo: ${hSkipped}`);
 
   console.log('\n✓ Migración completa');
   await mongoose.disconnect();

@@ -87,20 +87,28 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         throw new BusinessError('El nombre es obligatorio');
       }
 
-      // Pase mensual: solo socios con Cuota muro_libre pagada para el período
+      // Pase mensual: solo socios con Cuota de etiqueta muro_libre_mensual_socio pagada para el período
       let estadoPagoOverride = null;
       if (tipoPase === 'mensual') {
         if (!socio) {
           throw new BusinessError('El pase mensual solo está disponible para socios');
         }
         const periodoActual = buildPeriodo(fecha);
-        const cuotaVigente = await Cuota.findOne({
-          socioId: socio._id,
+        const etiquetaMensual = await Etiqueta.findOne({
           clubId,
-          tipo: 'muro_libre',
-          periodo: periodoActual,
-          estado: 'pagada',
-        }).session(session);
+          uso_sistema: 'muro_libre_mensual_socio',
+          active: true,
+        }).lean();
+
+        const cuotaVigente = etiquetaMensual
+          ? await Cuota.findOne({
+              socioId: socio._id,
+              clubId,
+              etiquetaId: etiquetaMensual._id,
+              periodo: periodoActual,
+              estado: 'pagada',
+            }).session(session)
+          : null;
 
         if (!cuotaVigente) {
           throw new BusinessError(

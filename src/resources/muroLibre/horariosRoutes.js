@@ -7,10 +7,14 @@ import { deleteHorarioHandler } from './handlers/deleteHorario.handler.js';
 import { getEtiquetasHandler } from './handlers/getEtiquetas.handler.js';
 import { createEtiquetaHandler } from './handlers/createEtiqueta.handler.js';
 import { deleteEtiquetaHandler } from './handlers/deleteEtiqueta.handler.js';
+import { getDeudaStaffHandler } from './handlers/getDeudaStaff.handler.js';
 
 const router = express.Router();
 
-// Etiquetas (deben ir antes de /:id para no colisionar)
+// Deuda del staff (antes de /:id para no colisionar)
+router.get('/deuda', protect, authorize('admin', 'secretary'), getDeudaStaffHandler);
+
+// Etiquetas
 router.get('/etiquetas', protect, authorize('admin', 'secretary'), getEtiquetasHandler);
 router.post('/etiquetas', protect, authorize('admin', 'secretary'), createEtiquetaHandler);
 router.delete('/etiquetas/:id', protect, authorize('admin', 'secretary'), deleteEtiquetaHandler);

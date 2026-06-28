@@ -8,9 +8,11 @@ import { getCategoriasHandler } from './handlers/getCategorias.handler.js';
 import { createCategoriaHandler } from './handlers/createCategoria.handler.js';
 import { updateCategoriaHandler } from './handlers/updateCategoria.handler.js';
 import { deleteCategoriaHandler } from './handlers/deleteCategoria.handler.js';
+import { checkinEscuelitaHandler } from './handlers/checkinEscuelita.handler.js';
 
 const router = express.Router();
 
+router.post('/checkin', protect, authorize('admin', 'secretary'), checkinEscuelitaHandler);
 router.get('/', protect, authorize('admin', 'secretary', 'socio'), getAlumnosHandler);
 router.post('/', protect, authorize('admin', 'secretary'), createAlumnoHandler);
 router.put('/:id', protect, authorize('admin', 'secretary'), updateAlumnoHandler);

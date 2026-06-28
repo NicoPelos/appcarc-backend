@@ -168,10 +168,12 @@ Colección unificada para muro libre y escuelita.
 | `GET /api/muro-libre`             | Listar asistencias de muro libre              |
 | `POST /api/muro-libre`            | Registrar asistencia/pago de muro libre       |
 | `POST /api/muro-libre/checkin`    | Check-in por QR o DNI                         |
+| `PUT /api/muro-libre/:id`         | Editar registro (fecha, monto, formaPago, obs) |
+| `DELETE /api/muro-libre/:id`      | Anular registro — soft delete + anula movimiento |
 
 Todos los endpoints de escaneo aceptan `{ token }` (QR) o `{ dni }` en el body.
 
-El pase mensual de muro libre se gestiona como una `Cuota` de tipo `muro_libre`. Al hacer check-in mensual, el backend verifica que el socio tenga esa cuota pagada para el período actual.
+El pase mensual de muro libre se gestiona a través del sistema de Etiquetas/Suscripciones. Al hacer check-in mensual, el backend verifica que el socio tenga una cuota pagada vinculada a la etiqueta `muro_libre_mensual_socio` para el período actual.
 
 ## Escuelita
 
@@ -181,12 +183,13 @@ El pase mensual de muro libre se gestiona como una `Cuota` de tipo `muro_libre`.
 | `POST /api/escuelita`                 | Inscribir alumno                                 |
 | `PUT /api/escuelita/:id`              | Actualizar inscripción (incluye categoriaId)     |
 | `DELETE /api/escuelita/:id`           | Dar de baja                                      |
+| `POST /api/escuelita/checkin`         | Check-in por QR o DNI (valida cuota + frecuencia semanal) |
 | `GET /api/escuelita/categorias`       | Listar categorías                                |
 | `POST /api/escuelita/categorias`      | Crear categoría (solo admin)                     |
 | `PUT /api/escuelita/categorias/:id`   | Actualizar categoría (solo admin)                |
 | `DELETE /api/escuelita/categorias/:id`| Eliminar categoría — soft delete (solo admin)    |
 
-Cada alumno tiene un `categoriaId` que apunta a una `CategoriaEscuelita`. La categoría define `nombre`, `frecuenciaSemanal` (1 o 2 veces por semana) y `codigoPrecio` — que vincula la categoría a un registro del catálogo de precios para el cálculo de deuda.
+Cada alumno tiene un `categoriaId` → `CategoriaEscuelita` con `frecuenciaSemanal` y `etiquetaId` para el precio. El checkin valida: cuota del mes pagada + límite de clases semanales según la categoría.
 
 ## Novedades
 
@@ -200,14 +203,20 @@ El servidor sincroniza el feed de Instagram automáticamente cada 30 minutos si 
 
 ## Horarios
 
-Registro de horas trabajadas por el personal (palestrero, profesor, secretaria).
+Registro de horas trabajadas por el staff. Cada tipo de tarea tiene una `Etiqueta` de precio asociada, lo que permite calcular cuánto le debe el club a cada persona.
 
-| Endpoint                  | Descripción                                              |
-|---------------------------|----------------------------------------------------------|
-| `GET /api/horarios`       | Listar (filtros: `nombre`, `tipoTarea`, `desde`, `hasta`, `trash`) |
-| `POST /api/horarios`      | Registrar horario                                        |
-| `PUT /api/horarios/:id`   | Actualizar horario                                       |
-| `DELETE /api/horarios/:id`| Eliminar horario (soft delete)                           |
+| Endpoint                        | Descripción                                              |
+|---------------------------------|----------------------------------------------------------|
+| `GET /api/horarios`             | Listar (filtros: `nombre`, `tipoTarea`, `desde`, `hasta`, `trash`) |
+| `POST /api/horarios`            | Registrar horario                                        |
+| `PUT /api/horarios/:id`         | Actualizar horario                                       |
+| `DELETE /api/horarios/:id`      | Eliminar horario (soft delete)                           |
+| `GET /api/horarios/deuda`       | Deuda del club con el staff para un período (`?periodo=YYYY-MM`) |
+| `GET /api/horarios/etiquetas`   | Listar tipos de tarea / nombres de staff                 |
+| `POST /api/horarios/etiquetas`  | Crear tipo de tarea con precio o nombre de staff con socio |
+| `DELETE /api/horarios/etiquetas/:id` | Eliminar etiqueta de horario                        |
+
+El modelo `HorarioEtiqueta` gestiona dos catálogos: `tipo_tarea` (con `etiquetaId` de precio) y `nombre` (con `socioId` del staff). El cálculo de deuda cruza `totalHoras × precio/hora` para cada persona y tipo de tarea.
 
 ## Precios
 

@@ -33,7 +33,7 @@ import HorarioEtiqueta from '../models/HorarioEtiqueta.js';
  */
 export const createEtiquetaHandler = async (req, res) => {
   try {
-    const { tipo, valor } = req.body;
+    const { tipo, valor, etiquetaId, socioId } = req.body;
     if (!tipo || !['nombre', 'tipo_tarea'].includes(tipo)) {
       return res.status(400).json({ message: 'tipo debe ser "nombre" o "tipo_tarea"' });
     }
@@ -41,11 +41,15 @@ export const createEtiquetaHandler = async (req, res) => {
       return res.status(400).json({ message: 'valor es requerido' });
     }
 
+    const actor = req.user.email || req.user.id;
     const etiqueta = new HorarioEtiqueta({
       clubId: req.user.clubId,
       tipo,
       valor: valor.trim(),
-      createdBy: req.user.email || req.user.id,
+      etiquetaId: tipo === 'tipo_tarea' ? (etiquetaId || null) : null,
+      socioId:    tipo === 'nombre'     ? (socioId    || null) : null,
+      createdBy: actor,
+      updatedBy: actor,
     });
 
     await etiqueta.save();
