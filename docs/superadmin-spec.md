@@ -112,6 +112,103 @@ Todos los modelos existentes ya tienen `clubId` — no hay cambio de schema. Se 
 
 ---
 
+## Sistema de roles y permisos por club
+
+### Principios de diseño
+
+- Los roles son **por club** — cada club define los suyos
+- Los permisos viven en la **base de datos** — configurables sin deploy
+- El middleware `authorize()` deja de recibir roles hardcodeados y consulta la BD
+- El super admin panel expone una matriz visual para editar permisos
+
+### Modelo de datos: `Rol`
+
+```
+_id
+clubId          String (ref Club)
+nombre          String (ej: "palestrero")
+permisos        [String] (ej: ["muroLibre:read", "muroLibre:write", "horarios:read"])
+active          Boolean
+```
+
+### Modelo de datos: `Permiso` (catálogo global)
+
+```
+_id
+recurso         String (ej: "muroLibre")
+accion          String (ej: "read" | "write" | "delete")
+descripcion     String (ej: "Ver registros de muro libre")
+```
+
+El catálogo de permisos disponibles está definido globalmente (en código o en BD). Cada club asigna subconjuntos de ese catálogo a sus roles.
+
+### Catálogo de recursos y acciones
+
+| Recurso | Acciones |
+|---|---|
+| `socios` | read, write, delete, restore |
+| `cobros` | read, write, delete |
+| `movimientos` | read, write, delete |
+| `escuelita` | read, write, delete, checkin |
+| `muroLibre` | read, write, delete, checkin |
+| `horarios` | read, write, delete |
+| `etiquetas` | read, write, delete |
+| `precios` | read, write, delete |
+| `suscripciones` | read, write, delete, close |
+| `audit` | read, revert |
+| `export` | sheets |
+| `novedades` | read, write |
+
+### Cómo funciona authorize() con permisos en BD
+
+```
+Request → protect() → authorize('muroLibre:write')
+                          ↓
+                  Lee roles del usuario (req.user.roles)
+                          ↓
+                  Busca en BD los permisos de esos roles para ese clubId
+                          ↓
+                  Verifica si alguno incluye 'muroLibre:write'
+                          ↓
+                  next() o 403
+```
+
+Los permisos del rol se cachean en el JWT o en memoria (Redis/in-process) para no ir a la BD en cada request.
+
+### Pantalla de permisos en el super admin panel
+
+Matriz editable por club:
+
+```
+                socios          cobros      muroLibre    escuelita
+                r  w  d  rest   r  w  d     r  w  d  ch  r  w  d  ch
+
+admin           ✓  ✓  ✓  ✓     ✓  ✓  ✓     ✓  ✓  ✓  ✓   ✓  ✓  ✓  ✓
+secretaria      ✓  ✓     ✓     ✓  ✓        ✓  ✓     ✓   ✓  ✓     ✓
+palestrero                                  ✓  ✓  ✓  ✓
+profesor                                                   ✓        ✓
+socio           ✓                 ✓                  ✓
+```
+
+Click en celda → toggle inmediato → guarda en BD.
+
+### Migración desde el sistema actual
+
+Al implementar este sistema:
+1. Crear colección `Rol` para CARC con los roles actuales y sus permisos equivalentes
+2. Script `seed-roles.js` — genera los roles y permisos a partir de la matriz de permisos actual (hardcodeada hoy en las rutas)
+3. Reemplazar `authorize('admin', 'secretaria')` por `authorize('socios:write')` en cada ruta
+4. El middleware nuevo resuelve qué roles tienen ese permiso en ese club
+
+### Lo que cambia en el backend
+
+- Nuevo modelo `Rol`
+- Nuevo middleware `authorizePermission('recurso:accion')`
+- Endpoints en `/api/super/clubs/:id/roles` para CRUD de roles y permisos
+- Cache de permisos por club (in-process, TTL corto) para no impactar performance
+
+---
+
 ## Lo que queda fuera por ahora
 - Billing / pagos
 - Múltiples superadmins
