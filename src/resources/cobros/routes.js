@@ -1,5 +1,6 @@
 import express from 'express';
 import { protect, authorize } from '../../middleware/auth.js';
+import { PERMISOS } from '../../constants/permisos.js';
 import { createCobroHandler } from './handlers/createCobro.handler.js';
 import { getCobrosHandler } from './handlers/getCobros.handler.js';
 import { anularCobroHandler } from './handlers/anularCobro.handler.js';
@@ -18,7 +19,7 @@ const router = express.Router();
  *       200:
  *         description: Lista de cobros disponible
  */
-router.get('/', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'), getCobrosHandler);
+router.get('/', protect, authorize(PERMISOS.COBROS_READ), getCobrosHandler);
 
 /**
  * @openapi
@@ -85,8 +86,8 @@ router.get('/', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'),
  *       201:
  *         description: Cobro, cuotas y movimiento creados exitosamente
  */
-router.post('/', protect, authorize('admin', 'secretaria'), createCobroHandler);
+router.post('/', protect, authorize(PERMISOS.COBROS_WRITE), createCobroHandler);
 
-router.post('/:id/anular', protect, authorize('admin', 'secretaria'), anularCobroHandler);
+router.post('/:id/anular', protect, authorize(PERMISOS.COBROS_DELETE), anularCobroHandler);
 
 export default router;

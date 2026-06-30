@@ -1,5 +1,6 @@
 import express from 'express';
 import { protect, authorize } from '../../middleware/auth.js';
+import { PERMISOS } from '../../constants/permisos.js';
 import { getAlumnosHandler } from './handlers/getAlumnos.handler.js';
 import { createAlumnoHandler } from './handlers/createAlumno.handler.js';
 import { updateAlumnoHandler } from './handlers/updateAlumno.handler.js';
@@ -13,16 +14,16 @@ import { checkinEscuelitaHandler } from './handlers/checkinEscuelita.handler.js'
 
 const router = express.Router();
 
-router.post('/checkin', protect, authorize('admin', 'secretaria', 'profesor', 'colaborador'), checkinEscuelitaHandler);
-router.get('/', protect, authorize('admin', 'autoridad', 'secretaria', 'profesor', 'colaborador'), getAlumnosHandler);
-router.post('/', protect, authorize('admin', 'secretaria'), createAlumnoHandler);
-router.put('/:id', protect, authorize('admin', 'secretaria'), updateAlumnoHandler);
-router.delete('/:id', protect, authorize('admin', 'secretaria'), deleteAlumnoHandler);
-router.delete('/:id/purgar', protect, authorize('admin'), purgarAlumnoHandler);
+router.post('/checkin', protect, authorize(PERMISOS.ESCUELITA_CHECKIN), checkinEscuelitaHandler);
+router.get('/', protect, authorize(PERMISOS.ESCUELITA_READ), getAlumnosHandler);
+router.post('/', protect, authorize(PERMISOS.ESCUELITA_WRITE), createAlumnoHandler);
+router.put('/:id', protect, authorize(PERMISOS.ESCUELITA_WRITE), updateAlumnoHandler);
+router.delete('/:id', protect, authorize(PERMISOS.ESCUELITA_DELETE), deleteAlumnoHandler);
+router.delete('/:id/purgar', protect, authorize(PERMISOS.ESCUELITA_PURGAR), purgarAlumnoHandler);
 
-router.get('/categorias', protect, authorize('admin', 'autoridad', 'secretaria', 'profesor', 'colaborador'), getCategoriasHandler);
-router.post('/categorias', protect, authorize('admin'), createCategoriaHandler);
-router.put('/categorias/:id', protect, authorize('admin'), updateCategoriaHandler);
-router.delete('/categorias/:id', protect, authorize('admin'), deleteCategoriaHandler);
+router.get('/categorias', protect, authorize(PERMISOS.ESCUELITA_READ), getCategoriasHandler);
+router.post('/categorias', protect, authorize(PERMISOS.ESCUELITA_WRITE), createCategoriaHandler);
+router.put('/categorias/:id', protect, authorize(PERMISOS.ESCUELITA_WRITE), updateCategoriaHandler);
+router.delete('/categorias/:id', protect, authorize(PERMISOS.ESCUELITA_DELETE), deleteCategoriaHandler);
 
 export default router;

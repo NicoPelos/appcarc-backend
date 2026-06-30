@@ -7,11 +7,7 @@ const userSchema = new mongoose.Schema({
   passwordChangedAt: { type: Date },
   googleId: { type: String, default: null },
   nombre: String,
-  roles: {
-    type: [String],
-    enum: ['admin', 'autoridad', 'secretaria', 'profesor', 'palestrero', 'limpieza', 'arreglos', 'colaborador', 'socio'],
-    default: ['socio'],
-  },
+  roles: { type: [String], default: ['socio'] },
   clubId: { type: String, required: true },
   socioId: { type: String, unique: true, sparse: true },
   expoPushToken: { type: String, default: null },

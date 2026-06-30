@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import tokenService from '../services/tokenBlacklistService.js';
 import User from '../resources/usuarios/models/User.js';
+import { tienePermiso } from '../services/permisosCache.js';
 
 export const protect = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -31,14 +32,24 @@ export const protect = async (req, res, next) => {
   }
 };
 
-export const authorize = (...roles) => {
-  return (req, res, next) => {
-    const userRoles = req.user.roles ?? [];
-    if (!userRoles.some(r => roles.includes(r))) {
-      return res.status(403).json({
-        message: 'No tenés permiso para esta acción',
-      });
+// authorize('socios:write') — verifica permiso contra los roles del usuario en BD
+export const authorize = (permiso) => {
+  return async (req, res, next) => {
+    try {
+      const userRoles = req.user.roles ?? [];
+      const clubId = req.user.clubId;
+
+      // superadmin pasa siempre
+      if (userRoles.includes('superadmin')) return next();
+
+      const ok = await tienePermiso(clubId, userRoles, permiso);
+      if (!ok) {
+        return res.status(403).json({ message: 'No tenés permiso para esta acción' });
+      }
+      next();
+    } catch (error) {
+      console.error('[authorize] Error verificando permisos:', error.message);
+      return res.status(500).json({ message: 'Error verificando permisos' });
     }
-    next();
   };
 };

@@ -1,5 +1,6 @@
 import express from 'express';
 import { protect, authorize } from '../../middleware/auth.js';
+import { PERMISOS } from '../../constants/permisos.js';
 import { getHorariosHandler } from './handlers/getHorarios.handler.js';
 import { createHorarioHandler } from './handlers/createHorario.handler.js';
 import { updateHorarioHandler } from './handlers/updateHorario.handler.js';
@@ -12,17 +13,17 @@ import { getDeudaStaffHandler } from './handlers/getDeudaStaff.handler.js';
 const router = express.Router();
 
 // Deuda del staff (antes de /:id para no colisionar)
-router.get('/deuda', protect, authorize('admin', 'autoridad', 'secretaria'), getDeudaStaffHandler);
+router.get('/deuda', protect, authorize(PERMISOS.HORARIOS_DEUDA), getDeudaStaffHandler);
 
 // Etiquetas
-router.get('/etiquetas', protect, authorize('admin', 'secretaria'), getEtiquetasHandler);
-router.post('/etiquetas', protect, authorize('admin', 'secretaria'), createEtiquetaHandler);
-router.delete('/etiquetas/:id', protect, authorize('admin', 'secretaria'), deleteEtiquetaHandler);
+router.get('/etiquetas', protect, authorize(PERMISOS.HORARIOS_READ), getEtiquetasHandler);
+router.post('/etiquetas', protect, authorize(PERMISOS.HORARIOS_WRITE), createEtiquetaHandler);
+router.delete('/etiquetas/:id', protect, authorize(PERMISOS.HORARIOS_WRITE), deleteEtiquetaHandler);
 
 // Horarios
-router.get('/', protect, authorize('admin', 'autoridad', 'secretaria', 'profesor', 'palestrero', 'limpieza', 'arreglos', 'colaborador'), getHorariosHandler);
-router.post('/', protect, authorize('admin', 'secretaria', 'palestrero', 'limpieza', 'arreglos'), createHorarioHandler);
-router.put('/:id', protect, authorize('admin', 'secretaria', 'palestrero', 'limpieza', 'arreglos'), updateHorarioHandler);
-router.delete('/:id', protect, authorize('admin', 'secretaria', 'palestrero', 'limpieza', 'arreglos'), deleteHorarioHandler);
+router.get('/', protect, authorize(PERMISOS.HORARIOS_READ), getHorariosHandler);
+router.post('/', protect, authorize(PERMISOS.HORARIOS_WRITE), createHorarioHandler);
+router.put('/:id', protect, authorize(PERMISOS.HORARIOS_WRITE), updateHorarioHandler);
+router.delete('/:id', protect, authorize(PERMISOS.HORARIOS_DELETE), deleteHorarioHandler);
 
 export default router;

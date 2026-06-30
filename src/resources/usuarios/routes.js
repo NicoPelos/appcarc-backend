@@ -2,6 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { googleLogin, googleCallback, register, login, logout, changePassword, registerPushToken } from './handlers/auth.handler.js';
 import { protect, authorize } from '../../middleware/auth.js';
+import { PERMISOS } from '../../constants/permisos.js';
 
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
@@ -96,7 +97,7 @@ router.get('/google/callback', googleCallback);
  *       400:
  *         description: Error en los datos enviados o usuario ya existe
  */
-router.post('/register', protect, authorize('admin'), register);
+router.post('/register', protect, authorize(PERMISOS.USUARIOS_WRITE), register);
 
 /**
  * @openapi

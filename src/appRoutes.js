@@ -13,6 +13,7 @@ import etiquetasRoutes from './resources/etiquetas/routes.js';
 import suscripcionesRoutes from './resources/suscripciones/routes.js';
 import exportRoutes from './resources/export/routes.js';
 import auditRoutes from './resources/audit/routes.js';
+import rolesRoutes from './resources/roles/routes.js';
 
 const router = express.Router();
 
@@ -30,5 +31,6 @@ router.use('/etiquetas', etiquetasRoutes);
 router.use('/suscripciones', suscripcionesRoutes);
 router.use('/export', exportRoutes);
 router.use('/audit', auditRoutes);
+router.use('/roles', rolesRoutes);
 
 export default router;

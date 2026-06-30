@@ -12,6 +12,7 @@ import { updateMyProfileHandler } from './handlers/updateMyProfile.handler.js';
 import { getSocioDeudaHandler } from './handlers/getSocioDeuda.handler.js';
 import { upload, uploadFotoSocioHandler } from './handlers/uploadFotoSocio.handler.js';
 import { protect, authorize } from '../../middleware/auth.js';
+import { PERMISOS } from '../../constants/permisos.js';
 
 const router = express.Router();
 
@@ -27,7 +28,7 @@ const router = express.Router();
  *       200:
  *         description: Lista de socios disponible
  */
-router.get('/', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'), getSociosHandler);
+router.get('/', protect, authorize(PERMISOS.SOCIOS_READ), getSociosHandler);
 
 /**
  * @openapi
@@ -91,19 +92,19 @@ router.get('/', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'),
  *       201:
  *         description: Socio creado exitosamente
  */
-router.post('/', protect, authorize('admin', 'secretaria'), createSocioHandler);
+router.post('/', protect, authorize(PERMISOS.SOCIOS_WRITE), createSocioHandler);
 
 // Rutas de perfil personal
 router.get('/me/profile', protect, getMyProfileHandler);
 router.put('/me/profile', protect, updateMyProfileHandler);
 
-router.get('/:id/deuda', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'), getSocioDeudaHandler);
-router.put('/:id/foto', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'), upload.single('foto'), uploadFotoSocioHandler);
+router.get('/:id/deuda', protect, authorize(PERMISOS.SOCIOS_READ), getSocioDeudaHandler);
+router.put('/:id/foto', protect, authorize(PERMISOS.SOCIOS_READ), upload.single('foto'), uploadFotoSocioHandler);
 
-router.get('/:id/qr', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'), getSocioQrHandler);
-router.post('/verify', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'), verifySocioQrHandler);
+router.get('/:id/qr', protect, authorize(PERMISOS.SOCIOS_READ), getSocioQrHandler);
+router.post('/verify', protect, authorize(PERMISOS.SOCIOS_READ), verifySocioQrHandler);
 
-router.get('/:id', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'), getSocioByIdHandler);
+router.get('/:id', protect, authorize(PERMISOS.SOCIOS_READ), getSocioByIdHandler);
 
 /**
  * @openapi
@@ -154,8 +155,8 @@ router.get('/:id', protect, authorize('admin', 'autoridad', 'secretaria', 'socio
  *       200:
  *         description: Socio actualizado exitosamente
  */
-router.put('/:id', protect, authorize('admin', 'secretaria'), updateSocioHandler);
-router.put('/:id/restore', protect, authorize('admin', 'secretaria'), restoreSocioHandler);
+router.put('/:id', protect, authorize(PERMISOS.SOCIOS_WRITE), updateSocioHandler);
+router.put('/:id/restore', protect, authorize(PERMISOS.SOCIOS_RESTORE), restoreSocioHandler);
 
 /**
  * @openapi
@@ -194,6 +195,6 @@ router.put('/:id/restore', protect, authorize('admin', 'secretaria'), restoreSoc
  *       200:
  *         description: Socio desactivado con éxito
  */
-router.delete('/:id', protect, authorize('admin'), deleteSocioHandler);
+router.delete('/:id', protect, authorize(PERMISOS.SOCIOS_DELETE), deleteSocioHandler);
 
 export default router;

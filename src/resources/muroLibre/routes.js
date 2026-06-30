@@ -1,5 +1,6 @@
 import express from 'express';
 import { protect, authorize } from '../../middleware/auth.js';
+import { PERMISOS } from '../../constants/permisos.js';
 import { createMuroLibreHandler } from './handlers/createMuroLibre.handler.js';
 import { getMuroLibreHandler } from './handlers/getMuroLibre.handler.js';
 import { checkinMuroLibreHandler } from './handlers/checkinMuroLibre.handler.js';
@@ -8,10 +9,10 @@ import { deleteMuroLibreHandler } from './handlers/deleteMuroLibre.handler.js';
 
 const router = express.Router();
 
-router.get('/', protect, authorize('admin', 'autoridad', 'secretaria', 'palestrero', 'colaborador', 'socio'), getMuroLibreHandler);
-router.post('/', protect, authorize('admin', 'secretaria', 'palestrero', 'colaborador'), createMuroLibreHandler);
-router.post('/checkin', protect, authorize('admin', 'secretaria', 'palestrero', 'colaborador'), checkinMuroLibreHandler);
-router.put('/:id', protect, authorize('admin', 'secretaria', 'palestrero'), updateMuroLibreHandler);
-router.delete('/:id', protect, authorize('admin', 'secretaria', 'palestrero'), deleteMuroLibreHandler);
+router.get('/', protect, authorize(PERMISOS.MURO_LIBRE_READ), getMuroLibreHandler);
+router.post('/', protect, authorize(PERMISOS.MURO_LIBRE_WRITE), createMuroLibreHandler);
+router.post('/checkin', protect, authorize(PERMISOS.MURO_LIBRE_CHECKIN), checkinMuroLibreHandler);
+router.put('/:id', protect, authorize(PERMISOS.MURO_LIBRE_WRITE), updateMuroLibreHandler);
+router.delete('/:id', protect, authorize(PERMISOS.MURO_LIBRE_DELETE), deleteMuroLibreHandler);
 
 export default router;
