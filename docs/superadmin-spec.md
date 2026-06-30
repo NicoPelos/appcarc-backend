@@ -89,10 +89,9 @@ Todos los modelos existentes ya tienen `clubId` — no hay cambio de schema. Se 
 - Vista detalle: métricas del club (socios activos, cobros del mes, usuarios)
 
 ### Usuarios
-- Tabla cross-club: nombre, email, club, roles, último login, estado
-- Crear usuario admin para un club
-- Editar rol / desactivar
-- Reset de contraseña
+- Vista de solo lectura cross-club: cuántos usuarios tiene cada club, último login global
+- Reset de contraseña de emergencia (solo si el admin del club no puede hacerlo)
+- No gestiona roles ni permisos de usuarios — eso es responsabilidad del admin del club
 
 ### Auditoría
 - Tabla del audit log global con filtros: club, usuario, recurso, acción, fecha
@@ -175,6 +174,15 @@ Request → protect() → authorize('muroLibre:write')
 
 Los permisos del rol se cachean en el JWT o en memoria (Redis/in-process) para no ir a la BD en cada request.
 
+### Separación de responsabilidades
+
+| Quién | Gestiona | No puede |
+|---|---|---|
+| **Superadmin** | Plan del club, módulos habilitados, suspensión | Tocar usuarios ni roles de cada club |
+| **Admin del club** | Usuarios de su club, roles y permisos de su club | Salirse de los módulos que el superadmin habilitó |
+
+Los permisos disponibles para un club están **acotados por sus módulos activos**. Si el superadmin deshabilitó `escuelita` para un club, el admin de ese club no puede asignar permisos `escuelita:*` a ningún rol — esas opciones directamente no aparecen en su panel.
+
 ### Pantalla de permisos en el super admin panel
 
 Matriz editable por club:
@@ -191,6 +199,18 @@ socio           ✓                 ✓                  ✓
 ```
 
 Click en celda → toggle inmediato → guarda en BD.
+
+### Panel de administración del club (app existente, no super admin)
+
+El admin de cada club tiene su propia sección dentro de la app actual (`/admin/...`):
+
+| Pantalla | Descripción |
+|---|---|
+| Usuarios | Crear, editar, desactivar usuarios de su club |
+| Roles | Crear roles, editar permisos (acotado a módulos habilitados por superadmin) |
+| Mi club | Ver el plan activo y módulos disponibles (solo lectura — los gestiona el superadmin) |
+
+Endpoints correspondientes en el backend bajo `/api/admin/...`, protegidos con `authorize('admin:roles')` o similar.
 
 ### Migración desde el sistema actual
 
