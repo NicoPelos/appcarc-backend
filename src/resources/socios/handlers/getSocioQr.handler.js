@@ -44,7 +44,7 @@ export const getSocioQrHandler = async (req, res) => {
     const { id } = req.params;
 
     // El rol socio solo puede pedir su propio QR
-    if (req.user?.role === 'socio' && req.user?.socioId !== id) {
+    if (req.user?.roles?.includes('socio') && req.user?.socioId !== id) {
       return res.status(403).json({ message: 'No tenés permiso para ver el QR de otro socio' });
     }
 

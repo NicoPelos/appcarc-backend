@@ -98,8 +98,14 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
   };
 };
 
+const VALID_ROLES = ['admin', 'autoridad', 'secretaria', 'profesor', 'palestrero', 'limpieza', 'arreglos', 'colaborador', 'socio'];
+
 export const register = async (req, res) => {
   const { email, password, dni, nombre, role, clubId } = req.body;
+
+  if (role && !VALID_ROLES.includes(role)) {
+    return res.status(400).json({ message: `Rol inválido. Roles permitidos: ${VALID_ROLES.join(', ')}` });
+  }
 
   try {
     const existingUser = await User.findOne({ email, clubId });

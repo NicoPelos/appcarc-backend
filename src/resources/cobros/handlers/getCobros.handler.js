@@ -83,7 +83,7 @@ export const getCobrosHandler = async (req, res) => {
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
     const filter = { clubId: req.user?.clubId, active: true };
-    if (req.user?.role === 'socio' && req.user?.socioId) {
+    if (req.user?.roles?.includes('socio') && req.user?.socioId) {
       filter['items.socioId'] = req.user.socioId;
     }
 

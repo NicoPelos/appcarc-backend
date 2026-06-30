@@ -64,7 +64,7 @@ describe('revertAuditLogHandler', () => {
   });
 
   it('revierte un UPDATE restaurando before', async () => {
-    const log = buildLog({ action: 'UPDATE' });
+    const log = buildLog({ action: 'UPDATE', before: { nombre: 'Antes', active: true } });
     AuditLog.findOne.mockResolvedValue(log);
 
     const mockUpdate = vi.fn().mockResolvedValue({});
@@ -74,13 +74,13 @@ describe('revertAuditLogHandler', () => {
     const res = mockRes();
     await revertAuditLogHandler(req, res);
 
-    expect(mockUpdate).toHaveBeenCalledWith(VALID_ID, expect.objectContaining({ nombre: 'Antes', active: true }), { upsert: false });
+    expect(mockUpdate).toHaveBeenCalledWith(VALID_ID, { $set: expect.objectContaining({ nombre: 'Antes', active: true }) }, { upsert: false });
     expect(log.save).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it('revierte un DELETE restaurando before', async () => {
-    const log = buildLog({ action: 'DELETE', after: null });
+    const log = buildLog({ action: 'DELETE', before: { nombre: 'Antes', active: true, deletedAt: null }, after: null });
     AuditLog.findOne.mockResolvedValue(log);
 
     const mockUpdate = vi.fn().mockResolvedValue({});
@@ -90,7 +90,7 @@ describe('revertAuditLogHandler', () => {
     const res = mockRes();
     await revertAuditLogHandler(req, res);
 
-    expect(mockUpdate).toHaveBeenCalledWith(VALID_ID, expect.objectContaining({ active: true, deletedAt: null }), { upsert: false });
+    expect(mockUpdate).toHaveBeenCalledWith(VALID_ID, { $set: expect.objectContaining({ active: true, deletedAt: null }) }, { upsert: false });
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
@@ -105,7 +105,7 @@ describe('revertAuditLogHandler', () => {
     const res = mockRes();
     await revertAuditLogHandler(req, res);
 
-    expect(mockUpdate).toHaveBeenCalledWith(VALID_ID, expect.objectContaining({ active: false }), { upsert: false });
+    expect(mockUpdate).toHaveBeenCalledWith(VALID_ID, { $set: expect.objectContaining({ active: false }) }, { upsert: false });
     expect(res.status).toHaveBeenCalledWith(200);
   });
 

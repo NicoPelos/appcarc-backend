@@ -23,8 +23,9 @@ export const syncSocioUserFromSocio = async (socio) => {
     user.clubId = socio.clubId || user.clubId;
     user.email = email;
     user.socioId = user.socioId || socio._id?.toString();
-    if (user.role !== 'admin' && user.role !== 'secretary' && user.role !== 'socio') {
-      user.role = 'socio';
+    const protectedRoles = ['admin', 'secretaria', 'socio'];
+    if (!user.roles?.some(r => protectedRoles.includes(r))) {
+      user.roles = ['socio'];
       user.active = true;
       const salt = await bcrypt.genSalt(10);
       user.password = await bcrypt.hash(password, salt);
@@ -40,7 +41,7 @@ export const syncSocioUserFromSocio = async (socio) => {
     email,
     password: hashedPassword,
     nombre,
-    role: 'socio',
+    roles: ['socio'],
     clubId: socio.clubId,
     socioId: socio._id?.toString(),
     active: true,

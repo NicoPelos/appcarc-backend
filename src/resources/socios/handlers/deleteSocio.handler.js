@@ -29,7 +29,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
 export const deleteSocioHandler = async (req, res) => {
   try {
     const { id } = req.params;
-    const socioAntes = await Socio.findOne({ _id: id, clubId: req.user?.clubId }).lean();
+    const socioAntes = await Socio.findOne({ _id: id, clubId: req.user?.clubId, active: true }).lean();
     if (!socioAntes) return res.status(404).json({ message: 'Socio no encontrado' });
 
     const socio = await Socio.findOneAndUpdate(

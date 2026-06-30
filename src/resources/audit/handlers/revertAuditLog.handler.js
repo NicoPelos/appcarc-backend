@@ -47,12 +47,7 @@ export const revertAuditLogHandler = async (req, res) => {
 
     if (log.action === 'CREATE') {
       // Revertir un CREATE → soft-delete el documento creado
-      await Model.findByIdAndUpdate(log.resourceId, {
-        active: false,
-        deletedAt: new Date(),
-        deletedBy: actor,
-        updatedBy: actor,
-      }, { upsert: false });
+      await Model.findByIdAndUpdate(log.resourceId, { $set: { active: false, updatedBy: actor } }, { upsert: false });
     } else if (log.action === 'UPDATE' || log.action === 'DELETE') {
       // Revertir UPDATE o DELETE → restaurar el snapshot before
       if (!log.before) {
@@ -62,12 +57,9 @@ export const revertAuditLogHandler = async (req, res) => {
       const restoredData = Object.fromEntries(
         Object.entries(log.before).filter(([k]) => !OMIT_FIELDS.includes(k)),
       );
-      restoredData.active = true;
-      restoredData.deletedAt = null;
-      restoredData.deletedBy = null;
       restoredData.updatedBy = actor;
 
-      await Model.findByIdAndUpdate(log.resourceId, restoredData, { upsert: false });
+      await Model.findByIdAndUpdate(log.resourceId, { $set: restoredData }, { upsert: false });
     }
 
     log.revertedAt = new Date();
@@ -77,7 +69,7 @@ export const revertAuditLogHandler = async (req, res) => {
     logAudit({
       clubId: req.user.clubId,
       req,
-      action: 'UPDATE',
+      action: log.action === 'CREATE' ? 'DELETE' : 'UPDATE',
       resource: log.resource,
       resourceId: log.resourceId,
       before: log.after,

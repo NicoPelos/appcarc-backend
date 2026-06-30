@@ -67,7 +67,7 @@ describe('uploadFotoSocioHandler', () => {
 
   it('retorna 403 si socio intenta modificar otro socio', async () => {
     const req = {
-      user: { clubId: 'CARC', role: 'socio', socioId: 'otro', email: 'socio@carc.com' },
+      user: { clubId: 'CARC', roles: ['socio'], socioId: 'otro', email: 'socio@carc.com' },
       params: { id: 'socio1' },
       file: { buffer: Buffer.from('img') },
     };

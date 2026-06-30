@@ -54,7 +54,7 @@ export const getSocioDeudaHandler = async (req, res) => {
     return res.status(404).json({ message: 'Socio no encontrado' });
   }
 
-  if (req.user.role === 'socio' && req.user.socioId !== id) {
+  if (req.user.roles?.includes('socio') && req.user.socioId !== id) {
     return res.status(403).json({ message: 'No tenés permiso para ver la deuda de este socio' });
   }
 
