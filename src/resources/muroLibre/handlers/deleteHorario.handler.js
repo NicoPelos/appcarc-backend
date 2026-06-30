@@ -1,4 +1,5 @@
 import Horarios from '../models/Horarios.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -27,6 +28,7 @@ export const deleteHorarioHandler = async (req, res) => {
 
     const horario = await Horarios.findOne({ _id: id, active: true });
     if (!horario) return res.status(404).json({ message: 'Horario no encontrado' });
+    const horarioAntes = horario.toObject();
 
     horario.active = false;
     horario.deletedAt = new Date();
@@ -34,6 +36,7 @@ export const deleteHorarioHandler = async (req, res) => {
     horario.updatedBy = req.user?.email ?? req.user?.id ?? 'Sistema';
     await horario.save();
 
+    logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'Horarios', resourceId: horario._id, before: horarioAntes, after: null });
     res.status(200).json({ message: 'Horario eliminado' });
   } catch (error) {
     console.error('Error eliminando horario:', error);

@@ -4,7 +4,7 @@ import { createSuscripcionHandler } from '../../handlers/createSuscripcion.handl
 const mockSave = vi.fn();
 
 vi.mock('../../models/Suscripcion.js', () => ({
-  default: vi.fn().mockImplementation((data) => ({ ...data, save: mockSave })),
+  default: vi.fn().mockImplementation((data) => ({ ...data, save: mockSave, toObject: vi.fn().mockReturnValue(data) })),
 }));
 
 vi.mock('../../../socios/models/Socio.js', () => ({

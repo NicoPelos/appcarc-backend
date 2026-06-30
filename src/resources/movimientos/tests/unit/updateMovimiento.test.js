@@ -22,6 +22,7 @@ const makeMovimiento = (overrides = {}) => ({
   active: true,
   updatedBy: '',
   save: vi.fn().mockResolvedValue(undefined),
+  toObject: vi.fn().mockReturnValue({}),
   ...overrides,
 });
 

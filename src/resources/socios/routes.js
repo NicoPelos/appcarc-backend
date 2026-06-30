@@ -27,7 +27,7 @@ const router = express.Router();
  *       200:
  *         description: Lista de socios disponible
  */
-router.get('/', protect, authorize('admin', 'secretary', 'socio'), getSociosHandler);
+router.get('/', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'), getSociosHandler);
 
 /**
  * @openapi
@@ -91,19 +91,19 @@ router.get('/', protect, authorize('admin', 'secretary', 'socio'), getSociosHand
  *       201:
  *         description: Socio creado exitosamente
  */
-router.post('/', protect, authorize('admin', 'secretary'), createSocioHandler);
+router.post('/', protect, authorize('admin', 'secretaria'), createSocioHandler);
 
 // Rutas de perfil personal
 router.get('/me/profile', protect, getMyProfileHandler);
 router.put('/me/profile', protect, updateMyProfileHandler);
 
-router.get('/:id/deuda', protect, authorize('admin', 'secretary', 'socio'), getSocioDeudaHandler);
-router.put('/:id/foto', protect, authorize('admin', 'secretary', 'socio'), upload.single('foto'), uploadFotoSocioHandler);
+router.get('/:id/deuda', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'), getSocioDeudaHandler);
+router.put('/:id/foto', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'), upload.single('foto'), uploadFotoSocioHandler);
 
-router.get('/:id/qr', protect, authorize('admin', 'secretary', 'socio'), getSocioQrHandler);
-router.post('/verify', protect, authorize('admin', 'secretary', 'socio'), verifySocioQrHandler);
+router.get('/:id/qr', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'), getSocioQrHandler);
+router.post('/verify', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'), verifySocioQrHandler);
 
-router.get('/:id', protect, authorize('admin', 'secretary', 'socio'), getSocioByIdHandler);
+router.get('/:id', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'), getSocioByIdHandler);
 
 /**
  * @openapi
@@ -154,8 +154,8 @@ router.get('/:id', protect, authorize('admin', 'secretary', 'socio'), getSocioBy
  *       200:
  *         description: Socio actualizado exitosamente
  */
-router.put('/:id', protect, authorize('admin', 'secretary'), updateSocioHandler);
-router.put('/:id/restore', protect, authorize('admin', 'secretary'), restoreSocioHandler);
+router.put('/:id', protect, authorize('admin', 'secretaria'), updateSocioHandler);
+router.put('/:id/restore', protect, authorize('admin', 'secretaria'), restoreSocioHandler);
 
 /**
  * @openapi

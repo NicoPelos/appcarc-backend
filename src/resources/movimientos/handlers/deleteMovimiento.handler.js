@@ -1,4 +1,5 @@
 import Movimiento from '../models/Movimiento.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -29,11 +30,13 @@ export const deleteMovimientoHandler = async (req, res) => {
 
     const movimiento = await Movimiento.findOne({ _id: id, clubId: req.user?.clubId, active: true });
     if (!movimiento) return res.status(404).json({ message: 'Movimiento no encontrado' });
+    const movimientoAntes = movimiento.toObject();
 
     movimiento.active = false;
     movimiento.updatedBy = req.user?.email ?? req.user?.id ?? 'Sistema';
     await movimiento.save();
 
+    logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'Movimiento', resourceId: id, before: movimientoAntes, after: null });
     res.status(200).json({ message: 'Movimiento eliminado' });
   } catch (error) {
     console.error('Error eliminando movimiento:', error);

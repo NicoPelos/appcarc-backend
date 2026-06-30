@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Cobro from '../models/Cobro.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 import Cuota from '../../cuotas/models/Cuota.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -46,9 +47,11 @@ export const anularCobroHandler = async (req, res) => {
   const session = await mongoose.startSession();
   try {
     let result = null;
+    let cobroAntes = null;
 
     await session.withTransaction(async () => {
       const cobro = await Cobro.findOne({ _id: id, clubId: req.user?.clubId }).session(session);
+      if (cobro && cobro.active) cobroAntes = cobro.toObject();
 
       if (!cobro) {
         const error = new Error('Cobro no encontrado');
@@ -86,6 +89,7 @@ export const anularCobroHandler = async (req, res) => {
       result = { cobro };
     });
 
+    logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'Cobro', resourceId: id, before: cobroAntes, after: null });
     return res.status(200).json({ message: 'Cobro anulado correctamente', cobro: result.cobro });
   } catch (error) {
     if (error.status) {

@@ -3,7 +3,7 @@ import { createPrecioHandler } from '../../handlers/createPrecio.handler.js';
 
 const mockSave = vi.fn();
 vi.mock('../../models/Precios.js', () => ({
-  default: vi.fn().mockImplementation((data) => ({ ...data, save: mockSave })),
+  default: vi.fn().mockImplementation((data) => ({ ...data, save: mockSave, toObject: vi.fn().mockReturnValue(data) })),
 }));
 vi.mock('../../../etiquetas/models/Etiqueta.js', () => ({
   default: { findOne: vi.fn() },

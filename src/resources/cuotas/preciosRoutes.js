@@ -7,7 +7,7 @@ import { deletePrecioHandler } from './handlers/deletePrecio.handler.js';
 
 const router = express.Router();
 
-router.get('/', protect, authorize('admin', 'secretary'), getPreciosHandler);
+router.get('/', protect, authorize('admin', 'autoridad', 'secretaria'), getPreciosHandler);
 router.post('/', protect, authorize('admin'), createPrecioHandler);
 router.put('/:id', protect, authorize('admin'), updatePrecioHandler);
 router.delete('/:id', protect, authorize('admin'), deletePrecioHandler);

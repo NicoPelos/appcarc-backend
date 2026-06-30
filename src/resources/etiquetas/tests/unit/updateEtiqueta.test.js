@@ -21,7 +21,7 @@ beforeEach(() => vi.clearAllMocks());
 describe('updateEtiquetaHandler', () => {
   it('actualiza etiqueta correctamente (200)', async () => {
     const mockSave = vi.fn().mockResolvedValue();
-    const etiqueta = { _id: '1', nombre: 'Cuota Social', save: mockSave };
+    const etiqueta = { _id: '1', nombre: 'Cuota Social', save: mockSave, toObject: vi.fn().mockReturnValue({}) };
     Etiqueta.findOne.mockResolvedValue(etiqueta);
 
     const req = { user: mockUser, params: { id: '1' }, body: { nombre: 'Cuota Social Actualizada' } };
@@ -36,7 +36,7 @@ describe('updateEtiquetaHandler', () => {
 
   it('actualiza uso_sistema correctamente', async () => {
     const mockSave = vi.fn().mockResolvedValue();
-    const etiqueta = { _id: '1', uso_sistema: null, save: mockSave };
+    const etiqueta = { _id: '1', uso_sistema: null, save: mockSave, toObject: vi.fn().mockReturnValue({}) };
     Etiqueta.findOne.mockResolvedValue(etiqueta);
 
     const req = { user: mockUser, params: { id: '1' }, body: { uso_sistema: 'cuota_social' } };

@@ -35,6 +35,7 @@ const buildActiveCobro = (overrides = {}) => ({
   anuladoPor: null,
   motivoAnulacion: null,
   save: vi.fn(async function () { return this; }),
+  toObject: vi.fn().mockReturnValue({}),
   ...overrides,
 });
 

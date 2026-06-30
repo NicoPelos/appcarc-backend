@@ -97,7 +97,7 @@ describe('Socios handlers (unit)', () => {
   });
 
   it('updateSocioHandler should update and return socio', async () => {
-    const fake = { _id: 'id1', apellido: 'Perez' };
+    const fake = { _id: 'id1', apellido: 'Perez', toObject: vi.fn().mockReturnValue({}) };
     Socio.findOne.mockResolvedValueOnce(fake);
     Socio.findOneAndUpdate.mockResolvedValueOnce(fake);
     const req = { params: { id: 'id1' }, body: { nombre: 'Updated' }, user: { clubId: 'club1', id: 'user1' } };
@@ -112,6 +112,7 @@ describe('Socios handlers (unit)', () => {
 
   it('deleteSocioHandler should soft-delete and return success message', async () => {
     const fake = { _id: 'id1', apellido: 'Perez' };
+    Socio.findOne.mockReturnValueOnce({ lean: vi.fn().mockResolvedValue(fake) });
     Socio.findOneAndUpdate.mockResolvedValueOnce(fake);
     const req = { params: { id: 'id1' }, user: { clubId: 'club1', id: 'user1' } };
     const res = mockRes();
@@ -144,7 +145,7 @@ describe('Socios handlers (unit)', () => {
   });
 
   it('restoreSocioHandler should restore a trashed socio', async () => {
-    const fake = { _id: 'id1', apellido: 'Perez', active: true };
+    const fake = { _id: 'id1', apellido: 'Perez', active: true, toObject: vi.fn().mockReturnValue({}) };
     Socio.findOneAndUpdate.mockResolvedValueOnce(fake);
     const req = { params: { id: 'id1' }, user: { clubId: 'club1', id: 'user1' } };
     const res = mockRes();

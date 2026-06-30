@@ -12,6 +12,7 @@ import preciosRoutes from './resources/cuotas/preciosRoutes.js';
 import etiquetasRoutes from './resources/etiquetas/routes.js';
 import suscripcionesRoutes from './resources/suscripciones/routes.js';
 import exportRoutes from './resources/export/routes.js';
+import auditRoutes from './resources/audit/routes.js';
 
 const router = express.Router();
 
@@ -28,5 +29,6 @@ router.use('/precios', preciosRoutes);
 router.use('/etiquetas', etiquetasRoutes);
 router.use('/suscripciones', suscripcionesRoutes);
 router.use('/export', exportRoutes);
+router.use('/audit', auditRoutes);
 
 export default router;

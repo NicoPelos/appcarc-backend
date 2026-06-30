@@ -7,10 +7,15 @@ const userSchema = new mongoose.Schema({
   passwordChangedAt: { type: Date },
   googleId: { type: String, default: null },
   nombre: String,
+  roles: {
+    type: [String],
+    enum: ['admin', 'autoridad', 'secretaria', 'profesor', 'palestrero', 'limpieza', 'arreglos', 'colaborador', 'socio'],
+    default: ['socio'],
+  },
   role: {
     type: String,
     enum: ['admin', 'secretary', 'socio'],
-    default: 'secretary',
+    select: false,
   },
   clubId: { type: String, required: true },
   socioId: { type: String, unique: true, sparse: true },

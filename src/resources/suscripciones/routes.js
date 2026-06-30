@@ -7,9 +7,9 @@ import { deleteSuscripcionHandler } from './handlers/deleteSuscripcion.handler.j
 
 const router = express.Router();
 
-router.get('/', protect, authorize('admin', 'secretary'), getSuscripcionesHandler);
-router.post('/', protect, authorize('admin', 'secretary'), createSuscripcionHandler);
-router.put('/:id/cerrar', protect, authorize('admin', 'secretary'), closeSuscripcionHandler);
+router.get('/', protect, authorize('admin', 'autoridad', 'secretaria'), getSuscripcionesHandler);
+router.post('/', protect, authorize('admin', 'secretaria'), createSuscripcionHandler);
+router.put('/:id/cerrar', protect, authorize('admin', 'secretaria'), closeSuscripcionHandler);
 router.delete('/:id', protect, authorize('admin'), deleteSuscripcionHandler);
 
 export default router;

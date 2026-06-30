@@ -1,4 +1,5 @@
 import { BusinessError, registrarMuroLibre } from '../services/registrarMuroLibre.service.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -75,6 +76,7 @@ export const createMuroLibreHandler = async (req, res) => {
     });
 
     res.status(201).json(result);
+    if (result?.registro) logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Asistencia', resourceId: result.registro._id, before: null, after: result.registro });
   } catch (error) {
     if (error instanceof BusinessError) {
       return res.status(error.status).json({ message: error.message });

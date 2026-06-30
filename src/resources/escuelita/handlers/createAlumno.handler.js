@@ -1,5 +1,6 @@
 import Socio from '../../socios/models/Socio.js';
 import Escuelita from '../models/Escuelita.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -93,6 +94,7 @@ export const createAlumnoHandler = async (req, res) => {
     await alumno.populate('socioId', 'socioNumber nombre apellido dni correoElectronico telefono estado active');
     await alumno.populate('categoriaId', 'nombre codigo frecuenciaSemanal precioMensual codigoPrecio');
 
+    logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Escuelita', resourceId: alumno._id, before: null, after: alumno.toObject() });
     res.status(201).json(alumno);
   } catch (error) {
     console.error('Error creando alumno de escuelita:', error);

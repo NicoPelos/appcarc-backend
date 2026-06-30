@@ -3,7 +3,7 @@ import { createEtiquetaHandler } from '../../handlers/createEtiqueta.handler.js'
 
 const mockSave = vi.fn();
 vi.mock('../../models/Etiqueta.js', () => ({
-  default: vi.fn().mockImplementation((data) => ({ ...data, save: mockSave })),
+  default: vi.fn().mockImplementation((data) => ({ ...data, save: mockSave, toObject: vi.fn().mockReturnValue(data) })),
 }));
 
 const mockUser = { clubId: 'CARC', email: 'admin@carc.com' };

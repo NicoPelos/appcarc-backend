@@ -1,4 +1,5 @@
 import Movimiento from '../models/Movimiento.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 
@@ -56,6 +57,7 @@ export const updateMovimientoHandler = async (req, res) => {
 
     const movimiento = await Movimiento.findOne({ _id: id, clubId: req.user?.clubId, active: true });
     if (!movimiento) return res.status(404).json({ message: 'Movimiento no encontrado' });
+    const movimientoAntes = movimiento.toObject();
 
     if (type !== undefined && !['Ingreso', 'Egreso'].includes(type)) {
       return res.status(400).json({ message: 'Tipo de movimiento inválido' });
@@ -89,6 +91,7 @@ export const updateMovimientoHandler = async (req, res) => {
     movimiento.updatedBy = req.user?.email ?? req.user?.id ?? 'Sistema';
 
     await movimiento.save();
+    logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Movimiento', resourceId: movimiento._id, before: movimientoAntes, after: movimiento.toObject() });
     res.status(200).json(movimiento);
   } catch (error) {
     console.error('Error actualizando movimiento:', error);

@@ -58,7 +58,7 @@ describe('Usuarios auth handlers (unit)', () => {
   });
 
   it('login should return token and socio when credentials valid', async () => {
-    User.findOne.mockResolvedValue({ _id: 'u1', email: 'a@b.com', password: 'hashed-pass', role: 'secretary', clubId: 'c1', active: true, socioId: null });
+    User.findOne.mockResolvedValue({ _id: 'u1', email: 'a@b.com', password: 'hashed-pass', roles: ['secretaria'], clubId: 'c1', active: true, socioId: null });
     const req = { body: { email: 'a@b.com', password: 'pass' } };
     const res = mockRes();
 

@@ -1,4 +1,5 @@
 import Suscripcion from '../models/Suscripcion.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -29,11 +30,13 @@ export const deleteSuscripcionHandler = async (req, res) => {
     if (!suscripcion) {
       return res.status(404).json({ message: 'Suscripción no encontrada' });
     }
+    const suscripcionAntes = suscripcion.toObject();
 
     suscripcion.active = false;
     suscripcion.updatedBy = req.user.email || req.user.id;
     await suscripcion.save();
 
+    logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'Suscripcion', resourceId: suscripcion._id, before: suscripcionAntes, after: null });
     return res.status(200).json({ message: 'Suscripción eliminada' });
   } catch (error) {
     console.error('Error eliminando suscripción:', error);

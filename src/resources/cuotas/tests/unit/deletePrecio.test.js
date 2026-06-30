@@ -21,7 +21,7 @@ beforeEach(() => vi.clearAllMocks());
 describe('deletePrecioHandler', () => {
   it('soft delete correctamente', async () => {
     const mockSave = vi.fn().mockResolvedValue();
-    const precio = { _id: '1', active: true, save: mockSave };
+    const precio = { _id: '1', active: true, save: mockSave, toObject: vi.fn().mockReturnValue({}) };
     Precios.findOne.mockResolvedValue(precio);
 
     const req = { user: mockUser, params: { id: '1' } };

@@ -21,7 +21,7 @@ beforeEach(() => vi.clearAllMocks());
 describe('updatePrecioHandler', () => {
   it('actualiza monto correctamente', async () => {
     const mockSave = vi.fn().mockResolvedValue();
-    Precios.findOne.mockResolvedValue({ _id: '1', monto: 5000, save: mockSave });
+    Precios.findOne.mockResolvedValue({ _id: '1', monto: 5000, save: mockSave, toObject: vi.fn().mockReturnValue({}) });
 
     const req = { user: mockUser, params: { id: '1' }, body: { monto: 6000 } };
     const res = mockRes();
@@ -44,7 +44,7 @@ describe('updatePrecioHandler', () => {
   });
 
   it('retorna 400 si monto es inválido', async () => {
-    Precios.findOne.mockResolvedValue({ _id: '1', save: vi.fn() });
+    Precios.findOne.mockResolvedValue({ _id: '1', save: vi.fn(), toObject: vi.fn().mockReturnValue({}) });
 
     const req = { user: mockUser, params: { id: '1' }, body: { monto: -50 } };
     const res = mockRes();
@@ -55,7 +55,7 @@ describe('updatePrecioHandler', () => {
   });
 
   it('retorna 400 si vigenteDesde es inválido', async () => {
-    Precios.findOne.mockResolvedValue({ _id: '1', save: vi.fn() });
+    Precios.findOne.mockResolvedValue({ _id: '1', save: vi.fn(), toObject: vi.fn().mockReturnValue({}) });
 
     const req = { user: mockUser, params: { id: '1' }, body: { vigenteDesde: 'no-es-fecha' } };
     const res = mockRes();

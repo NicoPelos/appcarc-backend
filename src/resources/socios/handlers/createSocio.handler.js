@@ -1,6 +1,7 @@
 import Socio from '../models/Socio.js';
 import { syncSocioToSheet } from '../services/socioSheetSync.js';
 import { prepareSocioCreateData, syncSocioUserIfPossible } from '../services/socioData.service.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -64,6 +65,8 @@ export const createSocioHandler = async (req, res) => {
 
     await syncSocioUserIfPossible(socio);
     await syncSocioToSheet(socio);
+
+    logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Socio', resourceId: socio._id, before: null, after: socio.toObject() });
 
     res.status(201).json(socio);
   } catch (error) {

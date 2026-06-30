@@ -21,7 +21,7 @@ beforeEach(() => vi.clearAllMocks());
 describe('deleteEtiquetaHandler', () => {
   it('soft delete correctamente (200)', async () => {
     const mockSave = vi.fn().mockResolvedValue();
-    const etiqueta = { _id: '1', active: true, save: mockSave };
+    const etiqueta = { _id: '1', active: true, save: mockSave, toObject: vi.fn().mockReturnValue({}) };
     Etiqueta.findOne.mockResolvedValue(etiqueta);
 
     const req = { user: mockUser, params: { id: '1' } };

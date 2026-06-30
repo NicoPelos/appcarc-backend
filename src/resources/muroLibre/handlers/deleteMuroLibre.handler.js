@@ -1,6 +1,7 @@
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 import mongoose from 'mongoose';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -27,6 +28,7 @@ export const deleteMuroLibreHandler = async (req, res) => {
   const session = await mongoose.startSession();
   try {
     let resultado;
+    let registroAntes = null;
     await session.withTransaction(async () => {
       const { id } = req.params;
       const actor = req.user.email || req.user.id;
@@ -38,6 +40,7 @@ export const deleteMuroLibreHandler = async (req, res) => {
       if (!registro) {
         return res.status(404).json({ message: 'Registro no encontrado' });
       }
+      registroAntes = registro.toObject();
 
       registro.active = false;
       registro.updatedBy = actor;
@@ -55,6 +58,7 @@ export const deleteMuroLibreHandler = async (req, res) => {
     });
 
     if (resultado) {
+      logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'Asistencia', resourceId: resultado._id, before: registroAntes, after: null });
       return res.status(200).json({ message: 'Registro anulado correctamente' });
     }
   } catch (error) {

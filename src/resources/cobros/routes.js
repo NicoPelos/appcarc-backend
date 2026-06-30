@@ -18,7 +18,7 @@ const router = express.Router();
  *       200:
  *         description: Lista de cobros disponible
  */
-router.get('/', protect, authorize('admin', 'secretary', 'socio'), getCobrosHandler);
+router.get('/', protect, authorize('admin', 'autoridad', 'secretaria', 'socio'), getCobrosHandler);
 
 /**
  * @openapi
@@ -85,8 +85,8 @@ router.get('/', protect, authorize('admin', 'secretary', 'socio'), getCobrosHand
  *       201:
  *         description: Cobro, cuotas y movimiento creados exitosamente
  */
-router.post('/', protect, authorize('admin', 'secretary'), createCobroHandler);
+router.post('/', protect, authorize('admin', 'secretaria'), createCobroHandler);
 
-router.post('/:id/anular', protect, authorize('admin', 'secretary'), anularCobroHandler);
+router.post('/:id/anular', protect, authorize('admin', 'secretaria'), anularCobroHandler);
 
 export default router;

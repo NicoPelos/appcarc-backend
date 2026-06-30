@@ -1,6 +1,7 @@
 import Suscripcion from '../models/Suscripcion.js';
 import Socio from '../../socios/models/Socio.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -83,6 +84,7 @@ export const createSuscripcionHandler = async (req, res) => {
     });
 
     await suscripcion.save();
+    logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Suscripcion', resourceId: suscripcion._id, before: null, after: suscripcion.toObject() });
     return res.status(201).json(suscripcion);
   } catch (error) {
     console.error('Error creando suscripción:', error);

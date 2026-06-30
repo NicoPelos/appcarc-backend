@@ -45,7 +45,7 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
       email,
       password: hashedPassword,
       nombre: socio.nombre,
-      role: 'socio',
+      roles: ['socio'],
       clubId,
       socioId: socio._id.toString(),
       active: true,
@@ -74,7 +74,7 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
     await socio.save();
   }
 
-  const token = jwt.sign({ id: user._id, role: user.role, clubId: user.clubId, socioId: user.socioId || null }, process.env.JWT_SECRET, { expiresIn: '8h' });
+  const token = jwt.sign({ id: user._id, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null }, process.env.JWT_SECRET, { expiresIn: '8h' });
 
   return {
     token,
@@ -82,7 +82,7 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
       id: user._id,
       nombre: user.nombre || name,
       email,
-      role: user.role,
+      roles: user.roles,
       clubId: user.clubId,
       socioId: user.socioId || null,
       picture,
@@ -122,7 +122,7 @@ export const register = async (req, res) => {
       email,
       password: hashedPassword,
       nombre: nombre || socio?.nombre,
-      role: role || 'secretary',
+      roles: role ? [role] : ['secretaria'],
       clubId,
       socioId: socio?._id?.toString() || null,
       mustChangePassword,
@@ -130,7 +130,7 @@ export const register = async (req, res) => {
     await user.save();
 
     const token = jwt.sign(
-      { id: user._id, role: user.role, clubId: user.clubId, socioId: user.socioId || null },
+      { id: user._id, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null },
       process.env.JWT_SECRET,
       { expiresIn: '8h' },
     );
@@ -141,7 +141,7 @@ export const register = async (req, res) => {
         id: user._id,
         email: user.email,
         nombre: user.nombre,
-        role: user.role,
+        roles: user.roles,
         clubId: user.clubId,
         socioId: user.socioId || null,
         mustChangePassword: user.mustChangePassword,
@@ -216,7 +216,7 @@ export const login = async (req, res) => {
     if (!user.active) return res.status(403).json({ message: 'Usuario desactivado' });
 
     const token = jwt.sign(
-      { id: user._id, role: user.role, clubId: user.clubId, socioId: user.socioId || null },
+      { id: user._id, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null },
       process.env.JWT_SECRET,
       { expiresIn: '8h' },
     );
@@ -229,7 +229,7 @@ export const login = async (req, res) => {
         id: user._id,
         email: user.email,
         nombre: user.nombre,
-        role: user.role,
+        roles: user.roles,
         clubId: user.clubId,
         socioId: user.socioId || null,
         mustChangePassword: !!user.mustChangePassword,

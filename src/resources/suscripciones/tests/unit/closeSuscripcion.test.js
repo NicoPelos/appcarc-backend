@@ -21,7 +21,7 @@ beforeEach(() => vi.clearAllMocks());
 describe('closeSuscripcionHandler', () => {
   it('cierra suscripción correctamente (200)', async () => {
     const mockSave = vi.fn().mockResolvedValue();
-    const suscripcion = { _id: 'sus123', fechaHasta: null, save: mockSave };
+    const suscripcion = { _id: 'sus123', fechaHasta: null, save: mockSave, toObject: vi.fn().mockReturnValue({}) };
     Suscripcion.findOne.mockResolvedValue(suscripcion);
 
     const req = { user: mockUser, params: { id: 'sus123' }, body: { fechaHasta: '2026-06' } };

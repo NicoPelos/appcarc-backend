@@ -1,4 +1,5 @@
 import Precios from '../models/Precios.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -40,6 +41,7 @@ export const updatePrecioHandler = async (req, res) => {
 
     const precio = await Precios.findOne({ _id: id, clubId: req.user.clubId, active: true });
     if (!precio) return res.status(404).json({ message: 'Precio no encontrado' });
+    const precioAntes = precio.toObject();
 
     if (nombre !== undefined) precio.nombre = nombre;
 
@@ -63,6 +65,7 @@ export const updatePrecioHandler = async (req, res) => {
     precio.updatedBy = req.user.email || req.user.id;
     await precio.save();
 
+    logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Precios', resourceId: precio._id, before: precioAntes, after: precio.toObject() });
     return res.status(200).json(precio);
   } catch (error) {
     console.error('Error actualizando precio:', error);

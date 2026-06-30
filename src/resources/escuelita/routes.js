@@ -13,14 +13,14 @@ import { checkinEscuelitaHandler } from './handlers/checkinEscuelita.handler.js'
 
 const router = express.Router();
 
-router.post('/checkin', protect, authorize('admin', 'secretary'), checkinEscuelitaHandler);
-router.get('/', protect, authorize('admin', 'secretary', 'socio'), getAlumnosHandler);
-router.post('/', protect, authorize('admin', 'secretary'), createAlumnoHandler);
-router.put('/:id', protect, authorize('admin', 'secretary'), updateAlumnoHandler);
-router.delete('/:id', protect, authorize('admin', 'secretary'), deleteAlumnoHandler);
+router.post('/checkin', protect, authorize('admin', 'secretaria', 'profesor', 'colaborador'), checkinEscuelitaHandler);
+router.get('/', protect, authorize('admin', 'autoridad', 'secretaria', 'profesor', 'colaborador'), getAlumnosHandler);
+router.post('/', protect, authorize('admin', 'secretaria'), createAlumnoHandler);
+router.put('/:id', protect, authorize('admin', 'secretaria'), updateAlumnoHandler);
+router.delete('/:id', protect, authorize('admin', 'secretaria'), deleteAlumnoHandler);
 router.delete('/:id/purgar', protect, authorize('admin'), purgarAlumnoHandler);
 
-router.get('/categorias', protect, authorize('admin', 'secretary'), getCategoriasHandler);
+router.get('/categorias', protect, authorize('admin', 'autoridad', 'secretaria', 'profesor', 'colaborador'), getCategoriasHandler);
 router.post('/categorias', protect, authorize('admin'), createCategoriaHandler);
 router.put('/categorias/:id', protect, authorize('admin'), updateCategoriaHandler);
 router.delete('/categorias/:id', protect, authorize('admin'), deleteCategoriaHandler);

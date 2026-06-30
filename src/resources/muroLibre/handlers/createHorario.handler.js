@@ -1,5 +1,6 @@
 import { randomBytes } from 'crypto';
 import Horarios from '../models/Horarios.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -78,6 +79,7 @@ export const createHorarioHandler = async (req, res) => {
     });
 
     await horario.save();
+    logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Horarios', resourceId: horario._id, before: null, after: horario.toObject() });
     res.status(201).json(horario);
   } catch (error) {
     console.error('Error creando horario:', error);

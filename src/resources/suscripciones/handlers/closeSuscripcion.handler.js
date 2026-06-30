@@ -1,4 +1,5 @@
 import Suscripcion from '../models/Suscripcion.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -58,10 +59,12 @@ export const closeSuscripcionHandler = async (req, res) => {
       return res.status(400).json({ message: 'La suscripción ya tiene una fecha de cierre' });
     }
 
+    const suscripcionAntes = suscripcion.toObject();
     suscripcion.fechaHasta = fechaHasta;
     suscripcion.updatedBy = req.user.email || req.user.id;
     await suscripcion.save();
 
+    logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Suscripcion', resourceId: suscripcion._id, before: suscripcionAntes, after: suscripcion.toObject() });
     return res.status(200).json(suscripcion);
   } catch (error) {
     console.error('Error cerrando suscripción:', error);

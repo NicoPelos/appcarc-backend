@@ -3,6 +3,7 @@ import { syncSocioToSheet } from '../services/socioSheetSync.js';
 import { prepareSocioUpdateData, syncSocioUserIfPossible } from '../services/socioData.service.js';
 import { sendPushNotification } from '../../../services/pushNotification.service.js';
 import User from '../../usuarios/models/User.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 const ESTADO_LABEL = { Activo: 'Activo', Adherente: 'Adherente', Baja: 'Baja' };
 
@@ -114,6 +115,8 @@ export const updateSocioHandler = async (req, res) => {
         }).catch((err) => console.error('Error enviando push de socio update:', err));
       }
     }
+
+    logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Socio', resourceId: socio._id, before: socioAntes.toObject(), after: socio.toObject() });
 
     res.status(200).json(socio);
   } catch (error) {

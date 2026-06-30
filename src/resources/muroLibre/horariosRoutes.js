@@ -12,17 +12,17 @@ import { getDeudaStaffHandler } from './handlers/getDeudaStaff.handler.js';
 const router = express.Router();
 
 // Deuda del staff (antes de /:id para no colisionar)
-router.get('/deuda', protect, authorize('admin', 'secretary'), getDeudaStaffHandler);
+router.get('/deuda', protect, authorize('admin', 'autoridad', 'secretaria'), getDeudaStaffHandler);
 
 // Etiquetas
-router.get('/etiquetas', protect, authorize('admin', 'secretary'), getEtiquetasHandler);
-router.post('/etiquetas', protect, authorize('admin', 'secretary'), createEtiquetaHandler);
-router.delete('/etiquetas/:id', protect, authorize('admin', 'secretary'), deleteEtiquetaHandler);
+router.get('/etiquetas', protect, authorize('admin', 'secretaria'), getEtiquetasHandler);
+router.post('/etiquetas', protect, authorize('admin', 'secretaria'), createEtiquetaHandler);
+router.delete('/etiquetas/:id', protect, authorize('admin', 'secretaria'), deleteEtiquetaHandler);
 
 // Horarios
-router.get('/', protect, authorize('admin', 'secretary'), getHorariosHandler);
-router.post('/', protect, authorize('admin', 'secretary'), createHorarioHandler);
-router.put('/:id', protect, authorize('admin', 'secretary'), updateHorarioHandler);
-router.delete('/:id', protect, authorize('admin', 'secretary'), deleteHorarioHandler);
+router.get('/', protect, authorize('admin', 'autoridad', 'secretaria', 'profesor', 'palestrero', 'limpieza', 'arreglos', 'colaborador'), getHorariosHandler);
+router.post('/', protect, authorize('admin', 'secretaria', 'palestrero', 'limpieza', 'arreglos'), createHorarioHandler);
+router.put('/:id', protect, authorize('admin', 'secretaria', 'palestrero', 'limpieza', 'arreglos'), updateHorarioHandler);
+router.delete('/:id', protect, authorize('admin', 'secretaria', 'palestrero', 'limpieza', 'arreglos'), deleteHorarioHandler);
 
 export default router;

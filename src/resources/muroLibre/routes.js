@@ -8,10 +8,10 @@ import { deleteMuroLibreHandler } from './handlers/deleteMuroLibre.handler.js';
 
 const router = express.Router();
 
-router.get('/', protect, authorize('admin', 'secretary', 'socio'), getMuroLibreHandler);
-router.post('/', protect, authorize('admin', 'secretary'), createMuroLibreHandler);
-router.post('/checkin', protect, authorize('admin', 'secretary'), checkinMuroLibreHandler);
-router.put('/:id', protect, authorize('admin', 'secretary'), updateMuroLibreHandler);
-router.delete('/:id', protect, authorize('admin', 'secretary'), deleteMuroLibreHandler);
+router.get('/', protect, authorize('admin', 'autoridad', 'secretaria', 'palestrero', 'colaborador', 'socio'), getMuroLibreHandler);
+router.post('/', protect, authorize('admin', 'secretaria', 'palestrero', 'colaborador'), createMuroLibreHandler);
+router.post('/checkin', protect, authorize('admin', 'secretaria', 'palestrero', 'colaborador'), checkinMuroLibreHandler);
+router.put('/:id', protect, authorize('admin', 'secretaria', 'palestrero'), updateMuroLibreHandler);
+router.delete('/:id', protect, authorize('admin', 'secretaria', 'palestrero'), deleteMuroLibreHandler);
 
 export default router;

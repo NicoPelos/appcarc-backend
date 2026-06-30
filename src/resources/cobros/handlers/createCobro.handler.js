@@ -1,6 +1,7 @@
 import { BusinessError, registrarCobro } from '../services/registrarCobro.service.js';
 import { sendPushNotification } from '../../../services/pushNotification.service.js';
 import User from '../../usuarios/models/User.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const TIPO_LABEL = { social: 'cuota social', escuelita: 'cuota de escuelita', muro_libre: 'pase muro libre' };
@@ -96,6 +97,8 @@ export const createCobroHandler = async (req, res) => {
     });
 
     res.status(201).json(result);
+
+    logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Cobro', resourceId: result.cobro._id, before: null, after: { cobro: result.cobro, cuotas: result.cuotas } });
 
     const cuotasBySocioId = result.cuotas.reduce((acc, cuota) => {
       const key = cuota.socioId.toString();

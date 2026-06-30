@@ -1,4 +1,5 @@
 import Horarios from '../models/Horarios.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -54,6 +55,7 @@ export const updateHorarioHandler = async (req, res) => {
 
     const horario = await Horarios.findOne({ _id: id, active: true });
     if (!horario) return res.status(404).json({ message: 'Horario no encontrado' });
+    const horarioAntes = horario.toObject();
 
     if (fecha !== undefined) {
       const d = new Date(fecha);
@@ -86,6 +88,7 @@ export const updateHorarioHandler = async (req, res) => {
     horario.updatedBy = req.user?.email ?? req.user?.id ?? 'Sistema';
 
     await horario.save();
+    logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Horarios', resourceId: horario._id, before: horarioAntes, after: horario.toObject() });
     res.status(200).json(horario);
   } catch (error) {
     console.error('Error actualizando horario:', error);

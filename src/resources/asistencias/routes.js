@@ -5,7 +5,7 @@ import { createAsistenciaEscuelitaHandler } from './handlers/createAsistenciaEsc
 
 const router = express.Router();
 
-router.get('/', protect, authorize('admin', 'secretary', 'socio'), getAsistenciasHandler);
-router.post('/escuelita', protect, authorize('admin', 'secretary'), createAsistenciaEscuelitaHandler);
+router.get('/', protect, authorize('admin', 'autoridad', 'secretaria', 'profesor', 'colaborador'), getAsistenciasHandler);
+router.post('/escuelita', protect, authorize('admin', 'secretaria', 'profesor', 'colaborador'), createAsistenciaEscuelitaHandler);
 
 export default router;

@@ -1,4 +1,5 @@
 import Movimiento from '../models/Movimiento.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 
@@ -117,6 +118,7 @@ export const createMovimientoHandler = async (req, res) => {
     });
 
     await movimiento.save();
+    logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Movimiento', resourceId: movimiento._id, before: null, after: movimiento.toObject() });
     res.status(201).json(movimiento);
   } catch (error) {
     console.error('Error creando movimiento:', error);

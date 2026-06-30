@@ -28,6 +28,7 @@ src/
     ├── muroLibre/      # Registro y check-in de muro libre, horarios de personal, etiquetas
     ├── escuelita/      # Alumnos inscriptos + categorías vinculadas a precios
     ├── novedades/      # Canal de noticias + sync con Instagram RSS
+    ├── audit/          # Audit log: historial de cambios con revert
     └── export/         # Exportación de datos (Google Sheets)
 ```
 
@@ -90,11 +91,19 @@ npm run seed-admin         # Crear usuario admin inicial
 
 ## Roles
 
-| Rol         | Acceso                                      |
-|-------------|---------------------------------------------|
-| `admin`     | Total                                       |
-| `secretary` | CRUD socios, cobros, asistencias, novedades |
-| `socio`     | Solo lectura de sus propios datos y QR      |
+Los usuarios pueden tener **más de un rol simultáneamente** (array `roles`).
+
+| Rol           | Acceso                                                                           |
+|---------------|----------------------------------------------------------------------------------|
+| `admin`       | Total — único que puede revertir cambios del audit log                           |
+| `autoridad`   | Solo lectura: socios, cobros, movimientos, escuelita, asistencias, export/sheets |
+| `secretaria`  | CRUD socios, cobros, asistencias, escuelita alumnos, suscripciones, novedades    |
+| `profesor`    | Check-in y vista de alumnos de escuelita                                         |
+| `palestrero`  | Check-in y vista de muro libre, horarios del personal                            |
+| `limpieza`    | Horarios del personal (registro de horas)                                        |
+| `arreglos`    | Horarios del personal (registro de horas)                                        |
+| `colaborador` | Check-in y vista de muro libre + escuelita                                       |
+| `socio`       | Solo lectura de sus propios datos y QR. Es el rol por defecto.                   |
 
 ## Auth
 
@@ -110,7 +119,7 @@ El login devuelve `{ token, user, socio }`. Si el usuario tiene `mustChangePassw
 
 Cuando se cambia la contraseña, todos los tokens emitidos anteriormente quedan inválidos de inmediato.
 
-**Creación automática de usuario**: al crear un socio con `correoElectronico` y `dni`, el sistema crea automáticamente un usuario con `role: socio`, contraseña = DNI y `mustChangePassword: true`.
+**Creación automática de usuario**: al crear un socio con `correoElectronico` y `dni`, el sistema crea automáticamente un usuario con `roles: ['socio']`, contraseña = DNI y `mustChangePassword: true`.
 
 ## Socios
 
@@ -258,7 +267,7 @@ Panel de datos para autoridades del club que no usan la app.
 
 | Endpoint                  | Descripción                               |
 |---------------------------|-------------------------------------------|
-| `POST /api/export/sheets` | Exportar datos al Google Sheet (solo admin) |
+| `POST /api/export/sheets` | Exportar datos al Google Sheet (admin, autoridad) |
 
 El servidor también ejecuta la exportación automáticamente **todos los días a las 3am** si `GOOGLE_SHEET_EXPORT_ID` está configurado.
 
@@ -279,6 +288,33 @@ El servidor también ejecuta la exportación automáticamente **todos los días 
 | Escuelita | Alumnos con categoría y estado |
 | Movimientos | Caja general |
 | Horarios | Horas trabajadas por el personal |
+
+## Audit Log
+
+Registro de todas las operaciones de escritura (CREATE, UPDATE, DELETE) con snapshot antes/después.
+
+| Endpoint                      | Descripción                                                    |
+|-------------------------------|----------------------------------------------------------------|
+| `GET /api/audit`              | Listar logs (admin, autoridad). Filtros: `resource`, `userId`, `action`, `from`, `to`, `page`, `limit` |
+| `POST /api/audit/:id/revert`  | Revertir un cambio (solo admin). Restaura el estado `before`.  |
+
+La reversión funciona así:
+- **CREATE revertido** → soft-delete del documento creado
+- **UPDATE revertido** → restaura el snapshot `before` del documento
+- **DELETE revertido** → reactiva el documento con el snapshot `before`
+
+Cada reversión queda registrada como un nuevo log de `UPDATE` en el audit.
+
+## Migración de roles
+
+Para migrar usuarios existentes al nuevo sistema multi-rol:
+
+```bash
+docker cp scripts/migrar-roles.js appcarc-backend-app-1:/app/scripts/migrar-roles.js
+docker exec appcarc-backend-app-1 node scripts/migrar-roles.js
+```
+
+El script es idempotente: omite usuarios que ya tienen `roles` configurado.
 
 ## Testing
 

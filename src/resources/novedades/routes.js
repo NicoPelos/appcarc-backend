@@ -6,8 +6,8 @@ import { syncNovedadesHandler } from './handlers/syncNovedades.handler.js';
 
 const router = express.Router();
 
-router.get('/', protect, authorize('admin', 'secretary', 'socio'), getNovedadesHandler);
-router.post('/', protect, authorize('admin', 'secretary'), createNovedadHandler);
-router.post('/sync', protect, authorize('admin', 'secretary'), syncNovedadesHandler);
+router.get('/', protect, getNovedadesHandler);
+router.post('/', protect, authorize('admin', 'secretaria'), createNovedadHandler);
+router.post('/sync', protect, authorize('admin', 'secretaria'), syncNovedadesHandler);
 
 export default router;

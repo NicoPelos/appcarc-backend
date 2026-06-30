@@ -1,4 +1,5 @@
 import Etiqueta from '../models/Etiqueta.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -36,6 +37,7 @@ export const updateEtiquetaHandler = async (req, res) => {
 
     const etiqueta = await Etiqueta.findOne({ _id: id, clubId: req.user.clubId, active: true });
     if (!etiqueta) return res.status(404).json({ message: 'Etiqueta no encontrada' });
+    const etiquetaAntes = etiqueta.toObject();
 
     if (nombre !== undefined) etiqueta.nombre = nombre;
     if (uso_sistema !== undefined) etiqueta.uso_sistema = uso_sistema;
@@ -43,6 +45,7 @@ export const updateEtiquetaHandler = async (req, res) => {
     etiqueta.updatedBy = req.user.email || req.user.id;
     await etiqueta.save();
 
+    logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Etiqueta', resourceId: etiqueta._id, before: etiquetaAntes, after: etiqueta.toObject() });
     return res.status(200).json(etiqueta);
   } catch (error) {
     console.error('Error actualizando etiqueta:', error);

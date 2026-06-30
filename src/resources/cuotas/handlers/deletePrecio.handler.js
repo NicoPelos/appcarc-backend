@@ -1,4 +1,5 @@
 import Precios from '../models/Precios.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -27,6 +28,7 @@ export const deletePrecioHandler = async (req, res) => {
 
     const precio = await Precios.findOne({ _id: id, clubId: req.user.clubId, active: true });
     if (!precio) return res.status(404).json({ message: 'Precio no encontrado' });
+    const precioAntes = precio.toObject();
 
     precio.active = false;
     precio.deletedAt = new Date();
@@ -34,6 +36,7 @@ export const deletePrecioHandler = async (req, res) => {
     precio.updatedBy = req.user.email || req.user.id;
     await precio.save();
 
+    logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'Precios', resourceId: precio._id, before: precioAntes, after: null });
     return res.status(200).json({ message: 'Precio eliminado correctamente' });
   } catch (error) {
     console.error('Error eliminando precio:', error);

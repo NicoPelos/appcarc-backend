@@ -1,4 +1,5 @@
 import Escuelita from '../models/Escuelita.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -27,19 +28,18 @@ import Escuelita from '../models/Escuelita.js';
 
 export const deleteAlumnoHandler = async (req, res) => {
   try {
+    const alumnoAntes = await Escuelita.findOne({ _id: req.params.id, clubId: req.user?.clubId, active: true }).lean();
+    if (!alumnoAntes) return res.status(404).json({ message: 'Alumno de escuelita no encontrado' });
+
     const alumno = await Escuelita.findOneAndUpdate(
       { _id: req.params.id, clubId: req.user?.clubId, active: true },
-      {
-        estado: 'baja',
-        updatedBy: req.user.email || req.user.id,
-      },
+      { estado: 'baja', updatedBy: req.user.email || req.user.id },
       { returnDocument: 'after' }
     );
 
-    if (!alumno) {
-      return res.status(404).json({ message: 'Alumno de escuelita no encontrado' });
-    }
+    if (!alumno) return res.status(404).json({ message: 'Alumno de escuelita no encontrado' });
 
+    logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'Escuelita', resourceId: alumno._id, before: alumnoAntes, after: null });
     res.status(200).json({ message: 'Alumno dado de baja de escuelita' });
   } catch (error) {
     console.error('Error dando de baja alumno de escuelita:', error);

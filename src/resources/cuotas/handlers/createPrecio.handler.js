@@ -1,5 +1,6 @@
 import Precios from '../models/Precios.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -80,6 +81,7 @@ export const createPrecioHandler = async (req, res) => {
     });
 
     await precio.save();
+    logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Precios', resourceId: precio._id, before: null, after: precio.toObject() });
     return res.status(201).json(precio);
   } catch (error) {
     console.error('Error creando precio:', error);

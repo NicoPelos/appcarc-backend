@@ -1,6 +1,7 @@
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 import mongoose from 'mongoose';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 
@@ -43,6 +44,7 @@ export const updateMuroLibreHandler = async (req, res) => {
   const session = await mongoose.startSession();
   try {
     let resultado;
+    let registroAntes = null;
     await session.withTransaction(async () => {
       const { id } = req.params;
       const { fecha, monto, formaPago, observaciones } = req.body;
@@ -55,6 +57,7 @@ export const updateMuroLibreHandler = async (req, res) => {
       if (!registro) {
         return res.status(404).json({ message: 'Registro no encontrado' });
       }
+      registroAntes = registro.toObject();
 
       if (fecha !== undefined) {
         const d = new Date(fecha);
@@ -105,6 +108,7 @@ export const updateMuroLibreHandler = async (req, res) => {
     });
 
     if (resultado) {
+      logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Asistencia', resourceId: resultado._id, before: registroAntes, after: resultado.toObject() });
       return res.status(200).json(resultado);
     }
   } catch (error) {

@@ -1,4 +1,5 @@
 import Etiqueta from '../models/Etiqueta.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
  * @openapi
@@ -56,6 +57,7 @@ export const createEtiquetaHandler = async (req, res) => {
     });
 
     await etiqueta.save();
+    logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Etiqueta', resourceId: etiqueta._id, before: null, after: etiqueta.toObject() });
     return res.status(201).json(etiqueta);
   } catch (error) {
     console.error('Error creando etiqueta:', error);

@@ -1,4 +1,5 @@
 import Socio from '../models/Socio.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 /** * @openapi
  * /api/socios/{id}/restore:
@@ -41,6 +42,9 @@ export const restoreSocioHandler = async (req, res) => {
       { returnDocument: 'after' }
     );
     if (!socio) return res.status(404).json({ message: 'Socio no encontrado o no está en papelera' });
+
+    logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Socio', resourceId: socio._id, before: null, after: socio.toObject() });
+
     res.status(200).json(socio);
   } catch (error) {
     console.error('Error restaurando socio (handler):', error);

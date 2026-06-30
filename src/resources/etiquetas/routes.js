@@ -7,7 +7,7 @@ import { deleteEtiquetaHandler } from './handlers/deleteEtiqueta.handler.js';
 
 const router = express.Router();
 
-router.get('/', protect, authorize('admin', 'secretary'), getEtiquetasHandler);
+router.get('/', protect, authorize('admin', 'autoridad', 'secretaria'), getEtiquetasHandler);
 router.post('/', protect, authorize('admin'), createEtiquetaHandler);
 router.put('/:id', protect, authorize('admin'), updateEtiquetaHandler);
 router.delete('/:id', protect, authorize('admin'), deleteEtiquetaHandler);

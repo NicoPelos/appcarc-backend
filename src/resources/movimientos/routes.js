@@ -7,9 +7,9 @@ import { protect, authorize } from '../../middleware/auth.js';
 
 const router = express.Router();
 
-router.get('/', protect, authorize('admin', 'secretary'), getMovimientosHandler);
-router.post('/', protect, authorize('admin', 'secretary'), createMovimientoHandler);
-router.put('/:id', protect, authorize('admin', 'secretary'), updateMovimientoHandler);
-router.delete('/:id', protect, authorize('admin', 'secretary'), deleteMovimientoHandler);
+router.get('/', protect, authorize('admin', 'autoridad', 'secretaria'), getMovimientosHandler);
+router.post('/', protect, authorize('admin', 'secretaria'), createMovimientoHandler);
+router.put('/:id', protect, authorize('admin', 'secretaria'), updateMovimientoHandler);
+router.delete('/:id', protect, authorize('admin', 'secretaria'), deleteMovimientoHandler);
 
 export default router;

@@ -18,6 +18,7 @@ const makeHorario = (overrides = {}) => ({
   deletedBy: null,
   updatedBy: '',
   save: vi.fn().mockResolvedValue(undefined),
+  toObject: vi.fn().mockReturnValue({}),
   ...overrides,
 });
 
