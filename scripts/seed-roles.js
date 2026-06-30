@@ -101,7 +101,6 @@ const ROLES_SEED = [
     nombre: 'socio',
     permisos: [
       P.SOCIOS_READ,
-      P.COBROS_READ,
       P.MURO_LIBRE_READ, P.MURO_LIBRE_CHECKIN,
     ],
   },
