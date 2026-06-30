@@ -1,5 +1,19 @@
 import Rol from '../models/Rol.js';
 
+/**
+ * @openapi
+ * /api/roles:
+ *   get:
+ *     summary: Listar roles del club con sus permisos
+ *     tags: [Roles]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de roles activos
+ *       500:
+ *         description: Error al obtener roles
+ */
 export const getRolesHandler = async (req, res) => {
   try {
     const roles = await Rol.find({ clubId: req.user.clubId, active: true }).sort({ nombre: 1 }).lean();

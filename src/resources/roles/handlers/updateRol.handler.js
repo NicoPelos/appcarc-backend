@@ -2,6 +2,42 @@ import Rol from '../models/Rol.js';
 import { TODOS_LOS_PERMISOS } from '../../../constants/permisos.js';
 import { invalidarClub } from '../../../services/permisosCache.js';
 
+/**
+ * @openapi
+ * /api/roles/{id}:
+ *   put:
+ *     summary: Editar nombre y/o permisos de un rol
+ *     tags: [Roles]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nombre:
+ *                 type: string
+ *               permisos:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["socios:read", "cobros:read"]
+ *     responses:
+ *       200:
+ *         description: Rol actualizado
+ *       400:
+ *         description: Permisos inválidos
+ *       404:
+ *         description: Rol no encontrado
+ *       500:
+ *         description: Error al actualizar rol
+ */
 export const updateRolHandler = async (req, res) => {
   const { nombre, permisos } = req.body;
 
