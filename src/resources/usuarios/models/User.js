@@ -12,11 +12,6 @@ const userSchema = new mongoose.Schema({
     enum: ['admin', 'autoridad', 'secretaria', 'profesor', 'palestrero', 'limpieza', 'arreglos', 'colaborador', 'socio'],
     default: ['socio'],
   },
-  role: {
-    type: String,
-    enum: ['admin', 'secretary', 'socio'],
-    select: false,
-  },
   clubId: { type: String, required: true },
   socioId: { type: String, unique: true, sparse: true },
   expoPushToken: { type: String, default: null },

@@ -33,8 +33,7 @@ export const protect = async (req, res, next) => {
 
 export const authorize = (...roles) => {
   return (req, res, next) => {
-    // Backward compat: tokens viejos tienen `role` string, nuevos tienen `roles` array
-    const userRoles = req.user.roles ?? (req.user.role ? [req.user.role] : []);
+    const userRoles = req.user.roles ?? [];
     if (!userRoles.some(r => roles.includes(r))) {
       return res.status(403).json({
         message: 'No tenés permiso para esta acción',
