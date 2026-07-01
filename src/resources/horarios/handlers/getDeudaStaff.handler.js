@@ -52,7 +52,7 @@ export const getDeudaStaffHandler = async (req, res) => {
     const [year, month] = periodo.split('-').map(Number);
     const desde = new Date(Date.UTC(year, month - 1, 1));
     const hasta = new Date(Date.UTC(year, month, 1));
-    const fechaRef = new Date(Date.UTC(year, month - 1, 15)); // día 15 para buscar precio vigente
+    const fechaRef = new Date(Date.UTC(year, month, 0)); // último día del período para buscar precio vigente
 
     const filter = { clubId, active: true, fecha: { $gte: desde, $lt: hasta } };
     if (socioId) filter.socioId = socioId;
