@@ -4,7 +4,7 @@ import Cuota from '../resources/cuotas/models/Cuota.js';
 import Cobro from '../resources/cobros/models/Cobro.js';
 import Escuelita from '../resources/escuelita/models/Escuelita.js';
 import Movimiento from '../resources/movimientos/models/Movimiento.js';
-import Horarios from '../resources/muroLibre/models/Horarios.js';
+import Horarios from '../resources/horarios/models/Horarios.js';
 import Etiqueta from '../resources/etiquetas/models/Etiqueta.js';
 import Asistencia from '../resources/asistencias/models/Asistencia.js';
 

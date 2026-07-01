@@ -17,7 +17,8 @@ src/
 │   ├── tokenBlacklistService.js      # Blacklist de tokens (Redis o memoria)
 │   ├── googleSheetsService.js        # Integración Google Sheets (importación)
 │   ├── sheetsExport.service.js       # Exportación a Google Sheets (panel autoridades)
-│   └── pushNotification.service.js   # Expo Push API
+│   ├── pushNotification.service.js   # Expo Push API
+│   └── permisosCache.js              # Cache in-process de permisos por club (TTL 5 min)
 └── resources/
     ├── usuarios/       # Auth, registro, cambio de contraseña, push token
     ├── socios/         # CRUD socios, QR, verificación, deuda, foto de perfil
@@ -25,9 +26,11 @@ src/
     ├── cuotas/         # Cuotas, cálculo de deuda y catálogo de precios
     ├── movimientos/    # Registro de caja
     ├── asistencias/    # Asistencias unificadas (muro libre + escuelita)
-    ├── muroLibre/      # Registro y check-in de muro libre, horarios de personal, etiquetas
+    ├── muroLibre/      # Registro y check-in de muro libre
+    ├── horarios/       # Horas del personal, etiquetas y cálculo de deuda al staff
     ├── escuelita/      # Alumnos inscriptos + categorías vinculadas a precios
     ├── novedades/      # Canal de noticias + sync con Instagram RSS
+    ├── roles/          # CRUD de roles y permisos por club
     ├── audit/          # Audit log: historial de cambios con revert
     └── export/         # Exportación de datos (Google Sheets)
 ```
@@ -87,23 +90,39 @@ npm run import-cuotas      # Importar cuotas históricas desde Google Sheets
 npm run import-horarios    # Importar horarios de trabajo desde Google Sheets
 npm run import-movimientos # Importar movimientos históricos desde Google Sheets
 npm run seed-admin         # Crear usuario admin inicial
+npm run seed-roles         # Sembrar roles iniciales para CARC (idempotente)
 ```
 
-## Roles
+## Roles y permisos
 
-Los usuarios pueden tener **más de un rol simultáneamente** (array `roles`).
+Los usuarios pueden tener **más de un rol simultáneamente** (array `roles`). Los roles y sus permisos son **dinámicos por club** — se almacenan en la colección `Rol` de MongoDB y se gestionan desde la app.
 
-| Rol           | Acceso                                                                           |
+La autorización usa permisos granulares en formato `recurso:accion` (ej: `socios:read`, `cobros:write`). Cada rol tiene un array de permisos. El middleware `authorize(permiso)` consulta la BD con cache in-process (TTL 5 min).
+
+Roles predeterminados para CARC:
+
+| Rol           | Acceso principal                                                                 |
 |---------------|----------------------------------------------------------------------------------|
-| `admin`       | Total — único que puede revertir cambios del audit log                           |
+| `admin`       | Total — todos los permisos                                                       |
 | `autoridad`   | Solo lectura: socios, cobros, movimientos, escuelita, asistencias, export/sheets |
-| `secretaria`  | CRUD socios, cobros, asistencias, escuelita alumnos, suscripciones, novedades    |
-| `profesor`    | Check-in y vista de alumnos de escuelita                                         |
-| `palestrero`  | Check-in y vista de muro libre, horarios del personal                            |
+| `secretaria`  | CRUD socios, cobros, asistencias, escuelita, suscripciones, novedades            |
+| `profesor`    | Check-in y vista de alumnos de escuelita, horarios propios                       |
+| `palestrero`  | CRUD muro libre + check-in, horarios del personal                                |
 | `limpieza`    | Horarios del personal (registro de horas)                                        |
 | `arreglos`    | Horarios del personal (registro de horas)                                        |
 | `colaborador` | Check-in y vista de muro libre + escuelita                                       |
 | `socio`       | Solo lectura de sus propios datos y QR. Es el rol por defecto.                   |
+
+## Roles API
+
+| Endpoint               | Descripción                                          |
+|------------------------|------------------------------------------------------|
+| `GET /api/roles`       | Listar roles del club (requiere `roles:read`)        |
+| `POST /api/roles`      | Crear rol con permisos (requiere `roles:write`)      |
+| `PUT /api/roles/:id`   | Actualizar nombre o permisos (requiere `roles:write`)|
+| `DELETE /api/roles/:id`| Desactivar rol — soft delete (requiere `roles:delete`)|
+
+Los permisos válidos están definidos en `src/constants/permisos.js` (43 permisos). Cualquier cambio de rol invalida el cache del club inmediatamente.
 
 ## Auth
 

@@ -7,7 +7,7 @@ import muroLibreRoutes from './resources/muroLibre/routes.js';
 import escuelitaRoutes from './resources/escuelita/routes.js';
 import asistenciasRoutes from './resources/asistencias/routes.js';
 import novedadesRoutes from './resources/novedades/routes.js';
-import horariosRoutes from './resources/muroLibre/horariosRoutes.js';
+import horariosRoutes from './resources/horarios/routes.js';
 import preciosRoutes from './resources/cuotas/preciosRoutes.js';
 import etiquetasRoutes from './resources/etiquetas/routes.js';
 import suscripcionesRoutes from './resources/suscripciones/routes.js';
