@@ -32,6 +32,10 @@ import Socio from '../models/Socio.js';
 export const getSocioByIdHandler = async (req, res) => {
   try {
     const { id } = req.params;
+    const isSocioOnly = req.user?.roles?.length > 0 && req.user.roles.every(r => r === 'socio');
+    if (isSocioOnly && req.user.socioId !== id) {
+      return res.status(403).json({ message: 'No tenés permiso para ver el perfil de otro socio' });
+    }
     const socio = await Socio.findOne({ _id: id, clubId: req.user?.clubId });
     if (!socio) return res.status(404).json({ message: 'Socio no encontrado' });
     res.status(200).json(socio);

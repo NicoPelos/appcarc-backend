@@ -98,13 +98,13 @@ router.post('/', protect, authorize(PERMISOS.SOCIOS_CREATE), createSocioHandler)
 router.get('/me/profile', protect, getMyProfileHandler);
 router.put('/me/profile', protect, updateMyProfileHandler);
 
-router.get('/:id/deuda', protect, authorize(PERMISOS.SOCIOS_READ), getSocioDeudaHandler);
-router.put('/:id/foto', protect, authorize(PERMISOS.SOCIOS_READ), upload.single('foto'), uploadFotoSocioHandler);
+router.get('/:id/deuda', protect, getSocioDeudaHandler);
+router.put('/:id/foto', protect, authorize(PERMISOS.SOCIOS_WRITE), upload.single('foto'), uploadFotoSocioHandler);
 
-router.get('/:id/qr', protect, authorize(PERMISOS.SOCIOS_READ), getSocioQrHandler);
+router.get('/:id/qr', protect, getSocioQrHandler);
 router.post('/verify', protect, authorize(PERMISOS.SOCIOS_READ), verifySocioQrHandler);
 
-router.get('/:id', protect, authorize(PERMISOS.SOCIOS_READ), getSocioByIdHandler);
+router.get('/:id', protect, getSocioByIdHandler);
 
 /**
  * @openapi

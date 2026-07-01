@@ -96,6 +96,28 @@ describe('Socios handlers (unit)', () => {
     expect(res.json).toHaveBeenCalledWith(fake);
   });
 
+  it('getSocioByIdHandler should return 403 when socio-only user tries to view another socio', async () => {
+    const req = { params: { id: 'otro-id' }, user: { clubId: 'club1', roles: ['socio'], socioId: 'mi-id' } };
+    const res = mockRes();
+
+    await getSocioByIdHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(Socio.findOne).not.toHaveBeenCalled();
+  });
+
+  it('getSocioByIdHandler should allow socio to view own profile', async () => {
+    const fake = { _id: 'mi-id', apellido: 'Yo' };
+    Socio.findOne.mockResolvedValueOnce(fake);
+    const req = { params: { id: 'mi-id' }, user: { clubId: 'club1', roles: ['socio'], socioId: 'mi-id' } };
+    const res = mockRes();
+
+    await getSocioByIdHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(fake);
+  });
+
   it('updateSocioHandler should update and return socio', async () => {
     const fake = { _id: 'id1', apellido: 'Perez', toObject: vi.fn().mockReturnValue({}) };
     Socio.findOne.mockResolvedValueOnce(fake);
