@@ -1,4 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+vi.mock('../../../../services/permisosCache.js', () => ({
+  getPermisosUsuario: vi.fn().mockResolvedValue(['socios:read', 'muroLibre:read']),
+}));
+
 import User from '../../models/User.js';
 import Socio from '../../../socios/models/Socio.js';
 import * as authHandlers from '../../handlers/auth.handler.js';

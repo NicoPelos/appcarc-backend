@@ -28,6 +28,15 @@ export async function tienePermiso(clubId, rolesUsuario, permiso) {
   return rolesUsuario.some(rol => permisosPorRol.get(rol)?.has(permiso));
 }
 
+export async function getPermisosUsuario(clubId, rolesUsuario) {
+  const permisosPorRol = await getPermisosPorRol(clubId);
+  const permisos = new Set();
+  for (const rol of rolesUsuario) {
+    permisosPorRol.get(rol)?.forEach(p => permisos.add(p));
+  }
+  return [...permisos].sort();
+}
+
 export function invalidarClub(clubId) {
   cache.delete(clubId);
 }

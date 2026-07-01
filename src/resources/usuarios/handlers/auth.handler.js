@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import Socio from '../../socios/models/Socio.js';
 import bcrypt from 'bcryptjs';
 import tokenService from '../../../services/tokenBlacklistService.js';
+import { getPermisosUsuario } from '../../../services/permisosCache.js';
 
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -75,6 +76,7 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
   }
 
   const token = jwt.sign({ id: user._id, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null }, process.env.JWT_SECRET, { expiresIn: '8h' });
+  const permisos = await getPermisosUsuario(user.clubId, user.roles);
 
   return {
     token,
@@ -88,6 +90,7 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
       picture,
       mustChangePassword: !!user.mustChangePassword,
     },
+    permisos,
     socio: socio ? {
       id: socio._id,
       nombre: socio.nombre,
@@ -140,6 +143,7 @@ export const register = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '8h' },
     );
+    const permisos = await getPermisosUsuario(user.clubId, user.roles);
 
     res.status(201).json({
       token,
@@ -152,6 +156,7 @@ export const register = async (req, res) => {
         socioId: user.socioId || null,
         mustChangePassword: user.mustChangePassword,
       },
+      permisos,
     });
   } catch (error) {
     console.error('Error en el registro de usuario:', error);
@@ -228,6 +233,7 @@ export const login = async (req, res) => {
     );
 
     const socio = user.socioId ? await Socio.findById(user.socioId).lean() : null;
+    const permisos = await getPermisosUsuario(user.clubId, user.roles);
 
     res.status(200).json({
       token,
@@ -240,6 +246,7 @@ export const login = async (req, res) => {
         socioId: user.socioId || null,
         mustChangePassword: !!user.mustChangePassword,
       },
+      permisos,
       socio: socio ? {
         id: socio._id,
         nombre: socio.nombre,
