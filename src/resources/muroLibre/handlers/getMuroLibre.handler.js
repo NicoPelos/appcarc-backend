@@ -35,6 +35,8 @@ export const getMuroLibreHandler = async (req, res) => {
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 500);
     const filter = { clubId: req.user?.clubId, tipo: 'muro_libre', active: true };
+    const isSocioOnly = req.user?.roles?.length > 0 && req.user.roles.every(r => r === 'socio');
+    if (isSocioOnly && req.user.socioId) filter.socioId = req.user.socioId;
 
     if (from || to) {
       filter.fecha = {};

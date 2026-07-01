@@ -92,7 +92,7 @@ router.get('/', protect, authorize(PERMISOS.SOCIOS_READ), getSociosHandler);
  *       201:
  *         description: Socio creado exitosamente
  */
-router.post('/', protect, authorize(PERMISOS.SOCIOS_WRITE), createSocioHandler);
+router.post('/', protect, authorize(PERMISOS.SOCIOS_CREATE), createSocioHandler);
 
 // Rutas de perfil personal
 router.get('/me/profile', protect, getMyProfileHandler);

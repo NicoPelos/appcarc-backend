@@ -1,6 +1,7 @@
 export const PERMISOS = {
   // Socios
   SOCIOS_READ:    'socios:read',
+  SOCIOS_CREATE:  'socios:create',
   SOCIOS_WRITE:   'socios:write',
   SOCIOS_DELETE:  'socios:delete',
   SOCIOS_RESTORE: 'socios:restore',

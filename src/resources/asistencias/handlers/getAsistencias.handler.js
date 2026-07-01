@@ -54,6 +54,8 @@ export const getAsistenciasHandler = async (req, res) => {
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
     const filter = { clubId: req.user?.clubId, active: true };
+    const isSocioOnly = req.user?.roles?.length > 0 && req.user.roles.every(r => r === 'socio');
+    if (isSocioOnly && req.user.socioId) filter.socioId = new mongoose.Types.ObjectId(req.user.socioId);
 
     if (tipo) {
       if (!VALID_TIPOS.includes(tipo)) {
