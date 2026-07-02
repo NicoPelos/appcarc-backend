@@ -67,6 +67,7 @@ export const createHorarioHandler = async (req, res) => {
 
     const horario = new Horarios({
       idHorarios: randomBytes(4).toString('hex'),
+      clubId: req.user?.clubId,
       fecha: fechaDate,
       nombre: nombre.trim(),
       horaEntrada: horaEntrada ? new Date(horaEntrada) : undefined,

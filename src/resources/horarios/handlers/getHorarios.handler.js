@@ -42,7 +42,7 @@ export const getHorariosHandler = async (req, res) => {
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
-    const filter = { active: trash === 'true' ? false : true };
+    const filter = { clubId: req.user?.clubId, active: trash === 'true' ? false : true };
 
     if (nombre) filter.nombre = new RegExp(nombre.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
     if (tipoTarea) filter.tipoTarea = tipoTarea;
