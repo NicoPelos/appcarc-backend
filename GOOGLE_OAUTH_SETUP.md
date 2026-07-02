@@ -107,17 +107,18 @@ GOOGLE_CLIENT_SECRET=your_client_secret_here
     "id": "507f1f77bcf86cd799439011",
     "nombre": "Juan Pérez",
     "email": "juan@example.com",
-    "role": "socio",
+    "roles": ["socio"],
     "clubId": "CARC",
     "socioId": "507f1f77bcf86cd799439012",
     "picture": "https://lh3.googleusercontent.com/..."
   },
+  "permisos": ["asistencias:read", "muroLibre:checkin", "muroLibre:read"],
   "socio": {
     "id": "507f1f77bcf86cd799439012",
     "nombre": "Juan",
     "apellido": "Pérez",
     "fotoPerfil": "...",
-    "redesSociales": {...}
+    "redesSociales": {}
   }
 }
 ```

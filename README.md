@@ -122,7 +122,7 @@ Roles predeterminados para CARC:
 | `PUT /api/roles/:id`   | Actualizar nombre o permisos (requiere `roles:write`)|
 | `DELETE /api/roles/:id`| Desactivar rol — soft delete (requiere `roles:delete`)|
 
-Los permisos válidos están definidos en `src/constants/permisos.js` (43 permisos). Cualquier cambio de rol invalida el cache del club inmediatamente.
+Los permisos válidos están definidos en `src/constants/permisos.js` (44 permisos). Cualquier cambio de rol invalida el cache del club inmediatamente.
 
 ## Auth
 
@@ -134,7 +134,7 @@ Los permisos válidos están definidos en `src/constants/permisos.js` (43 permis
 | `PUT /api/auth/password`  | Cambiar contraseña (requiere JWT)                        |
 | `POST /api/auth/logout`   | Invalida el token (blacklist)                            |
 
-El login devuelve `{ token, user, socio }`. Si el usuario tiene `mustChangePassword: true`, la app debe redirigir al cambio de contraseña antes de continuar.
+El login devuelve `{ token, user, permisos, socio }`. `permisos` es el array de strings `recurso:accion` que el usuario puede usar — el front lo usa para saber qué mostrar. Si el usuario tiene `mustChangePassword: true`, la app debe redirigir al cambio de contraseña antes de continuar.
 
 Cuando se cambia la contraseña, todos los tokens emitidos anteriormente quedan inválidos de inmediato.
 
@@ -323,17 +323,6 @@ La reversión funciona así:
 - **DELETE revertido** → reactiva el documento con el snapshot `before`
 
 Cada reversión queda registrada como un nuevo log de `UPDATE` en el audit.
-
-## Migración de roles
-
-Para migrar usuarios existentes al nuevo sistema multi-rol:
-
-```bash
-docker cp scripts/migrar-roles.js appcarc-backend-app-1:/app/scripts/migrar-roles.js
-docker exec appcarc-backend-app-1 node scripts/migrar-roles.js
-```
-
-El script es idempotente: omite usuarios que ya tienen `roles` configurado.
 
 ## Testing
 

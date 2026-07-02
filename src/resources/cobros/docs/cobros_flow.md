@@ -4,9 +4,9 @@
 
 | Método | Ruta | Roles | Descripción |
 |--------|------|-------|-------------|
-| `GET` | `/api/cobros` | admin, secretary, socio | Listar cobros del club (socio solo ve los suyos) |
-| `POST` | `/api/cobros` | admin, secretary | Registrar un cobro de cuotas |
-| `POST` | `/api/cobros/:id/anular` | admin, secretary | Anular un cobro existente |
+| `GET` | `/api/cobros` | admin, secretaria, socio | Listar cobros del club (socio solo ve los suyos) |
+| `POST` | `/api/cobros` | admin, secretaria | Registrar un cobro de cuotas |
+| `POST` | `/api/cobros/:id/anular` | admin, secretaria | Anular un cobro existente |
 
 ## Creación de un cobro (`POST /api/cobros`)
 
@@ -63,7 +63,7 @@ Si no se envía `amount`, el backend busca el precio vigente en el catálogo. Si
 
 ## Visibilidad por rol
 
-- `admin` y `secretary`: ven todos los cobros del club
+- `admin` y `secretaria`: ven todos los cobros del club
 - `socio`: solo ve los cobros que contienen sus propias cuotas (filtrado por `socioId` del token)
 
 ---

@@ -46,17 +46,28 @@
     "id": "...",
     "email": "socio@example.com",
     "nombre": "Juan Pérez",
-    "role": "socio",
+    "roles": ["socio"],
     "clubId": "...",
+    "socioId": "...",
     "mustChangePassword": true
+  },
+  "permisos": ["asistencias:read", "muroLibre:checkin", "muroLibre:read"],
+  "socio": {
+    "id": "...",
+    "nombre": "Juan",
+    "apellido": "Pérez",
+    "fotoPerfil": "..."
   }
 }
 ```
+
+`permisos` es el array de strings `recurso:accion` que tiene el usuario (unión de todos sus roles). El front lo usa para decidir qué pantallas/acciones mostrar.
 
 ## Señales que la app móvil debe manejar
 
 - `mustChangePassword: true` → redirigir a pantalla de cambio de contraseña inmediatamente, sin acceso al resto de la app.
 - Tras cambiar la contraseña, el token sigue siendo válido; la app puede navegar sin re-login.
+- `permisos` vacío o sin el permiso necesario → ocultar la sección correspondiente en la UI.
 
 ## Seguridad
 
