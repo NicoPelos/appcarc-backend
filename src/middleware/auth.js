@@ -32,6 +32,17 @@ export const protect = async (req, res, next) => {
   }
 };
 
+// protectSuper — solo accesible para usuarios con rol superadmin
+export const protectSuper = [
+  protect,
+  (req, res, next) => {
+    if (!req.user?.roles?.includes('superadmin')) {
+      return res.status(403).json({ message: 'Acceso restringido al superadmin' });
+    }
+    next();
+  },
+];
+
 // authorize('socios:write') — verifica permiso contra los roles del usuario en BD
 export const authorize = (permiso) => {
   return async (req, res, next) => {
