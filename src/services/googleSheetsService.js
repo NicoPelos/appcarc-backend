@@ -17,19 +17,6 @@ const parseUpdatedRangeRow = (updatedRange) => {
   return match ? Number(match[1]) : null;
 };
 
-export const getSheetValues = async (spreadsheetId, range) => {
-  try {
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId,
-      range,
-    });
-    return response.data.values || [];
-  } catch (error) {
-    console.error('Error leyendo Google Sheets:', error);
-    return [];
-  }
-};
-
 export const appendToSheet = async (spreadsheetId, range, values) => {
   try {
     const response = await sheets.spreadsheets.values.append({
