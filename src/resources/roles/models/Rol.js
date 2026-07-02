@@ -6,7 +6,7 @@ const rolSchema = new mongoose.Schema({
   nombre:    { type: String, required: true },
   permisos:  { type: [String], enum: TODOS_LOS_PERMISOS, default: [] },
   active:    { type: Boolean, default: true },
-}, { timestamps: true });
+}, { timestamps: true, collection: 'roles' });
 
 rolSchema.index({ clubId: 1, nombre: 1 }, { unique: true });
 
