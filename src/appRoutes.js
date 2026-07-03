@@ -20,7 +20,7 @@ import superRoutes from './resources/super/routes.js';
 const router = express.Router();
 
 router.use('/auth', authRoutes);
-router.use('/usuarios', staffRoutes);
+router.use('/usuarios/staff', staffRoutes);
 router.use('/socios', socioRoutes);
 router.use('/movimientos', movimientoRoutes);
 router.use('/cobros', cobroRoutes);
