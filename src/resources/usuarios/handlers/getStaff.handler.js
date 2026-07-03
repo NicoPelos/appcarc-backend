@@ -1,6 +1,6 @@
 import User from '../models/User.js';
 
-const ROLES_STAFF = ['profesor', 'palestrero', 'limpieza', 'arreglos', 'colaborador'];
+const ROLES_STAFF = ['profesor', 'palestrero', 'limpieza', 'arreglos', 'colaborador', 'admin', 'secretaria'];
 
 /**
  * @openapi

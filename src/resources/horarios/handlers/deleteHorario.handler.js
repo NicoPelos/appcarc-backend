@@ -1,7 +1,8 @@
 import Horarios from '../models/Horarios.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
-const ROLES_EDIT_ALL = ['admin', 'secretaria', 'autoridad', 'superadmin'];
+const ROLES_EDIT_ALL  = ['admin', 'secretaria'];
+const ROLES_READ_ONLY = ['autoridad', 'superadmin'];
 
 /**
  * @openapi
@@ -32,6 +33,8 @@ export const deleteHorarioHandler = async (req, res) => {
     if (!horario) return res.status(404).json({ message: 'Horario no encontrado' });
 
     const canEditAll = req.user?.roles?.some(r => ROLES_EDIT_ALL.includes(r));
+    const isReadOnly = !canEditAll && req.user?.roles?.some(r => ROLES_READ_ONLY.includes(r));
+    if (isReadOnly) return res.status(403).json({ message: 'No tenés permiso para eliminar horarios' });
     if (!canEditAll && horario.socioId?.toString() !== req.user?.socioId) {
       return res.status(403).json({ message: 'No tenés permiso para eliminar el horario de otro integrante' });
     }

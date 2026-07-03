@@ -43,13 +43,16 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *       500:
  *         description: Error al crear horario
  */
-const ROLES_EDIT_ALL = ['admin', 'secretaria', 'autoridad', 'superadmin'];
+const ROLES_EDIT_ALL  = ['admin', 'secretaria'];
+const ROLES_READ_ONLY = ['autoridad', 'superadmin'];
 
 export const createHorarioHandler = async (req, res) => {
   try {
     const { fecha, horaEntrada, horaSalida, totalHoras, etiquetaId, observaciones } = req.body;
 
-    const canEditAll = req.user?.roles?.some(r => ROLES_EDIT_ALL.includes(r));
+    const canEditAll  = req.user?.roles?.some(r => ROLES_EDIT_ALL.includes(r));
+    const isReadOnly  = !canEditAll && req.user?.roles?.some(r => ROLES_READ_ONLY.includes(r));
+    if (isReadOnly) return res.status(403).json({ message: 'No tenés permiso para registrar horarios' });
     if (!canEditAll && !req.user?.socioId) {
       return res.status(403).json({ message: 'Tu usuario no tiene un perfil de socio asociado para registrar horarios' });
     }
