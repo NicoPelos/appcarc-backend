@@ -16,13 +16,13 @@ const mockRes = () => {
   return res;
 };
 
-const makeChain = (result) => ({
-  populate: vi.fn().mockReturnValue({
-    sort: vi.fn().mockReturnValue({
-      lean: vi.fn().mockResolvedValue(result),
-    }),
-  }),
-});
+const makeChain = (result) => {
+  const chain = {};
+  chain.populate = vi.fn().mockReturnValue(chain);
+  chain.sort = vi.fn().mockReturnValue(chain);
+  chain.lean = vi.fn().mockResolvedValue(result);
+  return chain;
+};
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -68,7 +68,7 @@ describe('getSuscripcionesHandler', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it('popula etiquetaId con nombre y unidad', async () => {
+  it('popula planId y etiquetaId', async () => {
     const chain = makeChain([]);
     Suscripcion.find.mockReturnValue(chain);
 
@@ -77,6 +77,7 @@ describe('getSuscripcionesHandler', () => {
 
     await getSuscripcionesHandler(req, res);
 
+    expect(chain.populate).toHaveBeenCalledWith('planId', 'nombre tipo modalidad atributos');
     expect(chain.populate).toHaveBeenCalledWith('etiquetaId', 'nombre unidad');
   });
 
@@ -91,13 +92,11 @@ describe('getSuscripcionesHandler', () => {
   });
 
   it('retorna 500 si hay error de base de datos', async () => {
-    Suscripcion.find.mockReturnValue({
-      populate: vi.fn().mockReturnValue({
-        sort: vi.fn().mockReturnValue({
-          lean: vi.fn().mockRejectedValue(new Error('DB error')),
-        }),
-      }),
-    });
+    const errChain = {};
+    errChain.populate = vi.fn().mockReturnValue(errChain);
+    errChain.sort = vi.fn().mockReturnValue(errChain);
+    errChain.lean = vi.fn().mockRejectedValue(new Error('DB error'));
+    Suscripcion.find.mockReturnValue(errChain);
 
     const req = { user: mockUser, query: { socioId: 'socio1' } };
     const res = mockRes();

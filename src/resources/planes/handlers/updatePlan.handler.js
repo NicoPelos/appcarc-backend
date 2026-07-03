@@ -1,0 +1,47 @@
+import Plan from '../models/Plan.js';
+import Etiqueta from '../../etiquetas/models/Etiqueta.js';
+import { logAudit } from '../../audit/services/audit.service.js';
+
+const TIPOS = ['social', 'escuelita', 'muro_libre'];
+const MODALIDADES = ['mensual', 'por_uso'];
+
+export const updatePlanHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, descripcion, tipo, modalidad, etiquetaId, atributos } = req.body;
+
+    const plan = await Plan.findOne({ _id: id, clubId: req.user.clubId, active: true });
+    if (!plan) return res.status(404).json({ message: 'Plan no encontrado' });
+
+    const planAntes = plan.toObject();
+
+    if (nombre !== undefined) plan.nombre = nombre;
+    if (descripcion !== undefined) plan.descripcion = descripcion;
+    if (tipo !== undefined) {
+      if (!TIPOS.includes(tipo)) return res.status(400).json({ message: `tipo debe ser: ${TIPOS.join(', ')}` });
+      plan.tipo = tipo;
+    }
+    if (modalidad !== undefined) {
+      if (!MODALIDADES.includes(modalidad)) return res.status(400).json({ message: `modalidad debe ser: ${MODALIDADES.join(', ')}` });
+      plan.modalidad = modalidad;
+    }
+    if (etiquetaId !== undefined) {
+      const etiqueta = await Etiqueta.findOne({ _id: etiquetaId, clubId: req.user.clubId, active: true });
+      if (!etiqueta) return res.status(404).json({ message: 'Etiqueta no encontrada' });
+      plan.etiquetaId = etiquetaId;
+    }
+    if (atributos !== undefined) plan.atributos = atributos;
+
+    plan.updatedBy = req.user.email || req.user.id;
+    await plan.save();
+
+    logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Plan', resourceId: plan._id, before: planAntes, after: plan.toObject() });
+    return res.status(200).json(plan);
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ message: 'Ya existe un plan con ese nombre' });
+    console.error('Error actualizando plan:', error);
+    return res.status(500).json({ message: 'Error al actualizar plan' });
+  }
+};
+
+export default updatePlanHandler;

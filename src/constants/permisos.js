@@ -45,6 +45,11 @@ export const PERMISOS = {
   PRECIOS_WRITE:  'precios:write',
   PRECIOS_DELETE: 'precios:delete',
 
+  // Planes
+  PLANES_READ:   'planes:read',
+  PLANES_WRITE:  'planes:write',
+  PLANES_DELETE: 'planes:delete',
+
   // Suscripciones
   SUSCRIPCIONES_READ:   'suscripciones:read',
   SUSCRIPCIONES_WRITE:  'suscripciones:write',

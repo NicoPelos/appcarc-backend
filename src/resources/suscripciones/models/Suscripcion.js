@@ -14,6 +14,12 @@ const suscripcionSchema = new mongoose.Schema({
     required: true,
     index: true,
   },
+  planId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Plan',
+    default: null,
+    index: true,
+  },
   etiquetaId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Etiqueta',

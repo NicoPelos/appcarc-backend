@@ -1,6 +1,7 @@
 import Suscripcion from '../models/Suscripcion.js';
 import Socio from '../../socios/models/Socio.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
+import Plan from '../../planes/models/Plan.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -45,13 +46,13 @@ const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
  */
 export const createSuscripcionHandler = async (req, res) => {
   try {
-    const { socioId, etiquetaId, fechaDesde, fechaHasta } = req.body;
+    const { socioId, planId, etiquetaId: etiquetaIdBody, fechaDesde, fechaHasta } = req.body;
 
     if (!socioId) {
       return res.status(400).json({ message: 'socioId es requerido' });
     }
-    if (!etiquetaId) {
-      return res.status(400).json({ message: 'etiquetaId es requerido' });
+    if (!planId && !etiquetaIdBody) {
+      return res.status(400).json({ message: 'planId o etiquetaId es requerido' });
     }
     if (!fechaDesde) {
       return res.status(400).json({ message: 'fechaDesde es requerido' });
@@ -68,14 +69,22 @@ export const createSuscripcionHandler = async (req, res) => {
       return res.status(404).json({ message: 'Socio no encontrado' });
     }
 
-    const etiqueta = await Etiqueta.findOne({ _id: etiquetaId, clubId: req.user.clubId, active: true });
-    if (!etiqueta) {
-      return res.status(404).json({ message: 'Etiqueta no encontrada' });
+    let etiquetaId = etiquetaIdBody;
+    let planDoc = null;
+
+    if (planId) {
+      planDoc = await Plan.findOne({ _id: planId, clubId: req.user.clubId, active: true });
+      if (!planDoc) return res.status(404).json({ message: 'Plan no encontrado' });
+      etiquetaId = planDoc.etiquetaId;
+    } else {
+      const etiqueta = await Etiqueta.findOne({ _id: etiquetaId, clubId: req.user.clubId, active: true });
+      if (!etiqueta) return res.status(404).json({ message: 'Etiqueta no encontrada' });
     }
 
     const suscripcion = new Suscripcion({
       clubId: req.user.clubId,
       socioId,
+      planId: planDoc?._id ?? null,
       etiquetaId,
       fechaDesde,
       fechaHasta: fechaHasta ?? null,

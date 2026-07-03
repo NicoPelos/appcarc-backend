@@ -1,0 +1,32 @@
+import Plan from '../models/Plan.js';
+import Suscripcion from '../../suscripciones/models/Suscripcion.js';
+import { logAudit } from '../../audit/services/audit.service.js';
+
+export const deletePlanHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const plan = await Plan.findOne({ _id: id, clubId: req.user.clubId, active: true });
+    if (!plan) return res.status(404).json({ message: 'Plan no encontrado' });
+
+    const suscripcionesActivas = await Suscripcion.countDocuments({ planId: id, active: true, fechaHasta: null });
+    if (suscripcionesActivas > 0) {
+      return res.status(409).json({ message: `No se puede eliminar: hay ${suscripcionesActivas} suscripción/es activa/s con este plan` });
+    }
+
+    const planAntes = plan.toObject();
+    plan.active = false;
+    plan.deletedAt = new Date();
+    plan.deletedBy = req.user.email || req.user.id;
+    plan.updatedBy = req.user.email || req.user.id;
+    await plan.save();
+
+    logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'Plan', resourceId: plan._id, before: planAntes, after: null });
+    return res.status(200).json({ message: 'Plan eliminado' });
+  } catch (error) {
+    console.error('Error eliminando plan:', error);
+    return res.status(500).json({ message: 'Error al eliminar plan' });
+  }
+};
+
+export default deletePlanHandler;

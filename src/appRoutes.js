@@ -16,6 +16,7 @@ import exportRoutes from './resources/export/routes.js';
 import auditRoutes from './resources/audit/routes.js';
 import rolesRoutes from './resources/roles/routes.js';
 import superRoutes from './resources/super/routes.js';
+import planesRoutes from './resources/planes/routes.js';
 
 const router = express.Router();
 
@@ -36,5 +37,6 @@ router.use('/export', exportRoutes);
 router.use('/audit', auditRoutes);
 router.use('/roles', rolesRoutes);
 router.use('/super', superRoutes);
+router.use('/planes', planesRoutes);
 
 export default router;

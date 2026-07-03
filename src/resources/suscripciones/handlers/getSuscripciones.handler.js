@@ -46,6 +46,7 @@ export const getSuscripcionesHandler = async (req, res) => {
 
     const suscripciones = await Suscripcion
       .find(filter)
+      .populate('planId', 'nombre tipo modalidad atributos')
       .populate('etiquetaId', 'nombre unidad')
       .sort({ fechaDesde: -1 })
       .lean();
