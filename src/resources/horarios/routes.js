@@ -5,9 +5,6 @@ import { getHorariosHandler } from './handlers/getHorarios.handler.js';
 import { createHorarioHandler } from './handlers/createHorario.handler.js';
 import { updateHorarioHandler } from './handlers/updateHorario.handler.js';
 import { deleteHorarioHandler } from './handlers/deleteHorario.handler.js';
-import { getEtiquetasHandler } from './handlers/getEtiquetas.handler.js';
-import { createEtiquetaHandler } from './handlers/createEtiqueta.handler.js';
-import { deleteEtiquetaHandler } from './handlers/deleteEtiqueta.handler.js';
 import { getDeudaStaffHandler } from './handlers/getDeudaStaff.handler.js';
 import { getPrecioTareasHandler } from './handlers/getPrecioTareas.handler.js';
 
@@ -18,11 +15,6 @@ router.get('/deuda', protect, authorize(PERMISOS.HORARIOS_DEUDA), getDeudaStaffH
 
 // Tipos de tarea (etiquetas de precio con unidad=hora) — accesible con HORARIOS_READ
 router.get('/precio-tareas', protect, authorize(PERMISOS.HORARIOS_READ), getPrecioTareasHandler);
-
-// Etiquetas
-router.get('/etiquetas', protect, authorize(PERMISOS.HORARIOS_READ), getEtiquetasHandler);
-router.post('/etiquetas', protect, authorize(PERMISOS.HORARIOS_WRITE), createEtiquetaHandler);
-router.delete('/etiquetas/:id', protect, authorize(PERMISOS.HORARIOS_WRITE), deleteEtiquetaHandler);
 
 // Horarios
 router.get('/', protect, authorize(PERMISOS.HORARIOS_READ), getHorariosHandler);
