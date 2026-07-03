@@ -56,16 +56,26 @@ const periodLabel = (p) => {
 // ─── Constructores de datos por pestaña ──────────────────────────────────────
 
 const buildSociosRows = async (clubId) => {
-  const headers = ['N° Socio', 'Apellido', 'Nombre', 'DNI', 'Email', 'Teléfono', 'Estado', 'Fecha de Asociado'];
+  const headers = [
+    'N° Socio', 'Apellido', 'Nombre', 'DNI', 'Sexo', 'Fecha Nacimiento',
+    'Email', 'Teléfono', 'Tel. Emergencia', 'Ciudad',
+    'Estado', 'Condición', 'Observaciones', 'Fecha de Asociado',
+  ];
   const socios = await Socio.find({ clubId, active: true }).sort({ apellido: 1, nombre: 1 }).lean();
   const rows = socios.map((s) => [
     s.socioNumber || '',
     s.apellido || '',
     s.nombre || '',
     s.dni || '',
+    s.sexo || '',
+    fmtDate(s.fechaNacimiento),
     s.correoElectronico || '',
     s.telefono || '',
+    s.telefonoEmergencia || '',
+    s.ciudad || '',
     s.estado || '',
+    s.condicionObs || '',
+    s.observaciones || '',
     fmtDate(s.fechaDeAsociado),
   ]);
   return { headers, rows };
@@ -250,13 +260,59 @@ const buildMovimientosRows = async (clubId) => {
   return { headers, rows };
 };
 
-const buildHorariosRows = async () => {
-  const headers = ['Fecha', 'Nombre', 'Tarea', 'Hora Entrada', 'Hora Salida', 'Horas Totales'];
-  const horarios = await Horarios.find({ active: true }).sort({ fecha: -1 }).lean();
+const buildHorariosRows = async (clubId) => {
+  const headers = ['Fecha', 'Apellido', 'Nombre', 'Tarea', 'Hora Entrada', 'Hora Salida', 'Horas Totales', 'Observaciones'];
+  const desde = new Date();
+  desde.setMonth(desde.getMonth() - 12);
+  desde.setDate(1);
+
+  const horarios = await Horarios.find({ clubId, active: true, fecha: { $gte: desde } })
+    .populate('socioId', 'nombre apellido')
+    .populate('etiquetaId', 'nombre')
+    .sort({ fecha: -1 })
+    .lean();
+
   const rows = horarios.map((h) => [
-    fmtDate(h.fecha), h.nombre || '', h.tipoTarea || '',
-    fmtTime(h.horaEntrada), fmtTime(h.horaSalida),
+    fmtDate(h.fecha),
+    h.socioId?.apellido || '',
+    h.socioId?.nombre || '',
+    h.etiquetaId?.nombre || '',
+    fmtTime(h.horaEntrada),
+    fmtTime(h.horaSalida),
     h.totalHoras != null ? h.totalHoras : '',
+    h.observaciones || '',
+  ]);
+  return { headers, rows };
+};
+
+const buildAsistenciasRows = async (clubId) => {
+  const headers = [
+    'Fecha', 'Tipo', 'Apellido', 'Nombre', 'DNI', 'Es Socio',
+    'Categoría', 'Tipo Pase', 'Estado Pago', 'Monto', 'Forma Pago', 'Observaciones',
+  ];
+  const desde = new Date();
+  desde.setMonth(desde.getMonth() - 12);
+  desde.setDate(1);
+
+  const asistencias = await Asistencia.find({ clubId, active: true, fecha: { $gte: desde } })
+    .sort({ fecha: -1 })
+    .lean();
+
+  const TIPO_LABEL = { muro_libre: 'Muro Libre', escuelita: 'Escuelita' };
+
+  const rows = asistencias.map((a) => [
+    fmtDate(a.fecha),
+    TIPO_LABEL[a.tipo] || a.tipo,
+    a.apellido || '',
+    a.nombre || '',
+    a.dni || '',
+    a.esSocio ? 'Sí' : 'No',
+    a.categoria || '',
+    a.tipoPase || '',
+    a.estadoPago || '',
+    a.monto ? fmtMoney(a.monto) : '',
+    a.formaPago || '',
+    a.observaciones || '',
   ]);
   return { headers, rows };
 };
@@ -284,7 +340,7 @@ const buildMuroLibreRows = async (clubId) => {
 
 // ─── Helpers de la API de Sheets ─────────────────────────────────────────────
 
-const TAB_NAMES = ['Socios', 'Cuotas Sociales', 'Cuotas Escuelita', 'Cobros', 'Escuelita', 'Movimientos', 'Muro Libre', 'Horarios'];
+const TAB_NAMES = ['Socios', 'Cuotas Sociales', 'Cuotas Escuelita', 'Cobros', 'Escuelita', 'Movimientos', 'Asistencias', 'Muro Libre', 'Horarios'];
 
 const getOrCreateSpreadsheet = async (clubName) => {
   const existingId = process.env.GOOGLE_SHEET_EXPORT_ID;
@@ -391,15 +447,16 @@ const buildFormatRequests = (sheetId, numCols, cuotasOpts = null) => {
 // ─── Export principal ─────────────────────────────────────────────────────────
 
 export const exportToSheets = async ({ clubId, clubName = 'CARC' }) => {
-  const [socios, cuotasSociales, cuotasEscuelita, cobros, escuelita, movimientos, muroLibre, horarios] = await Promise.all([
+  const [socios, cuotasSociales, cuotasEscuelita, cobros, escuelita, movimientos, asistencias, muroLibre, horarios] = await Promise.all([
     buildSociosRows(clubId),
     buildCuotasSocialesRows(clubId),
     buildCuotasEscuelitaRows(clubId),
     buildCobrosRows(clubId),
     buildEscuelitaRows(clubId),
     buildMovimientosRows(clubId),
+    buildAsistenciasRows(clubId),
     buildMuroLibreRows(clubId),
-    buildHorariosRows(),
+    buildHorariosRows(clubId),
   ]);
 
   const { id: spreadsheetId, isNew } = await getOrCreateSpreadsheet(clubName);
@@ -417,6 +474,7 @@ export const exportToSheets = async ({ clubId, clubName = 'CARC' }) => {
     { name: 'Cobros',           data: cobros },
     { name: 'Escuelita',        data: escuelita },
     { name: 'Movimientos',      data: movimientos },
+    { name: 'Asistencias',      data: asistencias },
     { name: 'Muro Libre',       data: muroLibre },
     { name: 'Horarios',         data: horarios },
   ];
@@ -453,6 +511,7 @@ export const exportToSheets = async ({ clubId, clubName = 'CARC' }) => {
       cobros: cobros.rows.length,
       escuelita: escuelita.rows.length,
       movimientos: movimientos.rows.length,
+      asistencias: asistencias.rows.length,
       muroLibre: muroLibre.rows.length,
       horarios: horarios.rows.length,
     },
