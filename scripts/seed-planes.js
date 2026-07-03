@@ -109,10 +109,10 @@ if (etiquetaSocial) {
 // ── 3. Planes Muro Libre ──────────────────────────────────────────────────────
 
 const mappingMuro = [
-  { patron: /muro libre mensual.*socio[^s]/i, nombre: 'Muro Libre Mensual - Socio',    modalidad: 'mensual', requiereSocio: true },
-  { patron: /muro libre mensual.*no.?soci/i,  nombre: 'Muro Libre Mensual - No Socio', modalidad: 'mensual', requiereSocio: false },
-  { patron: /muro libre diario.*socio[^s]/i,  nombre: 'Muro Libre Diario - Socio',     modalidad: 'por_uso', requiereSocio: true },
-  { patron: /muro libre diario.*no.?soci/i,   nombre: 'Muro Libre Diario - No Socio',  modalidad: 'por_uso', requiereSocio: false },
+  { patron: /muro libre mensual(?!.*no.?soci)/i, nombre: 'Muro Libre Mensual - Socio',    modalidad: 'mensual', requiereSocio: true },
+  { patron: /muro libre mensual.*no.?soci/i,     nombre: 'Muro Libre Mensual - No Socio', modalidad: 'mensual', requiereSocio: false },
+  { patron: /muro libre diario(?!.*no.?soci)/i,  nombre: 'Muro Libre Diario - Socio',     modalidad: 'por_uso', requiereSocio: true },
+  { patron: /muro libre diario.*no.?soci/i,      nombre: 'Muro Libre Diario - No Socio',  modalidad: 'por_uso', requiereSocio: false },
 ];
 
 const etiquetasMuro = await Etiqueta.find({ clubId, active: true, nombre: /muro libre/i }).lean();
