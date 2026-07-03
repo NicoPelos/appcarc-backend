@@ -2,6 +2,52 @@ import Plan from '../models/Plan.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
+/**
+ * @openapi
+ * /api/planes:
+ *   post:
+ *     summary: Crear un nuevo plan
+ *     tags: [Planes]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [nombre, tipo, modalidad, etiquetaId]
+ *             properties:
+ *               nombre:
+ *                 type: string
+ *                 example: Socio Activo
+ *               tipo:
+ *                 type: string
+ *                 enum: [social, escuelita, muro_libre]
+ *               modalidad:
+ *                 type: string
+ *                 enum: [mensual, por_uso]
+ *               etiquetaId:
+ *                 type: string
+ *                 description: ID de la Etiqueta de precio asociada
+ *               descripcion:
+ *                 type: string
+ *               atributos:
+ *                 type: object
+ *                 description: Datos flexibles (frecuenciaSemanal, requiereSocio, etc.)
+ *                 example: { frecuenciaSemanal: 2, categoria: "Principiantes" }
+ *     responses:
+ *       201:
+ *         description: Plan creado
+ *       400:
+ *         description: Datos inválidos
+ *       404:
+ *         description: Etiqueta no encontrada
+ *       409:
+ *         description: Ya existe un plan con ese nombre
+ *       500:
+ *         description: Error al crear plan
+ */
 const TIPOS = ['social', 'escuelita', 'muro_libre'];
 const MODALIDADES = ['mensual', 'por_uso'];
 

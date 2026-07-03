@@ -20,12 +20,16 @@ const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
  *         application/json:
  *           schema:
  *             type: object
- *             required: [socioId, etiquetaId, fechaDesde]
+ *             required: [socioId, fechaDesde]
  *             properties:
  *               socioId:
  *                 type: string
+ *               planId:
+ *                 type: string
+ *                 description: ID del Plan. Si se provee, etiquetaId se resuelve automáticamente del plan.
  *               etiquetaId:
  *                 type: string
+ *                 description: ID de la Etiqueta. Requerido si no se provee planId.
  *               fechaDesde:
  *                 type: string
  *                 example: "2026-01"

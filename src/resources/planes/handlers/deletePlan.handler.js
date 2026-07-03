@@ -2,6 +2,29 @@ import Plan from '../models/Plan.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
+/**
+ * @openapi
+ * /api/planes/{id}:
+ *   delete:
+ *     summary: Eliminar un plan (soft delete)
+ *     tags: [Planes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Plan eliminado
+ *       404:
+ *         description: Plan no encontrado
+ *       409:
+ *         description: No se puede eliminar — hay suscripciones activas con este plan
+ *       500:
+ *         description: Error al eliminar plan
+ */
 export const deletePlanHandler = async (req, res) => {
   try {
     const { id } = req.params;

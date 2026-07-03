@@ -1,5 +1,32 @@
 import Plan from '../models/Plan.js';
 
+/**
+ * @openapi
+ * /api/planes:
+ *   get:
+ *     summary: Listar planes del club
+ *     tags: [Planes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - name: tipo
+ *         in: query
+ *         schema:
+ *           type: string
+ *           enum: [social, escuelita, muro_libre]
+ *         description: Filtrar por tipo de plan
+ *       - name: trash
+ *         in: query
+ *         schema:
+ *           type: string
+ *           enum: ['true']
+ *         description: Mostrar planes eliminados
+ *     responses:
+ *       200:
+ *         description: Lista de planes con etiquetaId populado
+ *       500:
+ *         description: Error al obtener planes
+ */
 export const getPlanesHandler = async (req, res) => {
   try {
     const { tipo, trash } = req.query;

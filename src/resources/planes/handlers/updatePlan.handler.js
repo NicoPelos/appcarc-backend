@@ -2,6 +2,51 @@ import Plan from '../models/Plan.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
+/**
+ * @openapi
+ * /api/planes/{id}:
+ *   put:
+ *     summary: Actualizar un plan existente
+ *     tags: [Planes]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string }
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               nombre:
+ *                 type: string
+ *               tipo:
+ *                 type: string
+ *                 enum: [social, escuelita, muro_libre]
+ *               modalidad:
+ *                 type: string
+ *                 enum: [mensual, por_uso]
+ *               etiquetaId:
+ *                 type: string
+ *               descripcion:
+ *                 type: string
+ *               atributos:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Plan actualizado
+ *       400:
+ *         description: tipo o modalidad inválido
+ *       404:
+ *         description: Plan o Etiqueta no encontrada
+ *       409:
+ *         description: Ya existe un plan con ese nombre
+ *       500:
+ *         description: Error al actualizar plan
+ */
 const TIPOS = ['social', 'escuelita', 'muro_libre'];
 const MODALIDADES = ['mensual', 'por_uso'];
 

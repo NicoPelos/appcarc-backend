@@ -6,9 +6,10 @@ Backend de la aplicación Club Andino Río Cuarto, consumido por una app móvil 
 
 ```
 src/
-├── index.js                          # Entrada del servidor Express
+├── index.js                          # Entrada del servidor Express + Swagger UI en /api-docs
 ├── appRoutes.js                      # Router principal bajo /api
-├── middleware/auth.js                # JWT + autorización por rol
+├── middleware/auth.js                # JWT + autorización por permiso
+├── constants/permisos.js             # 47 permisos granulares en formato recurso:accion
 ├── jobs/
 │   ├── syncInstagram.job.js          # Cron: sync Instagram RSS (cada 30 min)
 │   ├── recordatorioCuotas.job.js     # Cron: recordatorio deudas (1° de cada mes, 9am)
@@ -20,15 +21,18 @@ src/
 │   ├── pushNotification.service.js   # Expo Push API
 │   └── permisosCache.js              # Cache in-process de permisos por club (TTL 5 min)
 └── resources/
-    ├── usuarios/       # Auth, registro, cambio de contraseña, push token
+    ├── usuarios/       # Auth, registro, cambio de contraseña, push token, staff
     ├── socios/         # CRUD socios, QR, verificación, deuda, foto de perfil
     ├── cobros/         # Cobros de cuotas (batch), anulación
     ├── cuotas/         # Cuotas, cálculo de deuda y catálogo de precios
     ├── movimientos/    # Registro de caja
     ├── asistencias/    # Asistencias unificadas (muro libre + escuelita)
     ├── muroLibre/      # Registro y check-in de muro libre
-    ├── horarios/       # Horas del personal, etiquetas y cálculo de deuda al staff
-    ├── escuelita/      # Alumnos inscriptos + categorías vinculadas a precios
+    ├── horarios/       # Horas del personal y cálculo de deuda al staff
+    ├── escuelita/      # Alumnos inscriptos + categorías
+    ├── planes/         # Planes de suscripción (social, escuelita, muro_libre)
+    ├── suscripciones/  # Asignación de socios a planes, con fechas vigentes
+    ├── etiquetas/      # Catálogo de conceptos de precio (Cuota Social, Hora Palestrero, etc.)
     ├── novedades/      # Canal de noticias + sync con Instagram RSS
     ├── roles/          # CRUD de roles y permisos por club
     ├── audit/          # Audit log: historial de cambios con revert
@@ -62,10 +66,6 @@ GOOGLE_SHEETS_SOCIOS_SHEET_NAME=Socios
 # Instagram RSS (opcional — sync de noticias)
 INSTAGRAM_RSS_URL=<URL_DEL_FEED_RSS>
 
-# Google Sheets — hojas adicionales (opcional)
-GOOGLE_SHEETS_HORARIOS_SHEET_NAME=Horarios
-GOOGLE_SHEETS_MOVIMIENTOS_SHEET_NAME=Movimientos
-
 # Google Sheets export — panel para autoridades (opcional)
 CLUB_NAME=CARC
 GOOGLE_SHEET_EXPORT_ID=<ID_del_sheet_generado_en_primer_export>
@@ -76,21 +76,30 @@ Colocar `google-credentials.json` en la raíz del proyecto.
 Para transacciones MongoDB (cobros, muro libre, anulaciones) se requiere replica set:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
+
+Swagger UI disponible en `http://localhost:3001/api-docs` una vez levantado el servidor.
 
 ## Scripts
 
 ```bash
 npm run dev            # Servidor con nodemon
 npm start              # Servidor producción
-npm test               # Suite de tests (Vitest)
+npm test               # Suite de tests unitarios (Vitest, sin MongoDB)
 npm run import-socios      # Importar socios desde Google Sheets
 npm run import-cuotas      # Importar cuotas históricas desde Google Sheets
 npm run import-horarios    # Importar horarios de trabajo desde Google Sheets
 npm run import-movimientos # Importar movimientos históricos desde Google Sheets
 npm run seed-admin         # Crear usuario admin inicial
-npm run seed-roles         # Sembrar roles iniciales para CARC (idempotente)
+npm run seed-roles         # Sembrar/actualizar roles para el club (idempotente)
+```
+
+Scripts de migración (ejecutar una vez, vía Docker):
+
+```bash
+node scripts/seed-planes.js   # Crea Planes desde CategoriaEscuelitas + etiquetas; migra Escuelita activa → Suscripciones
+node scripts/seed-roles.js    # Aplica la matriz de permisos por defecto a todos los roles
 ```
 
 ## Roles y permisos
@@ -99,19 +108,23 @@ Los usuarios pueden tener **más de un rol simultáneamente** (array `roles`). L
 
 La autorización usa permisos granulares en formato `recurso:accion` (ej: `socios:read`, `cobros:write`). Cada rol tiene un array de permisos. El middleware `authorize(permiso)` consulta la BD con cache in-process (TTL 5 min).
 
+Los **47 permisos válidos** están definidos en `src/constants/permisos.js`. Cualquier cambio de rol invalida el cache del club inmediatamente.
+
 Roles predeterminados para CARC:
 
-| Rol           | Acceso principal                                                                 |
-|---------------|----------------------------------------------------------------------------------|
-| `admin`       | Total — todos los permisos                                                       |
-| `autoridad`   | Solo lectura: socios, cobros, movimientos, escuelita, asistencias, export/sheets |
-| `secretaria`  | CRUD socios, cobros, asistencias, escuelita, suscripciones, novedades            |
-| `profesor`    | Check-in y vista de alumnos de escuelita, horarios propios                       |
-| `palestrero`  | CRUD muro libre + check-in, horarios del personal                                |
-| `limpieza`    | Horarios del personal (registro de horas)                                        |
-| `arreglos`    | Horarios del personal (registro de horas)                                        |
-| `colaborador` | Check-in y vista de muro libre + escuelita                                       |
-| `socio`       | Solo lectura de sus propios datos y QR. Es el rol por defecto.                   |
+| Rol           | Acceso principal                                                                          |
+|---------------|-------------------------------------------------------------------------------------------|
+| `admin`       | Total — todos los permisos                                                                |
+| `autoridad`   | Solo lectura: socios, cobros, movimientos, escuelita, planes, suscripciones, export/sheets |
+| `secretaria`  | CRUD socios, cobros, escuelita, planes, suscripciones, novedades, horarios                |
+| `profesor`    | Check-in y vista de alumnos de escuelita, horarios propios                                |
+| `palestrero`  | CRUD muro libre + check-in, horarios propios, precios (lectura), movimientos              |
+| `limpieza`    | Horarios propios (registro de horas trabajadas)                                           |
+| `arreglos`    | Horarios propios (registro de horas trabajadas)                                           |
+| `colaborador` | Check-in y vista de muro libre + escuelita                                                |
+| `socio`       | Solo lectura de sus propios datos y QR. Es el rol por defecto.                            |
+
+**Ownership en horarios**: el staff (palestrero, profesor, limpieza, arreglos) solo puede editar y eliminar sus propios registros de horario. Admin y secretaria pueden gestionar todos.
 
 ## Roles API
 
@@ -121,8 +134,6 @@ Roles predeterminados para CARC:
 | `POST /api/roles`      | Crear rol con permisos (requiere `roles:write`)      |
 | `PUT /api/roles/:id`   | Actualizar nombre o permisos (requiere `roles:write`)|
 | `DELETE /api/roles/:id`| Desactivar rol — soft delete (requiere `roles:delete`)|
-
-Los permisos válidos están definidos en `src/constants/permisos.js` (44 permisos). Cualquier cambio de rol invalida el cache del club inmediatamente.
 
 ## Auth
 
@@ -139,6 +150,14 @@ El login devuelve `{ token, user, permisos, socio }`. `permisos` es el array de 
 Cuando se cambia la contraseña, todos los tokens emitidos anteriormente quedan inválidos de inmediato.
 
 **Creación automática de usuario**: al crear un socio con `correoElectronico` y `dni`, el sistema crea automáticamente un usuario con `roles: ['socio']`, contraseña = DNI y `mustChangePassword: true`.
+
+## Usuarios
+
+| Endpoint                    | Descripción                                          |
+|-----------------------------|------------------------------------------------------|
+| `GET /api/usuarios/staff`   | Listar usuarios con roles de staff (requiere `horarios:read`). Devuelve `nombre, email, roles, socioId`. |
+
+Los usuarios staff incluyen: `profesor`, `palestrero`, `limpieza`, `arreglos`, `colaborador`, `admin`, `secretaria`.
 
 ## Socios
 
@@ -185,6 +204,87 @@ Cuando se cambia la contraseña, todos los tokens emitidos anteriormente quedan 
 
 Tipos válidos: `social`, `escuelita`, `muro_libre`.
 
+## Planes
+
+Plantillas de suscripción que unifican los conceptos de CategoriaEscuelita, cuotas sociales y muro libre bajo un modelo único y extensible.
+
+| Endpoint              | Descripción                                         |
+|-----------------------|-----------------------------------------------------|
+| `GET /api/planes`     | Listar planes activos (filtros: `tipo`, `trash`)    |
+| `POST /api/planes`    | Crear plan (requiere `planes:write`)                |
+| `PUT /api/planes/:id` | Actualizar plan (requiere `planes:write`)           |
+| `DELETE /api/planes/:id` | Eliminar plan — soft delete (requiere `planes:delete`) |
+
+Campos del modelo:
+
+| Campo       | Tipo    | Descripción                                                    |
+|-------------|---------|----------------------------------------------------------------|
+| `nombre`    | String  | Nombre único del plan dentro del club                         |
+| `tipo`      | Enum    | `social` \| `escuelita` \| `muro_libre`                      |
+| `modalidad` | Enum    | `mensual` \| `por_uso`                                        |
+| `etiquetaId`| ObjectId| Etiqueta de precio (determina el monto de la cuota)           |
+| `atributos` | Mixed   | Datos flexibles por tipo: `frecuenciaSemanal`, `requiereSocio`, `codigo`, etc. |
+
+Planes base para CARC (creados por `seed-planes.js`):
+
+| Plan | Tipo | Modalidad | Atributos |
+|------|------|-----------|-----------|
+| Socio Activo | social | mensual | — |
+| PrincipiantesX2, AvanzadosX2, JuvenilesX2 | escuelita | mensual | `frecuenciaSemanal: 2` |
+| PrincipiantesX1, AvanzadosX1, JuvenilesX1 | escuelita | mensual | `frecuenciaSemanal: 1` |
+| Muro Libre Mensual - Socio/No Socio | muro_libre | mensual | `requiereSocio: true/false` |
+| Muro Libre Diario - Socio/No Socio | muro_libre | por_uso | `requiereSocio: true/false` |
+
+No se puede eliminar un plan con suscripciones activas (devuelve 409).
+
+## Suscripciones
+
+Asignación de un socio a un plan, con período de vigencia.
+
+| Endpoint                          | Descripción                                           |
+|-----------------------------------|-------------------------------------------------------|
+| `GET /api/suscripciones`          | Listar suscripciones de un socio (`?socioId=`, `?activa=true`) |
+| `POST /api/suscripciones`         | Crear suscripción (requiere `suscripciones:write`)    |
+| `PUT /api/suscripciones/:id/close`| Cerrar suscripción — establece `fechaHasta`           |
+| `DELETE /api/suscripciones/:id`   | Eliminar suscripción — soft delete (solo admin)       |
+
+`POST /api/suscripciones` acepta dos formas equivalentes:
+
+```json
+{ "socioId": "ID", "planId": "ID_DEL_PLAN", "fechaDesde": "2026-07" }
+```
+```json
+{ "socioId": "ID", "etiquetaId": "ID_ETIQUETA", "fechaDesde": "2026-07" }
+```
+
+Cuando se provee `planId`, el `etiquetaId` se resuelve automáticamente del plan. La respuesta popula tanto `planId` como `etiquetaId` con sus datos completos.
+
+## Etiquetas
+
+Catálogo de conceptos de precio del club.
+
+| Endpoint                  | Descripción                                          |
+|---------------------------|------------------------------------------------------|
+| `GET /api/etiquetas`      | Listar etiquetas (filtros: `uso_sistema`, `trash`)   |
+| `POST /api/etiquetas`     | Crear etiqueta (requiere `etiquetas:write`)          |
+| `PUT /api/etiquetas/:id`  | Actualizar etiqueta (requiere `etiquetas:write`)     |
+| `DELETE /api/etiquetas/:id`| Eliminar etiqueta — soft delete (requiere `etiquetas:delete`) |
+
+Campos: `nombre`, `unidad` (`mes` \| `hora` \| `dia`), `uso_sistema` (identificador de sistema, opcional). Los planes y suscripciones referencian etiquetas para determinar precios.
+
+## Precios
+
+Historial de montos por etiqueta, con vigencia temporal.
+
+| Endpoint               | Descripción                              |
+|------------------------|------------------------------------------|
+| `GET /api/precios`     | Listar precios (filtros: `categoria`, `codigo`, `trash`) |
+| `POST /api/precios`    | Crear precio (requiere `precios:write`)  |
+| `PUT /api/precios/:id` | Actualizar precio (requiere `precios:write`) |
+| `DELETE /api/precios/:id` | Eliminar precio — soft delete        |
+
+Cada precio tiene `vigenteDesde` / `vigenteHasta`. Los cobros guardan un `montoEsperadoSnapshot` al momento de la generación, inmune a cambios futuros de precio.
+
 ## Asistencias
 
 Colección unificada para muro libre y escuelita.
@@ -201,8 +301,6 @@ Colección unificada para muro libre y escuelita.
 
 Todos los endpoints de escaneo aceptan `{ token }` (QR) o `{ dni }` en el body.
 
-El pase mensual de muro libre se gestiona a través del sistema de Etiquetas/Suscripciones. Al hacer check-in mensual, el backend verifica que el socio tenga una cuota pagada vinculada a la etiqueta `muro_libre_mensual_socio` para el período actual.
-
 ## Escuelita
 
 | Endpoint                              | Descripción                                      |
@@ -213,62 +311,50 @@ El pase mensual de muro libre se gestiona a través del sistema de Etiquetas/Sus
 | `DELETE /api/escuelita/:id`           | Dar de baja                                      |
 | `POST /api/escuelita/checkin`         | Check-in por QR o DNI (valida cuota + frecuencia semanal) |
 | `GET /api/escuelita/categorias`       | Listar categorías                                |
-| `POST /api/escuelita/categorias`      | Crear categoría (solo admin)                     |
-| `PUT /api/escuelita/categorias/:id`   | Actualizar categoría (solo admin)                |
-| `DELETE /api/escuelita/categorias/:id`| Eliminar categoría — soft delete (solo admin)    |
+| `POST /api/escuelita/categorias`      | Crear categoría                                  |
+| `PUT /api/escuelita/categorias/:id`   | Actualizar categoría                             |
+| `DELETE /api/escuelita/categorias/:id`| Eliminar categoría — soft delete                 |
 
-Cada alumno tiene un `categoriaId` → `CategoriaEscuelita` con `frecuenciaSemanal` y `etiquetaId` para el precio. El checkin valida: cuota del mes pagada + límite de clases semanales según la categoría.
+Cada alumno activo tiene una `Suscripcion` con `planId` → `Plan` de tipo `escuelita`. El checkin valida: cuota del mes pagada + límite de clases semanales según `plan.atributos.frecuenciaSemanal`.
+
+## Horarios
+
+Registro de horas trabajadas por el staff. Cada registro se vincula a una `Etiqueta` de precio (ej: Hora Palestrero, Hora Profesor), lo que permite calcular cuánto le debe el club a cada persona.
+
+| Endpoint                         | Descripción                                              |
+|----------------------------------|----------------------------------------------------------|
+| `GET /api/horarios`              | Listar (filtros: `socioId`, `etiquetaId`, `desde`, `hasta`, `trash`) |
+| `POST /api/horarios`             | Registrar horario                                        |
+| `PUT /api/horarios/:id`          | Actualizar horario                                       |
+| `DELETE /api/horarios/:id`       | Eliminar horario (soft delete)                           |
+| `GET /api/horarios/deuda`        | Deuda del club con el staff para un período (`?periodo=YYYY-MM`) |
+| `GET /api/horarios/precio-tareas`| Listar etiquetas con `unidad=hora` (tipos de tarea disponibles) |
+
+**Control de propiedad**: staff (palestrero, profesor, limpieza, arreglos) solo puede editar/eliminar sus propios registros. Admin y secretaria gestionan todos. Si un usuario staff no tiene `socioId` asociado, no puede registrar horarios (403).
+
+El endpoint `deuda` devuelve un resumen agrupado por persona y tipo de tarea:
+```json
+[
+  {
+    "socioId": "...",
+    "socio": { "nombre": "Juan", "apellido": "Pérez" },
+    "etiqueta": { "_id": "...", "nombre": "Hora Palestrero" },
+    "totalHoras": 12.5,
+    "precioPorHora": 1500,
+    "total": 18750
+  }
+]
+```
 
 ## Novedades
 
 | Endpoint                    | Descripción                                        |
 |-----------------------------|----------------------------------------------------|
 | `GET /api/novedades`        | Listar novedades (filtros: `fuente`, `categoria`)  |
-| `POST /api/novedades`       | Crear novedad manual (admin/secretary)             |
+| `POST /api/novedades`       | Crear novedad manual (admin/secretaria)             |
 | `POST /api/novedades/sync`  | Forzar sync inmediato con Instagram RSS            |
 
 El servidor sincroniza el feed de Instagram automáticamente cada 30 minutos si `INSTAGRAM_RSS_URL` está configurado. La sincronización es idempotente: no duplica posts ya importados. Cuando hay posts nuevos, se envía una push notification a todos los socios del club.
-
-## Horarios
-
-Registro de horas trabajadas por el staff. Cada tipo de tarea tiene una `Etiqueta` de precio asociada, lo que permite calcular cuánto le debe el club a cada persona.
-
-| Endpoint                        | Descripción                                              |
-|---------------------------------|----------------------------------------------------------|
-| `GET /api/horarios`             | Listar (filtros: `nombre`, `tipoTarea`, `desde`, `hasta`, `trash`) |
-| `POST /api/horarios`            | Registrar horario                                        |
-| `PUT /api/horarios/:id`         | Actualizar horario                                       |
-| `DELETE /api/horarios/:id`      | Eliminar horario (soft delete)                           |
-| `GET /api/horarios/deuda`       | Deuda del club con el staff para un período (`?periodo=YYYY-MM`) |
-| `GET /api/horarios/etiquetas`   | Listar tipos de tarea / nombres de staff                 |
-| `POST /api/horarios/etiquetas`  | Crear tipo de tarea con precio o nombre de staff con socio |
-| `DELETE /api/horarios/etiquetas/:id` | Eliminar etiqueta de horario                        |
-
-El modelo `HorarioEtiqueta` gestiona dos catálogos: `tipo_tarea` (con `etiquetaId` de precio) y `nombre` (con `socioId` del staff). El cálculo de deuda cruza `totalHoras × precio/hora` para cada persona y tipo de tarea.
-
-## Precios
-
-Catálogo de precios vigentes del club, con historial por fecha.
-
-| Endpoint               | Descripción                              |
-|------------------------|------------------------------------------|
-| `GET /api/precios`     | Listar precios (filtros: `categoria`, `codigo`, `trash`) |
-| `POST /api/precios`    | Crear precio (solo admin)                |
-| `PUT /api/precios/:id` | Actualizar precio (solo admin)           |
-| `DELETE /api/precios/:id` | Eliminar precio — soft delete (solo admin) |
-
-El código (`codigo`) puede ser cualquier string en minúsculas, números y guiones bajos (`[a-z0-9_]+`). Códigos base recomendados:
-
-| Código | Descripción |
-|--------|-------------|
-| `cuota_social` | Cuota mensual del socio |
-| `cuota_escuelita` | Cuota mensual de escuelita (precio base genérico) |
-| `cuota_escuelita_<categoria>` | Precio específico por categoría (ej: `cuota_escuelita_ninos_2x`) |
-| `muro_libre_diario_socio` / `muro_libre_diario_no_socio` | Entrada diaria al muro |
-| `muro_libre_mensual_socio` / `muro_libre_mensual_no_socio` | Pase mensual al muro |
-| `hora_palestrero` / `hora_profesor` / `hora_secretaria` | Horas de personal |
-
-Cada precio tiene `vigenteDesde` / `vigenteHasta`. Los cobros guardan snapshots del monto al momento del pago. Para calcular deuda de escuelita, el sistema busca el precio por `CategoriaEscuelita.codigoPrecio`; si no tiene, usa `cuota_escuelita` como fallback.
 
 ## Push Notifications
 
@@ -300,13 +386,14 @@ El servidor también ejecuta la exportación automáticamente **todos los días 
 
 | Pestaña | Contenido |
 |---------|-----------|
-| Socios | Lista completa con estado y fecha de asociado |
+| Socios | Lista completa con estado, sexo, fecha de nacimiento, tel. emergencia, ciudad, condición, observaciones |
 | Cuotas Sociales | Matriz 24 meses: ✓ pagada (verde) / ✗ pendiente (rojo) + deuda estimada |
 | Cuotas Escuelita | Igual que Cuotas Sociales, solo alumnos inscriptos |
 | Cobros | Historial de pagos expandido por ítem |
 | Escuelita | Alumnos con categoría y estado |
 | Movimientos | Caja general |
-| Horarios | Horas trabajadas por el personal |
+| Horarios | Horas trabajadas por el personal (últimos 12 meses), con socio y tipo de tarea |
+| Asistencias | Registro unificado muro libre + escuelita (últimos 12 meses) |
 
 ## Audit Log
 
@@ -330,4 +417,25 @@ Cada reversión queda registrada como un nuevo log de `UPDATE` en el audit.
 npm test
 ```
 
-Los tests unitarios mockean modelos Mongoose y no requieren conexión a MongoDB.
+Suite de **52 archivos de test** con **316+ tests unitarios**. Los tests mockean modelos Mongoose y no requieren conexión a MongoDB. Cada handler tiene su propio archivo de test en `src/resources/<recurso>/tests/unit/`.
+
+Cobertura por recurso:
+
+| Recurso | Archivos de test |
+|---------|-----------------|
+| auth (login, register, password) | ✓ |
+| socios (CRUD, QR, deuda) | ✓ |
+| cobros (create, anular) | ✓ |
+| cuotas (precios CRUD, calcularDeuda) | ✓ |
+| movimientos (CRUD) | ✓ |
+| escuelita (alumnos CRUD, categorias, checkin) | ✓ |
+| muro libre (CRUD, checkin) | ✓ |
+| asistencias (create, get) | ✓ |
+| horarios (CRUD, deudaStaff, getHorarios) | ✓ |
+| planes (CRUD completo) | ✓ |
+| suscripciones (CRUD + path planId) | ✓ |
+| etiquetas (CRUD) | ✓ |
+| audit (getAuditLogs, revertAuditLog, service) | ✓ |
+| roles (CRUD) | ✓ |
+| novedades (get, create) | ✓ |
+| export/sheets | ✓ |

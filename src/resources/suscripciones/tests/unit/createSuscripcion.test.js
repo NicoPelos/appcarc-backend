@@ -15,8 +15,13 @@ vi.mock('../../../etiquetas/models/Etiqueta.js', () => ({
   default: { findOne: vi.fn() },
 }));
 
+vi.mock('../../../planes/models/Plan.js', () => ({
+  default: { findOne: vi.fn() },
+}));
+
 import Socio from '../../../socios/models/Socio.js';
 import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
+import Plan from '../../../planes/models/Plan.js';
 
 const mockUser = { clubId: 'CARC', email: 'admin@carc.com' };
 
@@ -33,10 +38,14 @@ const validBody = {
   fechaDesde: '2026-01',
 };
 
+const PLAN_ID = '507f1f77bcf86cd799439011';
+const ETIQUETA_ID = 'etiqueta456';
+
 beforeEach(() => {
   vi.clearAllMocks();
   Socio.findOne.mockResolvedValue({ _id: 'socio123', clubId: 'CARC' });
-  Etiqueta.findOne.mockResolvedValue({ _id: 'etiqueta456', clubId: 'CARC', nombre: 'Cuota Social', unidad: 'mes' });
+  Etiqueta.findOne.mockResolvedValue({ _id: ETIQUETA_ID, clubId: 'CARC', nombre: 'Cuota Social', unidad: 'mes' });
+  Plan.findOne.mockResolvedValue({ _id: PLAN_ID, etiquetaId: ETIQUETA_ID });
   mockSave.mockResolvedValue();
 });
 
@@ -61,7 +70,7 @@ describe('createSuscripcionHandler', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('socioId') }));
   });
 
-  it('retorna 400 si falta etiquetaId', async () => {
+  it('retorna 400 si falta etiquetaId y planId', async () => {
     const req = { user: mockUser, body: { ...validBody, etiquetaId: undefined } };
     const res = mockRes();
 
@@ -69,6 +78,28 @@ describe('createSuscripcionHandler', () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('etiquetaId') }));
+  });
+
+  it('crea suscripción con planId (resuelve etiquetaId del plan)', async () => {
+    const req = { user: mockUser, body: { socioId: 'socio123', planId: PLAN_ID, fechaDesde: '2026-01' } };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    expect(Plan.findOne).toHaveBeenCalledWith(expect.objectContaining({ _id: PLAN_ID }));
+    expect(mockSave).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it('retorna 404 si planId no existe', async () => {
+    Plan.findOne.mockResolvedValue(null);
+    const req = { user: mockUser, body: { socioId: 'socio123', planId: PLAN_ID, fechaDesde: '2026-01' } };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('Plan') }));
   });
 
   it('retorna 400 si falta fechaDesde', async () => {
