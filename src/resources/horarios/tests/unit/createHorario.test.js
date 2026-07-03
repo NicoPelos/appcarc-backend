@@ -9,7 +9,10 @@ const mockRes = () => {
   return res;
 };
 
-const USER = { id: 'user1', email: 'admin@carc.test', clubId: 'club1' };
+const USER = { id: 'user1', email: 'admin@carc.test', clubId: 'club1', roles: ['admin'] };
+const STAFF_SOCIO_ID = '507f1f77bcf86cd799439011';
+const USER_STAFF = { id: 'user2', email: 'vlad@carc.test', clubId: 'club1', roles: ['palestrero'], socioId: STAFF_SOCIO_ID };
+const USER_STAFF_NO_SOCIO = { id: 'user3', email: 'sin-socio@carc.test', clubId: 'club1', roles: ['palestrero'] };
 
 const BASE_BODY = {
   fecha: '2026-06-01',
@@ -79,5 +82,19 @@ describe('createHorarioHandler', () => {
     const res = mockRes();
     await createHorarioHandler({ body: BASE_BODY, user: USER }, res);
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  it('should return 403 when staff user has no socioId', async () => {
+    const res = mockRes();
+    await createHorarioHandler({ body: BASE_BODY, user: USER_STAFF_NO_SOCIO }, res);
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it('should create horario and lock socioId to own user when staff', async () => {
+    const res = mockRes();
+    await createHorarioHandler({ body: BASE_BODY, user: USER_STAFF }, res);
+    expect(res.status).toHaveBeenCalledWith(201);
+    const created = res.json.mock.calls[0][0];
+    expect(created.socioId?.toString()).toBe(STAFF_SOCIO_ID);
   });
 });

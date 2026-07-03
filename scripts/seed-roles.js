@@ -64,7 +64,7 @@ const ROLES_SEED = [
     nombre: 'profesor',
     permisos: [
       P.ESCUELITA_READ, P.ESCUELITA_CHECKIN,
-      P.HORARIOS_READ,
+      P.HORARIOS_READ, P.HORARIOS_WRITE, P.HORARIOS_DELETE,
       P.ASISTENCIAS_READ, P.ASISTENCIAS_WRITE,
     ],
   },

@@ -43,9 +43,16 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *       500:
  *         description: Error al crear horario
  */
+const ROLES_EDIT_ALL = ['admin', 'secretaria', 'autoridad', 'superadmin'];
+
 export const createHorarioHandler = async (req, res) => {
   try {
     const { fecha, nombre, horaEntrada, horaSalida, totalHoras, tipoTarea, observaciones } = req.body;
+
+    const canEditAll = req.user?.roles?.some(r => ROLES_EDIT_ALL.includes(r));
+    if (!canEditAll && !req.user?.socioId) {
+      return res.status(403).json({ message: 'Tu usuario no tiene un perfil de socio asociado para registrar horarios' });
+    }
 
     if (!fecha) return res.status(400).json({ message: 'La fecha es obligatoria' });
     const fechaDate = new Date(fecha);
@@ -68,6 +75,7 @@ export const createHorarioHandler = async (req, res) => {
     const horario = new Horarios({
       idHorarios: randomBytes(4).toString('hex'),
       clubId: req.user?.clubId,
+      socioId: canEditAll ? (req.body.socioId ?? null) : req.user.socioId,
       fecha: fechaDate,
       nombre: nombre.trim(),
       horaEntrada: horaEntrada ? new Date(horaEntrada) : undefined,

@@ -1,6 +1,7 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { googleLogin, googleCallback, register, login, logout, changePassword, registerPushToken } from './handlers/auth.handler.js';
+import { getStaffHandler } from './handlers/getStaff.handler.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { PERMISOS } from '../../constants/permisos.js';
 
@@ -160,5 +161,6 @@ router.put('/password', protect, changePassword);
  */
 router.post('/logout', protect, logout);
 router.put('/push-token', protect, registerPushToken);
+router.get('/staff', protect, authorize(PERMISOS.HORARIOS_READ), getStaffHandler);
 
 export default router;
