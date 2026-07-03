@@ -10,9 +10,10 @@ console.log('✅ MongoDB conectado');
 
 // Obtener clubId de CARC desde la BD (primer usuario admin)
 import User from '../src/resources/usuarios/models/User.js';
-const adminUser = await User.findOne({ roles: 'admin' }).lean();
+const adminUser = await User.findOne({ roles: { $in: ['admin', 'secretaria'] } }).lean()
+  ?? await User.findOne({ active: true }).lean();
 if (!adminUser) {
-  console.error('❌ No se encontró ningún usuario admin. Especificá el clubId manualmente.');
+  console.error('❌ No se encontró ningún usuario. Especificá el clubId manualmente.');
   process.exit(1);
 }
 const clubId = adminUser.clubId;
@@ -65,7 +66,7 @@ const ROLES_SEED = [
   {
     nombre: 'profesor',
     permisos: [
-      P.ESCUELITA_READ, P.ESCUELITA_CHECKIN,
+      P.ESCUELITA_READ, P.ESCUELITA_WRITE, P.ESCUELITA_DELETE, P.ESCUELITA_CHECKIN,
       P.HORARIOS_READ, P.HORARIOS_WRITE, P.HORARIOS_DELETE,
       P.ASISTENCIAS_READ, P.ASISTENCIAS_WRITE,
     ],
