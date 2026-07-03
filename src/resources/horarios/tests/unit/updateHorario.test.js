@@ -9,12 +9,11 @@ const mockRes = () => {
   return res;
 };
 
-const USER = { id: 'user1', email: 'admin@carc.test', clubId: 'club1' };
+const USER = { id: 'user1', email: 'admin@carc.test', clubId: 'club1', roles: ['admin'] };
 
 const makeHorario = (overrides = {}) => ({
   _id: 'h1',
   fecha: new Date('2026-06-01'),
-  nombre: 'Vladimir',
   horaEntrada: new Date('2026-06-01T19:30:00'),
   horaSalida: new Date('2026-06-01T22:00:00'),
   totalHoras: 2.5,
@@ -35,7 +34,7 @@ describe('updateHorarioHandler', () => {
   it('should return 404 when horario is not found', async () => {
     vi.spyOn(Horarios, 'findOne').mockResolvedValue(null);
     const res = mockRes();
-    await updateHorarioHandler({ params: { id: 'h1' }, body: { nombre: 'Nuevo' }, user: USER }, res);
+    await updateHorarioHandler({ params: { id: 'h1' }, body: { tipoTarea: 'Palestrero' }, user: USER }, res);
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({ message: 'Horario no encontrado' });
   });
@@ -46,14 +45,6 @@ describe('updateHorarioHandler', () => {
     await updateHorarioHandler({ params: { id: 'h1' }, body: { fecha: 'no-fecha' }, user: USER }, res);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ message: 'La fecha es inválida' });
-  });
-
-  it('should return 400 when nombre is empty', async () => {
-    vi.spyOn(Horarios, 'findOne').mockResolvedValue(makeHorario());
-    const res = mockRes();
-    await updateHorarioHandler({ params: { id: 'h1' }, body: { nombre: '  ' }, user: USER }, res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: 'El nombre no puede estar vacío' });
   });
 
   it('should return 400 when horaEntrada is invalid', async () => {
@@ -76,12 +67,12 @@ describe('updateHorarioHandler', () => {
     const horario = makeHorario();
     vi.spyOn(Horarios, 'findOne').mockResolvedValue(horario);
     const res = mockRes();
+    const etqId = '507f1f77bcf86cd799439011';
     await updateHorarioHandler(
-      { params: { id: 'h1' }, body: { nombre: 'Lu Molina', tipoTarea: 'Clase', totalHoras: 3 }, user: USER },
+      { params: { id: 'h1' }, body: { etiquetaId: etqId, totalHoras: 3 }, user: USER },
       res,
     );
-    expect(horario.nombre).toBe('Lu Molina');
-    expect(horario.tipoTarea).toBe('Clase');
+    expect(horario.etiquetaId).toBe(etqId);
     expect(horario.totalHoras).toBe(3);
     expect(horario.updatedBy).toBe('admin@carc.test');
     expect(horario.save).toHaveBeenCalledTimes(1);

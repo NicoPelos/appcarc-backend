@@ -47,7 +47,7 @@ const ROLES_EDIT_ALL = ['admin', 'secretaria', 'autoridad', 'superadmin'];
 
 export const createHorarioHandler = async (req, res) => {
   try {
-    const { fecha, nombre, horaEntrada, horaSalida, totalHoras, tipoTarea, observaciones } = req.body;
+    const { fecha, horaEntrada, horaSalida, totalHoras, etiquetaId, observaciones } = req.body;
 
     const canEditAll = req.user?.roles?.some(r => ROLES_EDIT_ALL.includes(r));
     if (!canEditAll && !req.user?.socioId) {
@@ -57,10 +57,6 @@ export const createHorarioHandler = async (req, res) => {
     if (!fecha) return res.status(400).json({ message: 'La fecha es obligatoria' });
     const fechaDate = new Date(fecha);
     if (isNaN(fechaDate.getTime())) return res.status(400).json({ message: 'La fecha es inválida' });
-
-    if (!nombre || typeof nombre !== 'string' || !nombre.trim()) {
-      return res.status(400).json({ message: 'El nombre es obligatorio' });
-    }
 
     if (horaEntrada) {
       const d = new Date(horaEntrada);
@@ -77,11 +73,10 @@ export const createHorarioHandler = async (req, res) => {
       clubId: req.user?.clubId,
       socioId: canEditAll ? (req.body.socioId ?? null) : req.user.socioId,
       fecha: fechaDate,
-      nombre: nombre.trim(),
+      etiquetaId: etiquetaId ?? null,
       horaEntrada: horaEntrada ? new Date(horaEntrada) : undefined,
       horaSalida: horaSalida ? new Date(horaSalida) : undefined,
       totalHoras: totalHoras ?? undefined,
-      tipoTarea: tipoTarea || '',
       observaciones: observaciones || '',
       createdBy: req.user?.email ?? req.user?.id,
       updatedBy: req.user?.email ?? req.user?.id,

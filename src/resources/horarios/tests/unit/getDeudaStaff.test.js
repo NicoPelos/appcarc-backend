@@ -4,15 +4,11 @@ import { getDeudaStaffHandler } from '../../handlers/getDeudaStaff.handler.js';
 vi.mock('../../models/Horarios.js', () => ({
   default: { find: vi.fn() },
 }));
-vi.mock('../../models/HorarioEtiqueta.js', () => ({
-  default: { find: vi.fn() },
-}));
 vi.mock('../../../cuotas/models/Precios.js', () => ({
   default: { findOne: vi.fn() },
 }));
 
 import Horarios from '../../models/Horarios.js';
-import HorarioEtiqueta from '../../models/HorarioEtiqueta.js';
 import Precios from '../../../cuotas/models/Precios.js';
 
 const mockUser = { clubId: 'CARC' };
@@ -23,33 +19,21 @@ const mockRes = () => {
   return res;
 };
 
-const ETIQUETA_ID = 'etq1';
+const ETIQUETA_ID = '507f1f77bcf86cd799439011';
 const SOCIO_ID = 'socio1';
 
 beforeEach(() => {
   vi.clearAllMocks();
 
   Horarios.find.mockReturnValue({
-    populate: vi.fn().mockReturnValue({
-      lean: vi.fn().mockResolvedValue([
-        {
-          socioId: { _id: SOCIO_ID, nombre: 'Vladimir', apellido: 'Kamiensky' },
-          tipoTarea: 'Palestrero',
-          totalHoras: 3,
-        },
-      ]),
-    }),
-  });
-
-  HorarioEtiqueta.find.mockReturnValue({
-    populate: vi.fn().mockReturnValue({
-      lean: vi.fn().mockResolvedValue([
-        {
-          valor: 'Palestrero',
-          etiquetaId: { _id: ETIQUETA_ID, nombre: 'Hora Palestrero' },
-        },
-      ]),
-    }),
+    populate: vi.fn().mockReturnThis(),
+    lean: vi.fn().mockResolvedValue([
+      {
+        socioId: { _id: SOCIO_ID, nombre: 'Vladimir', apellido: 'Kamiensky' },
+        etiquetaId: { _id: ETIQUETA_ID, nombre: 'Hora Palestrero', unidad: 'hora' },
+        totalHoras: 3,
+      },
+    ]),
   });
 
   Precios.findOne.mockReturnValue({
@@ -68,7 +52,11 @@ describe('getDeudaStaffHandler', () => {
     const [resultado] = res.json.mock.calls[0][0];
     expect(resultado.nombre).toBe('Vladimir Kamiensky');
     expect(resultado.totalDeuda).toBe(15000); // 3h × $5000
-    expect(resultado.detalles[0]).toMatchObject({ tipoTarea: 'Palestrero', totalHoras: 3, precioPorHora: 5000 });
+    expect(resultado.detalles[0]).toMatchObject({
+      etiqueta: { nombre: 'Hora Palestrero' },
+      totalHoras: 3,
+      precioPorHora: 5000,
+    });
   });
 
   it('retorna 400 si falta periodo', async () => {
@@ -89,10 +77,18 @@ describe('getDeudaStaffHandler', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  it('marca sinPrecio cuando no hay etiqueta configurada', async () => {
-    HorarioEtiqueta.find.mockReturnValue({
-      populate: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }),
+  it('marca sinPrecio cuando no hay etiquetaId en el horario', async () => {
+    Horarios.find.mockReturnValue({
+      populate: vi.fn().mockReturnThis(),
+      lean: vi.fn().mockResolvedValue([
+        {
+          socioId: { _id: SOCIO_ID, nombre: 'Vladimir', apellido: 'Kamiensky' },
+          etiquetaId: null,
+          totalHoras: 3,
+        },
+      ]),
     });
+
     const req = { user: mockUser, query: { periodo: '2026-06' } };
     const res = mockRes();
 
@@ -106,7 +102,8 @@ describe('getDeudaStaffHandler', () => {
 
   it('retorna 500 si hay error', async () => {
     Horarios.find.mockReturnValue({
-      populate: vi.fn().mockReturnValue({ lean: vi.fn().mockRejectedValue(new Error('DB error')) }),
+      populate: vi.fn().mockReturnThis(),
+      lean: vi.fn().mockRejectedValue(new Error('DB error')),
     });
     const req = { user: mockUser, query: { periodo: '2026-06' } };
     const res = mockRes();

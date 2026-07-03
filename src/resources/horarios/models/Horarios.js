@@ -7,7 +7,7 @@ const horariosSchema = new mongoose.Schema({
   observaciones: String,
   horaEntrada:  Date,
   horaSalida:   Date,
-  nombre:       String,
+  etiquetaId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Etiqueta', default: null, index: true },
   totalHoras:   Number,
   idHorarios:   { type: String, unique: true },
   createdBy:    String,

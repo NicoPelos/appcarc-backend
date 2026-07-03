@@ -16,7 +16,6 @@ const USER_STAFF_NO_SOCIO = { id: 'user3', email: 'sin-socio@carc.test', clubId:
 
 const BASE_BODY = {
   fecha: '2026-06-01',
-  nombre: 'Vladimir',
   horaEntrada: '2026-06-01T19:30:00',
   horaSalida: '2026-06-01T22:00:00',
   totalHoras: 2.5,
@@ -46,13 +45,6 @@ describe('createHorarioHandler', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'La fecha es inválida' });
   });
 
-  it('should return 400 when nombre is missing', async () => {
-    const res = mockRes();
-    await createHorarioHandler({ body: { ...BASE_BODY, nombre: '' }, user: USER }, res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: 'El nombre es obligatorio' });
-  });
-
   it('should return 400 when horaEntrada is invalid', async () => {
     const res = mockRes();
     await createHorarioHandler({ body: { ...BASE_BODY, horaEntrada: 'no-es-fecha' }, user: USER }, res);
@@ -74,7 +66,7 @@ describe('createHorarioHandler', () => {
     expect(Horarios.prototype.save).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(201);
     const created = res.json.mock.calls[0][0];
-    expect(created).toMatchObject({ nombre: 'Vladimir', tipoTarea: 'Palestrero', totalHoras: 2.5 });
+    expect(created).toMatchObject({ totalHoras: 2.5 });
   });
 
   it('should return 500 on unexpected error', async () => {

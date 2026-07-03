@@ -38,14 +38,14 @@ import Horarios from '../models/Horarios.js';
  */
 export const getHorariosHandler = async (req, res) => {
   try {
-    const { page = 1, limit = 20, trash, nombre, tipoTarea, desde, hasta } = req.query;
+    const { page = 1, limit = 20, trash, socioId, etiquetaId, desde, hasta } = req.query;
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
     const filter = { clubId: req.user?.clubId, active: trash === 'true' ? false : true };
 
-    if (nombre) filter.nombre = new RegExp(nombre.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    if (tipoTarea) filter.tipoTarea = tipoTarea;
+    if (socioId) filter.socioId = socioId;
+    if (etiquetaId) filter.etiquetaId = etiquetaId;
     if (desde || hasta) {
       filter.fecha = {};
       if (desde) filter.fecha.$gte = new Date(desde);
@@ -55,6 +55,8 @@ export const getHorariosHandler = async (req, res) => {
     const [total, horarios] = await Promise.all([
       Horarios.countDocuments(filter),
       Horarios.find(filter)
+        .populate('socioId', 'nombre apellido')
+        .populate('etiquetaId', 'nombre unidad')
         .sort({ fecha: -1, horaEntrada: -1 })
         .skip((pageNumber - 1) * pageSize)
         .limit(pageSize),

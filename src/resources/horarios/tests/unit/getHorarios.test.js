@@ -12,6 +12,7 @@ const mockRes = () => {
 const USER = { id: 'user1', email: 'admin@carc.test', clubId: 'club1' };
 
 const makeQuery = (data) => ({
+  populate: vi.fn().mockReturnThis(),
   sort: vi.fn().mockReturnThis(),
   skip: vi.fn().mockReturnThis(),
   limit: vi.fn().mockResolvedValue(data),
@@ -23,7 +24,7 @@ describe('getHorariosHandler', () => {
   });
 
   it('should return active horarios by default', async () => {
-    const items = [{ _id: 'h1', nombre: 'Vladimir', active: true }];
+    const items = [{ _id: 'h1', active: true }];
     vi.spyOn(Horarios, 'countDocuments').mockResolvedValue(1);
     vi.spyOn(Horarios, 'find').mockReturnValue(makeQuery(items));
 
@@ -48,25 +49,24 @@ describe('getHorariosHandler', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it('should filter by nombre', async () => {
+  it('should filter by socioId', async () => {
     vi.spyOn(Horarios, 'countDocuments').mockResolvedValue(0);
     vi.spyOn(Horarios, 'find').mockReturnValue(makeQuery([]));
 
     const res = mockRes();
-    await getHorariosHandler({ query: { nombre: 'Lu' }, user: USER }, res);
+    await getHorariosHandler({ query: { socioId: 'socio123' }, user: USER }, res);
 
-    const callArg = Horarios.find.mock.calls[0][0];
-    expect(callArg.nombre).toBeInstanceOf(RegExp);
+    expect(Horarios.find).toHaveBeenCalledWith(expect.objectContaining({ socioId: 'socio123' }));
   });
 
-  it('should filter by tipoTarea', async () => {
+  it('should filter by etiquetaId', async () => {
     vi.spyOn(Horarios, 'countDocuments').mockResolvedValue(0);
     vi.spyOn(Horarios, 'find').mockReturnValue(makeQuery([]));
 
     const res = mockRes();
-    await getHorariosHandler({ query: { tipoTarea: 'Clase' }, user: USER }, res);
+    await getHorariosHandler({ query: { etiquetaId: 'etq123' }, user: USER }, res);
 
-    expect(Horarios.find).toHaveBeenCalledWith(expect.objectContaining({ tipoTarea: 'Clase' }));
+    expect(Horarios.find).toHaveBeenCalledWith(expect.objectContaining({ etiquetaId: 'etq123' }));
   });
 
   it('should filter by date range when desde and hasta provided', async () => {

@@ -1,5 +1,4 @@
 import Horarios from '../models/Horarios.js';
-import HorarioEtiqueta from '../models/HorarioEtiqueta.js';
 import Precios from '../../cuotas/models/Precios.js';
 
 const getPrecioVigente = async ({ clubId, etiquetaId, fecha }) => {
@@ -59,32 +58,25 @@ export const getDeudaStaffHandler = async (req, res) => {
 
     const horarios = await Horarios.find(filter)
       .populate('socioId', 'nombre apellido')
-      .lean();
-
-    // Cargar tipos de tarea con su etiquetaId
-    const tiposTarea = await HorarioEtiqueta.find({ clubId, tipo: 'tipo_tarea' })
       .populate('etiquetaId', 'nombre unidad')
       .lean();
-    const tipoTareaMap = Object.fromEntries(tiposTarea.map(t => [t.valor, t]));
 
     // Agrupar por socio
     const porSocio = {};
     for (const h of horarios) {
-      const key = String(h.socioId?._id || h.nombre);
+      const key = String(h.socioId?._id ?? h._id);
       if (!porSocio[key]) {
         porSocio[key] = {
-          socioId: h.socioId?._id || null,
-          nombre: h.socioId
-            ? `${h.socioId.nombre} ${h.socioId.apellido}`
-            : h.nombre,
+          socioId: h.socioId?._id ?? null,
+          nombre: h.socioId ? `${h.socioId.nombre} ${h.socioId.apellido}` : '(sin socio)',
           breakdown: {},
         };
       }
-      const tarea = h.tipoTarea || '(sin tipo)';
-      if (!porSocio[key].breakdown[tarea]) {
-        porSocio[key].breakdown[tarea] = { totalHoras: 0 };
+      const etqKey = String(h.etiquetaId?._id ?? 'sin-etiqueta');
+      if (!porSocio[key].breakdown[etqKey]) {
+        porSocio[key].breakdown[etqKey] = { etiqueta: h.etiquetaId, totalHoras: 0 };
       }
-      porSocio[key].breakdown[tarea].totalHoras += h.totalHoras || 0;
+      porSocio[key].breakdown[etqKey].totalHoras += h.totalHoras || 0;
     }
 
     // Calcular montos
@@ -92,17 +84,12 @@ export const getDeudaStaffHandler = async (req, res) => {
       Object.values(porSocio).map(async (persona) => {
         let totalDeuda = 0;
         const detalles = await Promise.all(
-          Object.entries(persona.breakdown).map(async ([tarea, { totalHoras }]) => {
-            const tipo = tipoTareaMap[tarea];
+          Object.values(persona.breakdown).map(async ({ etiqueta, totalHoras }) => {
             let precioPorHora = null;
             let subtotal = null;
 
-            if (tipo?.etiquetaId) {
-              const precio = await getPrecioVigente({
-                clubId,
-                etiquetaId: tipo.etiquetaId._id,
-                fecha: fechaRef,
-              });
+            if (etiqueta?._id) {
+              const precio = await getPrecioVigente({ clubId, etiquetaId: etiqueta._id, fecha: fechaRef });
               precioPorHora = precio?.monto ?? null;
               subtotal = precioPorHora !== null ? totalHoras * precioPorHora : null;
             }
@@ -110,7 +97,7 @@ export const getDeudaStaffHandler = async (req, res) => {
             if (subtotal !== null) totalDeuda += subtotal;
 
             return {
-              tipoTarea: tarea,
+              etiqueta: etiqueta ? { _id: etiqueta._id, nombre: etiqueta.nombre } : null,
               totalHoras: Math.round(totalHoras * 100) / 100,
               precioPorHora,
               subtotal,
@@ -119,13 +106,7 @@ export const getDeudaStaffHandler = async (req, res) => {
           }),
         );
 
-        return {
-          socioId: persona.socioId,
-          nombre: persona.nombre,
-          periodo,
-          detalles,
-          totalDeuda,
-        };
+        return { socioId: persona.socioId, nombre: persona.nombre, periodo, detalles, totalDeuda };
       }),
     );
 

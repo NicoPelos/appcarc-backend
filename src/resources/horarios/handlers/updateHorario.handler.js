@@ -53,7 +53,7 @@ const ROLES_EDIT_ALL = ['admin', 'secretaria', 'autoridad', 'superadmin'];
 export const updateHorarioHandler = async (req, res) => {
   try {
     const { id } = req.params;
-    const { fecha, nombre, horaEntrada, horaSalida, totalHoras, tipoTarea, observaciones } = req.body;
+    const { fecha, horaEntrada, horaSalida, totalHoras, etiquetaId, observaciones } = req.body;
 
     const horario = await Horarios.findOne({ _id: id, active: true });
     if (!horario) return res.status(404).json({ message: 'Horario no encontrado' });
@@ -71,13 +71,6 @@ export const updateHorarioHandler = async (req, res) => {
       horario.fecha = d;
     }
 
-    if (nombre !== undefined) {
-      if (typeof nombre !== 'string' || !nombre.trim()) {
-        return res.status(400).json({ message: 'El nombre no puede estar vacío' });
-      }
-      horario.nombre = nombre.trim();
-    }
-
     if (horaEntrada !== undefined) {
       const d = new Date(horaEntrada);
       if (isNaN(d.getTime())) return res.status(400).json({ message: 'La hora de entrada es inválida' });
@@ -90,8 +83,8 @@ export const updateHorarioHandler = async (req, res) => {
       horario.horaSalida = d;
     }
 
+    if (etiquetaId !== undefined) horario.etiquetaId = etiquetaId ?? null;
     if (totalHoras !== undefined) horario.totalHoras = totalHoras;
-    if (tipoTarea !== undefined) horario.tipoTarea = tipoTarea;
     if (observaciones !== undefined) horario.observaciones = observaciones;
     horario.updatedBy = req.user?.email ?? req.user?.id ?? 'Sistema';
 
