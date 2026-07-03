@@ -53,7 +53,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
 
 export const createAlumnoHandler = async (req, res) => {
   try {
-    const { socioId, fechaInscripcion, estado = 'activo', observaciones = '', categoriaId } = req.body;
+    const { socioId, fechaInscripcion, estado = 'activo', observaciones = '', planId } = req.body;
 
     if (!socioId) {
       return res.status(400).json({ message: 'socioId es obligatorio' });
@@ -84,7 +84,7 @@ export const createAlumnoHandler = async (req, res) => {
       dni: socio.dni || '',
       fechaInscripcion: inscriptionDate,
       estado,
-      categoriaId: categoriaId || null,
+      planId: planId || null,
       observaciones,
       createdBy: req.user.email || req.user.id,
       updatedBy: req.user.email || req.user.id,
@@ -92,7 +92,7 @@ export const createAlumnoHandler = async (req, res) => {
 
     await alumno.save();
     await alumno.populate('socioId', 'socioNumber nombre apellido dni correoElectronico telefono estado active');
-    await alumno.populate('categoriaId', 'nombre codigo frecuenciaSemanal precioMensual codigoPrecio');
+    await alumno.populate('planId', 'nombre tipo modalidad atributos');
 
     logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Escuelita', resourceId: alumno._id, before: null, after: alumno.toObject() });
     res.status(201).json(alumno);

@@ -26,10 +26,11 @@ const escuelitaSchema = new mongoose.Schema({
     default: 'activo',
     index: true,
   },
-  categoriaId: {
+  planId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'CategoriaEscuelita',
+    ref: 'Plan',
     default: null,
+    index: true,
   },
   observaciones: {
     type: String,

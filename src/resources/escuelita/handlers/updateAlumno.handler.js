@@ -53,7 +53,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
 export const updateAlumnoHandler = async (req, res) => {
   try {
     const updates = {};
-    const { estado, fechaInscripcion, observaciones, categoriaId } = req.body;
+    const { estado, fechaInscripcion, observaciones, planId } = req.body;
 
     if (estado !== undefined) {
       if (!['activo', 'pausado', 'baja'].includes(estado)) {
@@ -74,8 +74,8 @@ export const updateAlumnoHandler = async (req, res) => {
       updates.observaciones = observaciones;
     }
 
-    if (categoriaId !== undefined) {
-      updates.categoriaId = categoriaId || null;
+    if (planId !== undefined) {
+      updates.planId = planId || null;
     }
 
     updates.updatedBy = req.user.email || req.user.id;
@@ -89,7 +89,7 @@ export const updateAlumnoHandler = async (req, res) => {
       { returnDocument: 'after' }
     )
       .populate('socioId', 'socioNumber nombre apellido dni correoElectronico telefono estado active')
-      .populate('categoriaId', 'nombre codigo frecuenciaSemanal precioMensual codigoPrecio');
+      .populate('planId', 'nombre tipo modalidad atributos');
 
     if (!alumno) {
       return res.status(404).json({ message: 'Alumno de escuelita no encontrado' });

@@ -80,7 +80,7 @@ export const checkinEscuelitaHandler = async (req, res) => {
 
     // 2. Buscar inscripción activa en escuelita
     const alumno = await Escuelita.findOne({ clubId, socioId: socio._id, active: true })
-      .populate('categoriaId');
+      .populate('planId', 'nombre atributos');
 
     if (!alumno) {
       return res.status(404).json({ message: 'El socio no está inscripto en la escuelita' });
@@ -90,8 +90,8 @@ export const checkinEscuelitaHandler = async (req, res) => {
       return res.status(402).json({ message: `La inscripción está en estado "${alumno.estado}"` });
     }
 
-    const categoria = alumno.categoriaId;
-    const frecuenciaSemanal = categoria?.frecuenciaSemanal ?? 1;
+    const plan = alumno.planId;
+    const frecuenciaSemanal = plan?.atributos?.frecuenciaSemanal ?? 1;
 
     // 3. Verificar cuota del mes pagada
     const periodo = periodoActual();
@@ -138,7 +138,7 @@ export const checkinEscuelitaHandler = async (req, res) => {
       dni: socio.dni,
       esSocio: true,
       fecha: new Date(),
-      categoria: categoria?.nombre || '',
+      categoria: plan?.nombre || '',
       observaciones: String(observaciones || '').trim(),
       checkinMethod: method,
       scannedBy: req.user.id,

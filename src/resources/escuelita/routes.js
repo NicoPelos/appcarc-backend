@@ -6,10 +6,6 @@ import { createAlumnoHandler } from './handlers/createAlumno.handler.js';
 import { updateAlumnoHandler } from './handlers/updateAlumno.handler.js';
 import { deleteAlumnoHandler } from './handlers/deleteAlumno.handler.js';
 import { purgarAlumnoHandler } from './handlers/purgarAlumno.handler.js';
-import { getCategoriasHandler } from './handlers/getCategorias.handler.js';
-import { createCategoriaHandler } from './handlers/createCategoria.handler.js';
-import { updateCategoriaHandler } from './handlers/updateCategoria.handler.js';
-import { deleteCategoriaHandler } from './handlers/deleteCategoria.handler.js';
 import { checkinEscuelitaHandler } from './handlers/checkinEscuelita.handler.js';
 
 const router = express.Router();
@@ -20,10 +16,5 @@ router.post('/', protect, authorize(PERMISOS.ESCUELITA_WRITE), createAlumnoHandl
 router.put('/:id', protect, authorize(PERMISOS.ESCUELITA_WRITE), updateAlumnoHandler);
 router.delete('/:id', protect, authorize(PERMISOS.ESCUELITA_DELETE), deleteAlumnoHandler);
 router.delete('/:id/purgar', protect, authorize(PERMISOS.ESCUELITA_PURGAR), purgarAlumnoHandler);
-
-router.get('/categorias', protect, authorize(PERMISOS.ESCUELITA_READ), getCategoriasHandler);
-router.post('/categorias', protect, authorize(PERMISOS.ESCUELITA_WRITE), createCategoriaHandler);
-router.put('/categorias/:id', protect, authorize(PERMISOS.ESCUELITA_WRITE), updateCategoriaHandler);
-router.delete('/categorias/:id', protect, authorize(PERMISOS.ESCUELITA_DELETE), deleteCategoriaHandler);
 
 export default router;
