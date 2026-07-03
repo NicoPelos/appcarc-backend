@@ -54,7 +54,9 @@ export const getSocioDeudaHandler = async (req, res) => {
     return res.status(404).json({ message: 'Socio no encontrado' });
   }
 
-  if (req.user.roles?.includes('socio') && req.user.socioId !== id) {
+  const ROLES_PRIVILEGED = ['admin', 'secretaria', 'autoridad', 'superadmin'];
+  const canViewAll = req.user.roles?.some(r => ROLES_PRIVILEGED.includes(r));
+  if (!canViewAll && req.user.socioId !== id) {
     return res.status(403).json({ message: 'No tenés permiso para ver la deuda de este socio' });
   }
 
