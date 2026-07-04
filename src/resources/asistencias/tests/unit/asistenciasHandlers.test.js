@@ -74,8 +74,10 @@ describe('getAsistenciasHandler', () => {
 
     await getAsistenciasHandler(req, res);
 
+    const expectedTo = new Date('2026-06-30');
+    expectedTo.setUTCHours(23, 59, 59, 999);
     expect(Asistencia.find).toHaveBeenCalledWith(expect.objectContaining({
-      fecha: { $gte: new Date('2026-06-01'), $lte: new Date('2026-06-30') },
+      fecha: { $gte: new Date('2026-06-01'), $lte: expectedTo },
     }));
   });
 

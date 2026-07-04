@@ -54,6 +54,10 @@ describe('registrarMuroLibre service (unit)', () => {
     Precios.findOne = vi.fn();
     Etiqueta.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: ETIQUETA_ID }) });
 
+    Asistencia.findOne = vi.fn().mockReturnValue({
+      session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) }),
+    });
+
     registroSaveSpy = vi.spyOn(Asistencia.prototype, 'save').mockImplementation(async function () {
       if (!this._id) this._id = new mongoose.Types.ObjectId();
       savedRegistros.push(this);
@@ -142,16 +146,18 @@ describe('registrarMuroLibre service (unit)', () => {
     expect(savedMovimientos[0]).toMatchObject({
       type: 'Ingreso', concept: 'Muro libre diario', paymentMethod: 'Efectivo', amount: 3000,
     });
-    expect(result).toEqual({ registro: expect.anything(), movimiento: expect.anything() });
+    expect(result).toEqual({ registro: expect.anything(), movimiento: expect.anything(), advertencias: expect.any(Array) });
   });
 
   it('should register mensual attendance as exento when socio has a valid Cuota muro_libre', async () => {
     const socio = { _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' };
     mockSocioQuery(socio);
     mockPrecioVigenteQuery({ monto: 8000 });
-    Cuota.findOne = vi.fn().mockReturnValue({
-      session: vi.fn().mockResolvedValue({ _id: new mongoose.Types.ObjectId(), estado: 'pagada' }),
-    });
+    const paidCuota = { _id: new mongoose.Types.ObjectId(), estado: 'pagada' };
+    // Primera llamada: cuota social (.session().lean()) — segunda: cuota mensual (.session())
+    Cuota.findOne = vi.fn()
+      .mockReturnValueOnce({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(paidCuota) }) })
+      .mockReturnValueOnce({ session: vi.fn().mockResolvedValue(paidCuota) });
 
     const result = await registrarMuroLibre({
       clubId: CLUB_ID, user: USER,
@@ -166,14 +172,20 @@ describe('registrarMuroLibre service (unit)', () => {
     expect(result.movimiento).toBeNull();
   });
 
-  it('should fail with 402 when socio has no valid Cuota muro_libre for current period', async () => {
+  it('registra con advertencia PASE_MENSUAL_IMPAGO cuando no tiene pase mensual pagado', async () => {
     mockSocioQuery({ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' });
-    Cuota.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(null) });
+    mockPrecioVigenteQuery({ monto: 8000 });
+    // Primera llamada: cuota social — segunda: cuota mensual (sin pase)
+    Cuota.findOne = vi.fn()
+      .mockReturnValueOnce({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ estado: 'pagada' }) }) })
+      .mockReturnValueOnce({ session: vi.fn().mockResolvedValue(null) });
 
-    await expect(registrarMuroLibre({ clubId: CLUB_ID, user: USER, body: { socioId: SOCIO_ID, tipoPase: 'mensual' } }))
-      .rejects.toMatchObject({ status: 402 });
+    const result = await registrarMuroLibre({ clubId: CLUB_ID, user: USER, body: { socioId: SOCIO_ID, tipoPase: 'mensual' } });
 
-    expect(registroSaveSpy).not.toHaveBeenCalled();
+    expect(result.advertencias).toEqual(expect.arrayContaining([
+      expect.objectContaining({ codigo: 'PASE_MENSUAL_IMPAGO' }),
+    ]));
+    expect(registroSaveSpy).toHaveBeenCalled();
   });
 
   it('should register pendiente without movimiento and monto zero', async () => {

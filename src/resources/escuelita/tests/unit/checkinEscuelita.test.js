@@ -14,7 +14,7 @@ vi.mock('../../../cuotas/models/Cuota.js', () => ({
   default: { findOne: vi.fn(), countDocuments: vi.fn() },
 }));
 vi.mock('../../../asistencias/models/Asistencia.js', () => ({
-  default: { countDocuments: vi.fn(), create: vi.fn() },
+  default: { countDocuments: vi.fn(), findOne: vi.fn(), create: vi.fn() },
 }));
 
 import { resolveSocioFromQrTokenOrDni, BusinessError } from '../../../socios/services/socioQr.service.js';
@@ -40,6 +40,7 @@ beforeEach(() => {
   Escuelita.findOne.mockReturnValue({ populate: vi.fn().mockResolvedValue(mockAlumno) });
   Cuota.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'cuota1', estado: 'pagada' }) });
   Asistencia.countDocuments.mockResolvedValue(0);
+  Asistencia.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
   Asistencia.create.mockResolvedValue({ _id: 'asist1' });
 });
 
@@ -76,26 +77,36 @@ describe('checkinEscuelitaHandler', () => {
     expect(res.status).toHaveBeenCalledWith(402);
   });
 
-  it('retorna 402 si no tiene cuota pagada', async () => {
+  it('registra con advertencias si no tiene cuota pagada', async () => {
     Cuota.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
     const req = { user: mockUser, body: { token: 'tok' } };
     const res = mockRes();
 
     await checkinEscuelitaHandler(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(402);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ periodo: expect.any(String) }));
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      advertencias: expect.arrayContaining([
+        expect.objectContaining({ codigo: 'CUOTA_SOCIAL_IMPAGA' }),
+        expect.objectContaining({ codigo: 'CUOTA_IMPAGA' }),
+      ]),
+    }));
   });
 
-  it('retorna 402 si ya alcanzó el límite de clases semanales', async () => {
+  it('registra con advertencia si alcanzó el límite de clases semanales', async () => {
     Asistencia.countDocuments.mockResolvedValue(2); // ya tiene 2, límite es 2
     const req = { user: mockUser, body: { token: 'tok' } };
     const res = mockRes();
 
     await checkinEscuelitaHandler(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(402);
-    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ limiteClases: 2 }));
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      advertencias: expect.arrayContaining([
+        expect.objectContaining({ codigo: 'LIMITE_SEMANAL' }),
+      ]),
+      limiteClases: 2,
+    }));
   });
 
   it('retorna 500 si hay error inesperado', async () => {

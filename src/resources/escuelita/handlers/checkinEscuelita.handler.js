@@ -5,8 +5,9 @@ import { resolveSocioFromQrTokenOrDni, BusinessError } from '../../socios/servic
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 
 const periodoActual = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const OFFSET_MS = -3 * 60 * 60 * 1000;
+  const local = new Date(Date.now() + OFFSET_MS);
+  return `${local.getUTCFullYear()}-${String(local.getUTCMonth() + 1).padStart(2, '0')}`;
 };
 
 // Lunes a domingo de la semana actual en Argentina (UTC-3)
