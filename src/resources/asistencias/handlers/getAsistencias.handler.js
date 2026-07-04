@@ -74,7 +74,12 @@ export const getAsistenciasHandler = async (req, res) => {
     if (from || to) {
       filter.fecha = {};
       if (from) filter.fecha.$gte = new Date(from);
-      if (to) filter.fecha.$lte = new Date(to);
+      if (to) {
+        const toDate = new Date(to);
+        // Si viene solo fecha (sin hora), incluir hasta el final del día UTC
+        if (!to.includes('T')) toDate.setUTCHours(23, 59, 59, 999);
+        filter.fecha.$lte = toDate;
+      }
     }
 
     if (categoria) {
