@@ -146,7 +146,31 @@ export const checkinEscuelitaHandler = async (req, res) => {
       });
     }
 
-    // 5. Registrar asistencia
+    // 5. Verificar que no haya asistencia registrada hoy (bloqueo duro)
+    const OFFSET_MS = -3 * 60 * 60 * 1000;
+    const localNow = new Date(Date.now() + OFFSET_MS);
+    const startOfDayLocal = new Date(localNow);
+    startOfDayLocal.setUTCHours(0, 0, 0, 0);
+    const endOfDayLocal = new Date(localNow);
+    endOfDayLocal.setUTCHours(23, 59, 59, 999);
+    const startUTC = new Date(startOfDayLocal.getTime() - OFFSET_MS);
+    const endUTC = new Date(endOfDayLocal.getTime() - OFFSET_MS);
+
+    const asistenciaHoy = await Asistencia.findOne({
+      clubId,
+      socioId: socio._id,
+      tipo: 'escuelita',
+      active: true,
+      fecha: { $gte: startUTC, $lte: endUTC },
+    }).lean();
+
+    if (asistenciaHoy) {
+      return res.status(409).json({
+        message: `${socio.nombre} ${socio.apellido} ya registró asistencia hoy`,
+      });
+    }
+
+    // 6. Registrar asistencia
     const asistencia = await Asistencia.create({
       clubId,
       tipo: 'escuelita',

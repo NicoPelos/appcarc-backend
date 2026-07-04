@@ -88,6 +88,28 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         throw new BusinessError('El nombre es obligatorio');
       }
 
+      // Verificar asistencia duplicada en el mismo día (solo socios, bloqueo duro)
+      if (socio) {
+        const OFFSET_MS = -3 * 60 * 60 * 1000;
+        const localFecha = new Date(fecha.getTime() + OFFSET_MS);
+        const startLocal = new Date(localFecha); startLocal.setUTCHours(0, 0, 0, 0);
+        const endLocal = new Date(localFecha); endLocal.setUTCHours(23, 59, 59, 999);
+        const startUTC = new Date(startLocal.getTime() - OFFSET_MS);
+        const endUTC = new Date(endLocal.getTime() - OFFSET_MS);
+
+        const existente = await Asistencia.findOne({
+          clubId,
+          socioId: socio._id,
+          tipo: 'muro_libre',
+          active: true,
+          fecha: { $gte: startUTC, $lte: endUTC },
+        }).session(session).lean();
+
+        if (existente) {
+          throw new BusinessError(`${nombre} ${apellido} ya registró asistencia en muro libre hoy`, 409);
+        }
+      }
+
       // Cuota social vigente (advertencia, no bloquea — solo para socios)
       if (socio) {
         const periodoActual = buildPeriodo(fecha);

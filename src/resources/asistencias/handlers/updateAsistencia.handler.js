@@ -2,10 +2,15 @@ import Asistencia from '../models/Asistencia.js';
 
 export const updateAsistenciaHandler = async (req, res) => {
   try {
-    const { observaciones, categoria } = req.body;
+    const { observaciones, categoria, fecha } = req.body;
     const updates = { updatedBy: req.user.email || req.user.id };
     if (observaciones !== undefined) updates.observaciones = String(observaciones).trim();
     if (categoria !== undefined) updates.categoria = String(categoria).trim();
+    if (fecha !== undefined) {
+      const d = new Date(fecha);
+      if (Number.isNaN(d.getTime())) return res.status(400).json({ message: 'La fecha es inválida' });
+      updates.fecha = d;
+    }
 
     const asistencia = await Asistencia.findOneAndUpdate(
       { _id: req.params.id, clubId: req.user?.clubId, active: true },
