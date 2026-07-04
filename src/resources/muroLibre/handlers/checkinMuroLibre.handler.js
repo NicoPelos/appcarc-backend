@@ -64,6 +64,7 @@ export const checkinMuroLibreHandler = async (req, res) => {
       missingMessage: 'Se requiere token QR o DNI para identificar el socio',
     });
 
+    const advertencias = [];
     const result = await registrarMuroLibre({
       clubId: req.user?.clubId,
       user: req.user,
@@ -77,9 +78,10 @@ export const checkinMuroLibreHandler = async (req, res) => {
       },
       scannedBy: req.user?.id,
       checkinMethod: method,
+      advertencias,
     });
 
-    res.status(201).json({ asistencia: result.registro, movimiento: result.movimiento, socio });
+    res.status(201).json({ asistencia: result.registro, movimiento: result.movimiento, socio, advertencias: result.advertencias });
   } catch (error) {
     if (error instanceof BusinessError || error.status) {
       return res.status(error.status).json({ message: error.message });

@@ -28,6 +28,11 @@ const asistenciaSchema = new mongoose.Schema({
   scannedBy: { type: String, default: null },
   checkinMethod: { type: String, enum: ['QR', 'DNI', 'MANUAL'], default: 'MANUAL' },
 
+  advertencias: [{
+    codigo: { type: String, required: true },
+    mensaje: { type: String, required: true },
+  }],
+
   observaciones: { type: String, default: '' },
   createdBy: { type: String, required: true },
   updatedBy: { type: String, required: true },

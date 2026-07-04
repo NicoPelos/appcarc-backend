@@ -2,6 +2,7 @@ import Escuelita from '../models/Escuelita.js';
 import Cuota from '../../cuotas/models/Cuota.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import { resolveSocioFromQrTokenOrDni, BusinessError } from '../../socios/services/socioQr.service.js';
+import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 
 const periodoActual = () => {
   const now = new Date();
@@ -93,8 +94,26 @@ export const checkinEscuelitaHandler = async (req, res) => {
     const plan = alumno.planId;
     const frecuenciaSemanal = plan?.atributos?.frecuenciaSemanal ?? 1;
 
-    // 3. Verificar cuota del mes pagada
+    const advertencias = [];
     const periodo = periodoActual();
+
+    // 3a. Verificar cuota social del mes (advertencia, no bloquea)
+    const cuotaSocial = await Cuota.findOne({
+      clubId,
+      socioId: socio._id,
+      tipo: 'social',
+      periodo,
+      estado: 'pagada',
+    }).lean();
+
+    if (!cuotaSocial) {
+      advertencias.push({
+        codigo: ADVERTENCIA.CUOTA_SOCIAL_IMPAGA,
+        mensaje: `Sin cuota social pagada para ${periodo}`,
+      });
+    }
+
+    // 3b. Verificar cuota de escuelita del mes (advertencia, no bloquea)
     const cuotaPagada = await Cuota.findOne({
       clubId,
       socioId: socio._id,
@@ -104,13 +123,13 @@ export const checkinEscuelitaHandler = async (req, res) => {
     }).lean();
 
     if (!cuotaPagada) {
-      return res.status(402).json({
-        message: `El socio no tiene la cuota de escuelita pagada para ${periodo}`,
-        periodo,
+      advertencias.push({
+        codigo: ADVERTENCIA.CUOTA_IMPAGA,
+        mensaje: `Sin cuota de escuelita pagada para ${periodo}`,
       });
     }
 
-    // 4. Contar clases de esta semana
+    // 4. Contar clases de esta semana (advertencia, no bloquea)
     const { start, end } = getWeekBounds();
     const clasesEstaSemana = await Asistencia.countDocuments({
       clubId,
@@ -121,10 +140,9 @@ export const checkinEscuelitaHandler = async (req, res) => {
     });
 
     if (clasesEstaSemana >= frecuenciaSemanal) {
-      return res.status(402).json({
-        message: `Ya registró ${clasesEstaSemana} clase${clasesEstaSemana !== 1 ? 's' : ''} esta semana. El límite es ${frecuenciaSemanal} según su categoría.`,
-        clasesEstaSemana,
-        limiteClases: frecuenciaSemanal,
+      advertencias.push({
+        codigo: ADVERTENCIA.LIMITE_SEMANAL,
+        mensaje: `Ya registró ${clasesEstaSemana} clase${clasesEstaSemana !== 1 ? 's' : ''} esta semana (límite: ${frecuenciaSemanal})`,
       });
     }
 
@@ -139,6 +157,7 @@ export const checkinEscuelitaHandler = async (req, res) => {
       esSocio: true,
       fecha: new Date(),
       categoria: plan?.nombre || '',
+      advertencias,
       observaciones: String(observaciones || '').trim(),
       checkinMethod: method,
       scannedBy: req.user.id,
@@ -151,6 +170,7 @@ export const checkinEscuelitaHandler = async (req, res) => {
       socio: { _id: socio._id, nombre: socio.nombre, apellido: socio.apellido },
       clasesEstaSemana: clasesEstaSemana + 1,
       limiteClases: frecuenciaSemanal,
+      advertencias,
     });
   } catch (error) {
     if (error instanceof BusinessError || error.status) {

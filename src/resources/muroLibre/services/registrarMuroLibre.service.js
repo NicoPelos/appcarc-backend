@@ -5,6 +5,7 @@ import Precios from '../../cuotas/models/Precios.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
+import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 const VALID_TIPO_PASE = ['diario', 'mensual'];
@@ -49,7 +50,7 @@ const findPrecioVigenteByUsoSistema = async ({ clubId, uso_sistema, date, sessio
   return session ? query.session(session) : query;
 };
 
-export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null, checkinMethod = 'MANUAL' }) => {
+export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null, checkinMethod = 'MANUAL', advertencias = [] }) => {
   if (!clubId) {
     throw new BusinessError('No se pudo determinar el club del usuario', 401);
   }
@@ -87,6 +88,25 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         throw new BusinessError('El nombre es obligatorio');
       }
 
+      // Cuota social vigente (advertencia, no bloquea — solo para socios)
+      if (socio) {
+        const periodoActual = buildPeriodo(fecha);
+        const cuotaSocial = await Cuota.findOne({
+          clubId,
+          socioId: socio._id,
+          tipo: 'social',
+          periodo: periodoActual,
+          estado: 'pagada',
+        }).session(session).lean();
+
+        if (!cuotaSocial) {
+          advertencias.push({
+            codigo: ADVERTENCIA.CUOTA_SOCIAL_IMPAGA,
+            mensaje: `Sin cuota social pagada para ${periodoActual}`,
+          });
+        }
+      }
+
       // Pase mensual: solo socios con Cuota de etiqueta muro_libre_mensual_socio pagada para el período
       let estadoPagoOverride = null;
       if (tipoPase === 'mensual') {
@@ -111,12 +131,13 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
           : null;
 
         if (!cuotaVigente) {
-          throw new BusinessError(
-            `El socio no tiene pase mensual pagado para ${periodoActual}. Comprá el pase a través del cobro de cuotas.`,
-            402,
-          );
+          advertencias.push({
+            codigo: ADVERTENCIA.PASE_MENSUAL_IMPAGO,
+            mensaje: `Sin pase mensual pagado para ${periodoActual}`,
+          });
+        } else {
+          estadoPagoOverride = 'exento';
         }
-        estadoPagoOverride = 'exento';
       }
 
       const estadoPago = estadoPagoOverride ?? String(body?.estadoPago || 'pendiente').trim().toLowerCase();
@@ -163,6 +184,7 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         fecha,
         periodo: tipoPase === 'mensual' ? buildPeriodo(fecha) : '',
         formaPago: estadoPago === 'pagado' ? paymentMethod : 'Sin pago',
+        advertencias,
         observaciones: String(body?.observaciones || '').trim(),
         enviarComprobanteWp: Boolean(body?.enviarComprobanteWp),
         createdBy: actor,
@@ -199,7 +221,7 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
       result = { registro, movimiento };
     });
 
-    return result;
+    return { ...result, advertencias };
   } finally {
     session.endSession();
   }
