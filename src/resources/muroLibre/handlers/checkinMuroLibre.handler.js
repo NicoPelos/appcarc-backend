@@ -1,5 +1,6 @@
 import { BusinessError, registrarMuroLibre } from '../services/registrarMuroLibre.service.js';
 import { resolveSocioFromQrTokenOrDni } from '../../socios/services/socioQr.service.js';
+import { notifyRoles, notifySocio } from '../../../services/pushNotification.service.js';
 
 /**
  * @openapi
@@ -81,7 +82,25 @@ export const checkinMuroLibreHandler = async (req, res) => {
       advertencias,
     });
 
-    res.status(201).json({ asistencia: result.registro, movimiento: result.movimiento, socio, advertencias: result.advertencias });
+    const advertenciasResult = result.advertencias ?? [];
+    if (advertenciasResult.length > 0) {
+      const nombreCompleto = `${socio.nombre} ${socio.apellido}`;
+      const resumen = advertenciasResult.map((a) => a.mensaje).join(' | ');
+      Promise.all([
+        notifyRoles(req.user?.clubId, ['secretaria'], {
+          title: '⚠️ Ingreso con advertencias',
+          body: `${nombreCompleto} ingresó a muro libre con ${advertenciasResult.length} advertencia(s): ${resumen}`,
+          data: { tipo: 'advertencia_checkin', asistenciaId: String(result.registro._id) },
+        }),
+        notifySocio(socio._id, {
+          title: '⚠️ Advertencias en tu ingreso',
+          body: resumen,
+          data: { tipo: 'advertencia_socio' },
+        }),
+      ]).catch((err) => console.error('[Push] Error enviando notificaciones de advertencia:', err.message));
+    }
+
+    res.status(201).json({ asistencia: result.registro, movimiento: result.movimiento, socio, advertencias: advertenciasResult });
   } catch (error) {
     if (error instanceof BusinessError || error.status) {
       return res.status(error.status).json({ message: error.message });

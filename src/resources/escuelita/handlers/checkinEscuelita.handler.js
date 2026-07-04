@@ -3,6 +3,7 @@ import Cuota from '../../cuotas/models/Cuota.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import { resolveSocioFromQrTokenOrDni, BusinessError } from '../../socios/services/socioQr.service.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
+import { notifyRoles, notifySocio } from '../../../services/pushNotification.service.js';
 
 const periodoActual = () => {
   const OFFSET_MS = -3 * 60 * 60 * 1000;
@@ -189,6 +190,23 @@ export const checkinEscuelitaHandler = async (req, res) => {
       createdBy: actor,
       updatedBy: actor,
     });
+
+    if (advertencias.length > 0) {
+      const nombreCompleto = `${socio.nombre} ${socio.apellido}`;
+      const resumen = advertencias.map((a) => a.mensaje).join(' | ');
+      Promise.all([
+        notifyRoles(clubId, ['secretaria'], {
+          title: '⚠️ Ingreso con advertencias',
+          body: `${nombreCompleto} ingresó a escuelita con ${advertencias.length} advertencia(s): ${resumen}`,
+          data: { tipo: 'advertencia_checkin', asistenciaId: String(asistencia._id) },
+        }),
+        notifySocio(socio._id, {
+          title: '⚠️ Advertencias en tu ingreso',
+          body: resumen,
+          data: { tipo: 'advertencia_socio' },
+        }),
+      ]).catch((err) => console.error('[Push] Error enviando notificaciones de advertencia:', err.message));
+    }
 
     return res.status(201).json({
       asistencia,

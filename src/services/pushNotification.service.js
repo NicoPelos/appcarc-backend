@@ -61,3 +61,32 @@ export const notifyClub = async (clubId, { title, body, data = {} }) => {
   const tokens = users.map((u) => u.expoPushToken).filter(Boolean);
   return sendPushNotification(tokens, { title, body, data });
 };
+
+/**
+ * Envía una notificación push a usuarios de un club con alguno de los roles indicados.
+ */
+export const notifyRoles = async (clubId, roles, { title, body, data = {} }) => {
+  const users = await User.find({
+    clubId,
+    active: true,
+    roles: { $in: roles },
+    expoPushToken: { $ne: null },
+  }).select('expoPushToken').lean();
+
+  const tokens = users.map((u) => u.expoPushToken).filter(Boolean);
+  return sendPushNotification(tokens, { title, body, data });
+};
+
+/**
+ * Envía una notificación push al usuario vinculado a un socio específico.
+ */
+export const notifySocio = async (socioId, { title, body, data = {} }) => {
+  const user = await User.findOne({
+    socioId: String(socioId),
+    active: true,
+    expoPushToken: { $ne: null },
+  }).select('expoPushToken').lean();
+
+  if (!user?.expoPushToken) return { sent: 0 };
+  return sendPushNotification([user.expoPushToken], { title, body, data });
+};
