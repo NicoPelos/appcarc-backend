@@ -113,10 +113,11 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
       // Cuota social vigente (advertencia, no bloquea — solo para socios)
       if (socio) {
         const periodoActual = buildPeriodo(fecha);
-        const cuotaSocial = await Cuota.findOne({
+        const etiquetaSocial = await Etiqueta.findOne({ clubId, uso_sistema: 'cuota_social', active: true }).lean();
+        const cuotaSocial = etiquetaSocial && await Cuota.findOne({
           clubId,
           socioId: socio._id,
-          tipo: 'social',
+          etiquetaId: etiquetaSocial._id,
           periodo: periodoActual,
           estado: 'pagada',
         }).session(session).lean();

@@ -1,5 +1,6 @@
 import Escuelita from '../models/Escuelita.js';
 import Cuota from '../../cuotas/models/Cuota.js';
+import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import { resolveSocioFromQrTokenOrDni, BusinessError } from '../../socios/services/socioQr.service.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
@@ -100,10 +101,11 @@ export const checkinEscuelitaHandler = async (req, res) => {
     const periodo = periodoActual();
 
     // 3a. Verificar cuota social del mes (advertencia, no bloquea)
-    const cuotaSocial = await Cuota.findOne({
+    const etiquetaSocial = await Etiqueta.findOne({ clubId, uso_sistema: 'cuota_social', active: true }).lean();
+    const cuotaSocial = etiquetaSocial && await Cuota.findOne({
       clubId,
       socioId: socio._id,
-      tipo: 'social',
+      etiquetaId: etiquetaSocial._id,
       periodo,
       estado: 'pagada',
     }).lean();
@@ -116,10 +118,11 @@ export const checkinEscuelitaHandler = async (req, res) => {
     }
 
     // 3b. Verificar cuota de escuelita del mes (advertencia, no bloquea)
-    const cuotaPagada = await Cuota.findOne({
+    const etiquetaEscuelita = await Etiqueta.findOne({ clubId, uso_sistema: 'cuota_escuelita', active: true }).lean();
+    const cuotaPagada = etiquetaEscuelita && await Cuota.findOne({
       clubId,
       socioId: socio._id,
-      tipo: 'escuelita',
+      etiquetaId: etiquetaEscuelita._id,
       periodo,
       estado: 'pagada',
     }).lean();

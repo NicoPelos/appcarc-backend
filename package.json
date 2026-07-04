@@ -8,6 +8,7 @@
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "test": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.js",
     "import-socios": "node scripts/import-socios-from-sheet.js",
     "import-cuotas": "node scripts/import-cuotas-from-sheet.js",
     "seed-admin": "node scripts/seed-admin.js",
@@ -40,6 +41,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
+    "supertest": "^7.2.2",
     "vitest": "^1.0.0"
   }
 }

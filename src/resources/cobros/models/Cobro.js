@@ -6,9 +6,14 @@ const cobroItemSchema = new mongoose.Schema({
     ref: 'Socio',
     required: true,
   },
-  tipo: {
-    type: String,
-    enum: ['social', 'escuelita'],
+  suscripcionId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Suscripcion',
+    required: true,
+  },
+  etiquetaId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Etiqueta',
     required: true,
   },
   periodo: {

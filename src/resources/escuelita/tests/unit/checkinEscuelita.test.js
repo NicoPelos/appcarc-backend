@@ -13,6 +13,9 @@ vi.mock('../../models/Escuelita.js', () => ({
 vi.mock('../../../cuotas/models/Cuota.js', () => ({
   default: { findOne: vi.fn(), countDocuments: vi.fn() },
 }));
+vi.mock('../../../etiquetas/models/Etiqueta.js', () => ({
+  default: { findOne: vi.fn() },
+}));
 vi.mock('../../../asistencias/models/Asistencia.js', () => ({
   default: { countDocuments: vi.fn(), findOne: vi.fn(), create: vi.fn() },
 }));
@@ -20,6 +23,7 @@ vi.mock('../../../asistencias/models/Asistencia.js', () => ({
 import { resolveSocioFromQrTokenOrDni, BusinessError } from '../../../socios/services/socioQr.service.js';
 import Escuelita from '../../models/Escuelita.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
+import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 import Asistencia from '../../../asistencias/models/Asistencia.js';
 
 const mockUser = { clubId: 'CARC', email: 'admin@carc.com', id: 'u1' };
@@ -38,6 +42,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   resolveSocioFromQrTokenOrDni.mockResolvedValue({ socio: mockSocio, method: 'QR' });
   Escuelita.findOne.mockReturnValue({ populate: vi.fn().mockResolvedValue(mockAlumno) });
+  Etiqueta.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'etiqueta1' }) });
   Cuota.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'cuota1', estado: 'pagada' }) });
   Asistencia.countDocuments.mockResolvedValue(0);
   Asistencia.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
