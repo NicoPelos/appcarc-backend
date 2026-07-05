@@ -180,6 +180,10 @@ export const registrarCobro = async ({ clubId, user, body }) => {
       const totalAmount = items.reduce((total, item) => total + item.amount, 0);
       const actor = user?.email || user?.id;
 
+      const socioUnico = socioIds.length === 1
+        ? socios.find((s) => String(s._id) === socioIds[0])
+        : null;
+
       const cobro = new Cobro({
         clubId,
         responsable,
@@ -197,6 +201,8 @@ export const registrarCobro = async ({ clubId, user, body }) => {
         clubId,
         userId: user.id,
         responsable,
+        socioId: socioUnico?._id ?? null,
+        socioNombre: socioUnico ? `${socioUnico.nombre}${socioUnico.apellido ? ` ${socioUnico.apellido}` : ''}` : '',
         type: 'Ingreso',
         amount: totalAmount,
         concept: 'Cobro de cuotas',

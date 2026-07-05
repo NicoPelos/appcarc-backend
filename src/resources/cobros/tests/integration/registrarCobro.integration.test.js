@@ -40,6 +40,8 @@ describe('POST /api/cobros (integración)', () => {
     expect(movimiento).toBeTruthy();
     expect(movimiento.type).toBe('Ingreso');
     expect(movimiento.amount).toBe(5000);
+    expect(String(movimiento.socioId)).toBe(String(socio._id));
+    expect(movimiento.socioNombre).toBe(`${socio.nombre} ${socio.apellido}`);
   });
 
   it('rechaza un cobro si la cuota del período ya está pagada (409)', async () => {

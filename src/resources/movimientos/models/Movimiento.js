@@ -21,6 +21,15 @@ const MovimientoSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  // Solo se completa cuando el movimiento corresponde a un único socio (ej. muro libre,
+  // o un cobro cuyos items son todos del mismo socio). Si un cobro mezcla varios socios
+  // en un mismo movimiento, queda null y hay que ver el detalle por item en GET /api/movimientos.
+  socioId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Socio',
+    default: null,
+    index: true,
+  },
   type: {
     type: String,
     enum: ['Ingreso', 'Egreso'],
