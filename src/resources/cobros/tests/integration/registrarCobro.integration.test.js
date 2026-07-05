@@ -1,8 +1,16 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import request from 'supertest';
+
+vi.mock('../../../../services/pushNotification.service.js', async (importOriginal) => ({
+  ...(await importOriginal()),
+  sendPushNotification: vi.fn().mockResolvedValue({ sent: 1 }),
+}));
+
 import app from '../../../../index.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
 import Movimiento from '../../../movimientos/models/Movimiento.js';
+import User from '../../../usuarios/models/User.js';
+import { sendPushNotification } from '../../../../services/pushNotification.service.js';
 import {
   CLUB_ID, createAdminUser, createSocio, createEtiqueta, createPrecio, createSuscripcion,
 } from '../../../../testUtils/integrationHelpers.js';
@@ -42,6 +50,45 @@ describe('POST /api/cobros (integración)', () => {
     expect(movimiento.amount).toBe(5000);
     expect(String(movimiento.socioId)).toBe(String(socio._id));
     expect(movimiento.socioNombre).toBe(`${socio.nombre} ${socio.apellido}`);
+  });
+
+  it('envía la notificación push con el nombre de la etiqueta, sin "null" (regresión)', async () => {
+    const { token } = await createAdminUser();
+    const { socio, suscripcion } = await setupSocioConSuscripcion();
+
+    await User.create({
+      email: `socio-${socio._id}@carc.local`,
+      password: 'hashed-not-used',
+      roles: ['socio'],
+      clubId: CLUB_ID,
+      socioId: String(socio._id),
+      expoPushToken: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',
+      active: true,
+    });
+
+    sendPushNotification.mockClear();
+
+    const res = await request(app)
+      .post('/api/cobros')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        paymentMethod: 'Efectivo',
+        items: [{
+          socioId: String(socio._id),
+          suscripcionId: String(suscripcion._id),
+          periodoDesde: '2026-01',
+          cantidad: 5,
+        }],
+      });
+    expect(res.status).toBe(201);
+
+    await vi.waitFor(() => expect(sendPushNotification).toHaveBeenCalledTimes(1));
+
+    const [, notification] = sendPushNotification.mock.calls[0];
+    expect(notification.body).not.toContain('null');
+    expect(notification.body).toBe(
+      'Se registraron 5 pagos: cuota social enero 2026, cuota social febrero 2026, cuota social marzo 2026, cuota social abril 2026, cuota social mayo 2026',
+    );
   });
 
   it('rechaza un cobro si la cuota del período ya está pagada (409)', async () => {

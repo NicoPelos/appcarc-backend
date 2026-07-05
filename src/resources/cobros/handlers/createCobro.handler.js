@@ -1,22 +1,23 @@
 import { BusinessError, registrarCobro } from '../services/registrarCobro.service.js';
 import { sendPushNotification } from '../../../services/pushNotification.service.js';
 import User from '../../usuarios/models/User.js';
+import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-const TIPO_LABEL = { social: 'cuota social', escuelita: 'cuota de escuelita', muro_libre: 'pase muro libre' };
 
 const formatPeriodo = (periodo) => {
   const [year, month] = periodo.split('-');
   return `${MESES[parseInt(month, 10) - 1]} ${year}`;
 };
 
-const buildCuotaBody = (cuotas) => {
+const buildCuotaBody = (cuotas, etiquetaNombreById) => {
+  const label = (c) => (etiquetaNombreById.get(String(c.etiquetaId)) || 'cuota').toLowerCase();
   if (cuotas.length === 1) {
     const c = cuotas[0];
-    return `Se registró el pago de tu ${TIPO_LABEL[c.tipo] ?? c.tipo} para ${formatPeriodo(c.periodo)}`;
+    return `Se registró el pago de tu ${label(c)} para ${formatPeriodo(c.periodo)}`;
   }
-  const lista = cuotas.map((c) => `${TIPO_LABEL[c.tipo] ?? c.tipo} ${formatPeriodo(c.periodo)}`).join(', ');
+  const lista = cuotas.map((c) => `${label(c)} ${formatPeriodo(c.periodo)}`).join(', ');
   return `Se registraron ${cuotas.length} pagos: ${lista}`;
 };
 
@@ -53,14 +54,14 @@ const buildCuotaBody = (cuotas) => {
  *       type: object
  *       required:
  *         - socioId
- *         - tipo
+ *         - suscripcionId
  *       properties:
  *         socioId:
  *           type: string
  *           description: ID del socio al que corresponde la cuota.
- *         tipo:
+ *         suscripcionId:
  *           type: string
- *           enum: [social, escuelita]
+ *           description: ID de la suscripción del socio (determina la etiqueta/precio).
  *         periodo:
  *           type: string
  *           pattern: '^\d{4}-(0[1-9]|1[0-2])$'
@@ -107,6 +108,12 @@ export const createCobroHandler = async (req, res) => {
       return acc;
     }, {});
 
+    const etiquetaIds = [...new Set(result.cuotas.map((c) => c.etiquetaId).filter(Boolean).map(String))];
+    const etiquetas = etiquetaIds.length
+      ? await Etiqueta.find({ _id: { $in: etiquetaIds } }, 'nombre').lean()
+      : [];
+    const etiquetaNombreById = new Map(etiquetas.map((e) => [String(e._id), e.nombre]));
+
     const socioIds = Object.keys(cuotasBySocioId);
     const users = await User.find({
       socioId: { $in: socioIds },
@@ -119,7 +126,7 @@ export const createCobroHandler = async (req, res) => {
       if (!cuotas?.length) continue;
       sendPushNotification([user.expoPushToken], {
         title: 'Pago registrado',
-        body: buildCuotaBody(cuotas),
+        body: buildCuotaBody(cuotas, etiquetaNombreById),
         data: { tipo: 'cobro_registrado', cobroId: result.cobro._id.toString() },
       }).catch((err) => console.error('Error enviando push de cobro:', err));
     }
