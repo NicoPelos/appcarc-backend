@@ -59,9 +59,10 @@ import Cobro from '../models/Cobro.js';
  *       properties:
  *         socioId:
  *           type: string
- *         tipo:
+ *         suscripcionId:
  *           type: string
- *           enum: [social, escuelita]
+ *         etiquetaId:
+ *           type: string
  *         periodo:
  *           type: string
  *           pattern: '^\d{4}-(0[1-9]|1[0-2])$'
@@ -85,6 +86,8 @@ export const getCobrosHandler = async (req, res) => {
     const filter = { clubId: req.user?.clubId, active: true };
     if (req.user?.roles?.includes('socio') && req.user?.socioId) {
       filter['items.socioId'] = req.user.socioId;
+    } else if (req.query.socioId) {
+      filter['items.socioId'] = req.query.socioId;
     }
 
     const [total, cobros] = await Promise.all([
@@ -92,7 +95,9 @@ export const getCobrosHandler = async (req, res) => {
       Cobro.find(filter)
         .sort({ date: -1, createdAt: -1 })
         .skip((pageNumber - 1) * pageSize)
-        .limit(pageSize),
+        .limit(pageSize)
+        .populate('items.socioId', 'socioNumber nombre apellido dni')
+        .populate('items.etiquetaId', 'nombre'),
     ]);
 
     res.status(200).json({

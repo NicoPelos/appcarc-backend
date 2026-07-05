@@ -15,6 +15,13 @@ const router = express.Router();
  *     tags: [Cobros]
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: socioId
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Filtrar cobros que incluyan cuotas de este socio
  *     responses:
  *       200:
  *         description: Lista de cobros disponible
@@ -55,13 +62,12 @@ router.get('/', protect, authorize(PERMISOS.COBROS_READ), getCobrosHandler);
  *                   type: object
  *                   required:
  *                     - socioId
- *                     - tipo
+ *                     - suscripcionId
  *                   properties:
  *                     socioId:
  *                       type: string
- *                     tipo:
+ *                     suscripcionId:
  *                       type: string
- *                       enum: [social, escuelita]
  *                     periodo:
  *                       type: string
  *                       example: "2026-06"

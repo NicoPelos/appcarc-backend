@@ -33,10 +33,6 @@ const MovimientoSchema = new mongoose.Schema({
     enum: ['Efectivo', 'Transferencia'],
     required: true,
   },
-  formId: {
-    type: String,
-    default: '',
-  },
   sourceType: {
     type: String,
     enum: ['manual', 'cobro', 'muro_libre'],

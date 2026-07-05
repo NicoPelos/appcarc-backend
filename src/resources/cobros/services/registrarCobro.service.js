@@ -201,7 +201,6 @@ export const registrarCobro = async ({ clubId, user, body }) => {
         amount: totalAmount,
         concept: 'Cobro de cuotas',
         paymentMethod,
-        formId: String(cobro._id),
         description: description || `Cobro con ${items.length} cuota${items.length === 1 ? '' : 's'}`,
         date,
         sourceType: 'cobro',

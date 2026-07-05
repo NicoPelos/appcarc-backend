@@ -150,7 +150,7 @@ const buildCuotasEscuelitaRows = async (clubId) => {
 
   const alumnos = await Escuelita.find({ clubId, active: true })
     .populate('socioId', 'socioNumber nombre apellido dni _id')
-    .populate('categoriaId', 'nombre')
+    .populate('planId', 'nombre')
     .lean();
 
   if (alumnos.length === 0) {
@@ -201,7 +201,7 @@ const buildCuotasEscuelitaRows = async (clubId) => {
 
     return [
       s.socioNumber || '', s.apellido || '', s.nombre || '', s.dni || '',
-      a.categoriaId?.nombre || '',
+      a.planId?.nombre || '',
       ...cells,
       adeudados,
       deuda > 0 ? fmtMoney(deuda) : '',
@@ -233,7 +233,7 @@ const buildEscuelitaRows = async (clubId) => {
   const headers = ['N° Socio', 'Apellido', 'Nombre', 'DNI', 'Categoría', 'Frec/sem', 'Estado', 'Inscripción'];
   const alumnos = await Escuelita.find({ clubId, active: true })
     .populate('socioId', 'socioNumber nombre apellido dni')
-    .populate('categoriaId', 'nombre frecuenciaSemanal')
+    .populate('planId', 'nombre atributos')
     .sort({ createdAt: -1 })
     .lean();
 
@@ -241,8 +241,8 @@ const buildEscuelitaRows = async (clubId) => {
     const s = a.socioId || {};
     return [
       s.socioNumber || '', s.apellido || '', s.nombre || '', s.dni || '',
-      a.categoriaId?.nombre || '',
-      a.categoriaId?.frecuenciaSemanal ? `${a.categoriaId.frecuenciaSemanal}x semana` : '',
+      a.planId?.nombre || '',
+      a.planId?.atributos?.frecuenciaSemanal ? `${a.planId.atributos.frecuenciaSemanal}x semana` : '',
       a.estado,
       fmtDate(a.fechaInscripcion),
     ];

@@ -14,7 +14,9 @@ const USER = { id: 'user1', email: 'admin@carc.test', clubId: 'club1' };
 const makeQuery = (queryable) => ({
   sort: vi.fn().mockReturnThis(),
   skip: vi.fn().mockReturnThis(),
-  limit: vi.fn().mockResolvedValue(queryable),
+  limit: vi.fn().mockReturnThis(),
+  populate: vi.fn().mockReturnThis(),
+  lean: vi.fn().mockResolvedValue(queryable),
 });
 
 describe('getMovimientosHandler', () => {
@@ -33,7 +35,7 @@ describe('getMovimientosHandler', () => {
     expect(Movimiento.find).toHaveBeenCalledWith(expect.objectContaining({ active: true }));
     expect(res.status).toHaveBeenCalledWith(200);
     const body = res.json.mock.calls[0][0];
-    expect(body.movimientos).toEqual(movs);
+    expect(body.movimientos).toEqual(movs.map((m) => ({ ...m, detalle: null })));
     expect(body.total).toBe(1);
   });
 

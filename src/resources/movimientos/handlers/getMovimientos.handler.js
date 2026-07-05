@@ -1,4 +1,63 @@
 import Movimiento from '../models/Movimiento.js';
+import Socio from '../../socios/models/Socio.js';
+import Etiqueta from '../../etiquetas/models/Etiqueta.js';
+
+const buildDetalle = async (movimientos) => {
+  const socioIds = new Set();
+  const etiquetaIds = new Set();
+
+  for (const m of movimientos) {
+    if (m.sourceModel === 'Cobro' && m.sourceId?.items) {
+      for (const item of m.sourceId.items) {
+        if (item.socioId) socioIds.add(String(item.socioId));
+        if (item.etiquetaId) etiquetaIds.add(String(item.etiquetaId));
+      }
+    }
+  }
+
+  const [socios, etiquetas] = await Promise.all([
+    socioIds.size
+      ? Socio.find({ _id: { $in: [...socioIds] } }, 'socioNumber nombre apellido dni').lean()
+      : [],
+    etiquetaIds.size
+      ? Etiqueta.find({ _id: { $in: [...etiquetaIds] } }, 'nombre').lean()
+      : [],
+  ]);
+
+  const socioMap = new Map(socios.map((s) => [String(s._id), s]));
+  const etiquetaMap = new Map(etiquetas.map((e) => [String(e._id), e]));
+
+  return movimientos.map((m) => {
+    let detalle = null;
+
+    if (m.sourceModel === 'Cobro' && m.sourceId?.items) {
+      detalle = m.sourceId.items.map((item) => {
+        const socio = socioMap.get(String(item.socioId));
+        const etiqueta = etiquetaMap.get(String(item.etiquetaId));
+        return {
+          socioId: item.socioId,
+          socioNumber: socio?.socioNumber || '',
+          nombre: socio?.nombre || '',
+          apellido: socio?.apellido || '',
+          etiqueta: etiqueta?.nombre || '',
+          periodo: item.periodo,
+          amount: item.amount,
+        };
+      });
+    } else if (m.sourceModel === 'Asistencia' && m.sourceId) {
+      detalle = [{
+        socioId: m.sourceId.socioId || null,
+        nombre: m.sourceId.nombre || '',
+        apellido: m.sourceId.apellido || '',
+        esSocio: m.sourceId.esSocio,
+        periodo: m.sourceId.periodo || '',
+        tipoPase: m.sourceId.tipoPase || null,
+      }];
+    }
+
+    return { ...m, detalle };
+  });
+};
 
 /**
  * @openapi
@@ -39,13 +98,17 @@ export const getMovimientosHandler = async (req, res) => {
     const filter = { clubId: req.user?.clubId, active: !showTrash };
     if (type && ['Ingreso', 'Egreso'].includes(type)) filter.type = type;
 
-    const [total, movimientos] = await Promise.all([
+    const [total, movimientosRaw] = await Promise.all([
       Movimiento.countDocuments(filter),
       Movimiento.find(filter)
         .sort({ date: -1 })
         .skip((pageNumber - 1) * pageSize)
-        .limit(pageSize),
+        .limit(pageSize)
+        .populate('sourceId')
+        .lean(),
     ]);
+
+    const movimientos = await buildDetalle(movimientosRaw);
 
     res.status(200).json({
       page: pageNumber,
