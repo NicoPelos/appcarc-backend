@@ -6,7 +6,7 @@ import { createAdminUser, createSocio } from '../../../../testUtils/integrationH
 
 describe('POST /api/muro-libre (integración)', () => {
   it('registra un no-socio con monto manual y crea el movimiento de ingreso', async () => {
-    const { token } = await createAdminUser();
+    const { user, token } = await createAdminUser();
 
     const res = await request(app)
       .post('/api/muro-libre')
@@ -21,6 +21,8 @@ describe('POST /api/muro-libre (integración)', () => {
 
     const movimiento = await Movimiento.findOne({ sourceId: res.body.registro._id });
     expect(movimiento.amount).toBe(2000);
+    expect(movimiento.responsable).toBe(user.email);
+    expect(movimiento.socioNombre).toBe('Visitante Ocasional');
   });
 
   it('rechaza un no-socio sin nombre (400)', async () => {

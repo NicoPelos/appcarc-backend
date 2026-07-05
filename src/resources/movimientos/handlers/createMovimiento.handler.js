@@ -47,11 +47,14 @@ const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
  *           description: Concepto del movimiento
  *         responsable:
  *           type: string
- *           description: Responsable del movimiento
+ *           description: Quién gestiona/autoriza el movimiento (no a nombre de quién es el ingreso/egreso)
  *         paymentMethod:
  *           type: string
  *           enum: [Efectivo, Transferencia]
  *           description: Forma de pago del movimiento
+ *         socioNombre:
+ *           type: string
+ *           description: A nombre de quién es el movimiento, si corresponde (opcional)
  *         description:
  *           type: string
  *           description: Descripción adicional del movimiento (opcional)
@@ -69,6 +72,7 @@ export const createMovimientoHandler = async (req, res) => {
       concept,
       responsable,
       paymentMethod,
+      socioNombre,
       description,
       date,
     } = req.body;
@@ -106,6 +110,7 @@ export const createMovimientoHandler = async (req, res) => {
       amount,
       concept,
       paymentMethod,
+      socioNombre: socioNombre || '',
       description: description || '',
       date: movementDate,
       createdBy: req.user.email || req.user.id,

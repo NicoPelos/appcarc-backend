@@ -10,9 +10,16 @@ const MovimientoSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  // Quién gestionó/autorizó el movimiento (staff), no a nombre de quién es el ingreso/egreso.
   responsable: {
     type: String,
     required: true,
+  },
+  // A nombre de quién es el movimiento cuando aplica (ej. socio o visitante de muro libre).
+  // Para cobros de cuotas, ver el detalle por socio en GET /api/movimientos.
+  socioNombre: {
+    type: String,
+    default: '',
   },
   type: {
     type: String,

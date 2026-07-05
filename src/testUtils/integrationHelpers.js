@@ -20,7 +20,7 @@ export const createAdminUser = async (overrides = {}) => {
     socioId: overrides.socioId || undefined,
   });
   const token = jwt.sign(
-    { id: user._id, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null },
+    { id: user._id, email: user.email, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null },
     process.env.JWT_SECRET,
     { expiresIn: '1h' },
   );

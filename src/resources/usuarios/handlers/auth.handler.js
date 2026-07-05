@@ -75,7 +75,7 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
     await socio.save();
   }
 
-  const token = jwt.sign({ id: user._id, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null }, process.env.JWT_SECRET, { expiresIn: '8h' });
+  const token = jwt.sign({ id: user._id, email: user.email, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null }, process.env.JWT_SECRET, { expiresIn: '8h' });
   const permisos = await getPermisosUsuario(user.clubId, user.roles);
 
   return {
@@ -139,7 +139,7 @@ export const register = async (req, res) => {
     await user.save();
 
     const token = jwt.sign(
-      { id: user._id, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null },
+      { id: user._id, email: user.email, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null },
       process.env.JWT_SECRET,
       { expiresIn: '8h' },
     );
@@ -227,7 +227,7 @@ export const login = async (req, res) => {
     if (!user.active) return res.status(403).json({ message: 'Usuario desactivado' });
 
     const token = jwt.sign(
-      { id: user._id, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null },
+      { id: user._id, email: user.email, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null },
       process.env.JWT_SECRET,
       { expiresIn: '8h' },
     );
