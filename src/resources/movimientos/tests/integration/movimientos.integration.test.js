@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest';
 import request from 'supertest';
 import app from '../../../../index.js';
 import Movimiento from '../../models/Movimiento.js';
-import { createAdminUser } from '../../../../testUtils/integrationHelpers.js';
+import Cuota from '../../../cuotas/models/Cuota.js';
+import Cobro from '../../../cobros/models/Cobro.js';
+import {
+  createAdminUser, createSocio, createEtiqueta, createPrecio, createSuscripcion,
+} from '../../../../testUtils/integrationHelpers.js';
 
 const baseMovimiento = {
   type: 'Ingreso',
@@ -90,5 +94,40 @@ describe('DELETE /api/movimientos/:id (integración)', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ amount: 999 });
     expect(updateRes.status).toBe(404);
+  });
+
+  it('al borrar un movimiento generado por un cobro, anula el cobro y su cuota asociados', async () => {
+    const { token } = await createAdminUser();
+    const socio = await createSocio();
+    const etiqueta = await createEtiqueta();
+    await createPrecio({ etiquetaId: etiqueta._id, monto: 5000 });
+    const suscripcion = await createSuscripcion({ socioId: socio._id, etiquetaId: etiqueta._id });
+
+    const cobroRes = await request(app)
+      .post('/api/cobros')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        paymentMethod: 'Efectivo',
+        items: [{ socioId: String(socio._id), suscripcionId: String(suscripcion._id), periodo: '2026-07' }],
+      });
+    expect(cobroRes.status).toBe(201);
+    const cobroId = cobroRes.body.cobro._id;
+
+    const movimiento = await Movimiento.findOne({ sourceId: cobroId });
+    expect(movimiento.active).toBe(true);
+
+    const delRes = await request(app)
+      .delete(`/api/movimientos/${movimiento._id}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(delRes.status).toBe(200);
+
+    const movimientoDespues = await Movimiento.findById(movimiento._id);
+    expect(movimientoDespues.active).toBe(false);
+
+    const cobroDespues = await Cobro.findById(cobroId);
+    expect(cobroDespues.active).toBe(false);
+
+    const cuota = await Cuota.findOne({ socioId: socio._id, periodo: '2026-07' });
+    expect(cuota.estado).toBe('anulada');
   });
 });
