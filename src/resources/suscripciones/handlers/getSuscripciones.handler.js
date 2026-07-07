@@ -1,47 +1,59 @@
+import mongoose from 'mongoose';
 import Suscripcion from '../models/Suscripcion.js';
+import Plan from '../../planes/models/Plan.js';
+
+const TIPOS_PLAN_VALIDOS = ['social', 'escuelita', 'muro_libre'];
 
 /**
  * @openapi
  * /api/suscripciones:
  *   get:
- *     summary: Listar suscripciones de un socio
+ *     summary: Listar suscripciones del club (con filtros opcionales)
  *     tags: [Suscripciones]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - name: socioId
  *         in: query
- *         required: true
  *         schema: { type: string }
- *         description: ID del socio
+ *         description: Filtrar por socio (opcional)
+ *       - name: planTipo
+ *         in: query
+ *         schema: { type: string, enum: [social, escuelita, muro_libre] }
+ *         description: Filtrar por tipo de plan
  *       - name: activa
  *         in: query
  *         schema: { type: string, enum: ['true'] }
- *         description: Filtrar solo suscripciones activas (fechaHasta null)
+ *         description: Solo suscripciones activas (fechaHasta null)
  *     responses:
  *       200:
  *         description: Lista de suscripciones
  *       400:
- *         description: socioId es requerido
+ *         description: Parámetro inválido
  *       500:
  *         description: Error al obtener suscripciones
  */
 export const getSuscripcionesHandler = async (req, res) => {
   try {
-    const { socioId, activa } = req.query;
+    const { socioId, activa, planTipo } = req.query;
 
-    if (!socioId) {
-      return res.status(400).json({ message: 'socioId es requerido' });
+    if (planTipo && !TIPOS_PLAN_VALIDOS.includes(planTipo)) {
+      return res.status(400).json({ message: `planTipo inválido. Válidos: ${TIPOS_PLAN_VALIDOS.join(', ')}` });
     }
 
-    const filter = {
-      clubId: req.user.clubId,
-      socioId,
-      active: true,
-    };
+    if (socioId && !mongoose.isValidObjectId(socioId)) {
+      return res.status(400).json({ message: 'socioId inválido' });
+    }
 
-    if (activa === 'true') {
-      filter.fechaHasta = null;
+    const filter = { clubId: req.user.clubId, active: true };
+
+    if (socioId) filter.socioId = socioId;
+    if (activa === 'true') filter.fechaHasta = null;
+
+    if (planTipo) {
+      const planes = await Plan.find({ clubId: req.user.clubId, tipo: planTipo, active: true })
+        .select('_id').lean();
+      filter.planId = { $in: planes.map((p) => p._id) };
     }
 
     const suscripciones = await Suscripcion
