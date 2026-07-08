@@ -113,12 +113,10 @@ describe('createNovedadHandler', () => {
 describe('syncNovedadesHandler', () => {
   beforeEach(() => {
     vi.spyOn(syncService, 'syncInstagramFeed').mockResolvedValue({ inserted: 3, skipped: 1, total: 4 });
-    process.env.INSTAGRAM_RSS_URL = 'https://rss.example.com/feed.xml';
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    delete process.env.INSTAGRAM_RSS_URL;
   });
 
   it('should return sync results on success', async () => {
@@ -127,10 +125,7 @@ describe('syncNovedadesHandler', () => {
 
     await syncNovedadesHandler(req, res);
 
-    expect(syncService.syncInstagramFeed).toHaveBeenCalledWith({
-      rssUrl: 'https://rss.example.com/feed.xml',
-      clubId: 'club1',
-    });
+    expect(syncService.syncInstagramFeed).toHaveBeenCalledWith({ clubId: 'club1' });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       inserted: 3,
@@ -140,13 +135,13 @@ describe('syncNovedadesHandler', () => {
   });
 
   it('should return 500 when sync fails', async () => {
-    vi.spyOn(syncService, 'syncInstagramFeed').mockRejectedValue(new Error('INSTAGRAM_RSS_URL no está configurado'));
+    vi.spyOn(syncService, 'syncInstagramFeed').mockRejectedValue(new Error('Instagram no está configurado para este club'));
     const req = { user: USER };
     const res = mockRes();
 
     await syncNovedadesHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
-    expect(res.json).toHaveBeenCalledWith({ message: 'INSTAGRAM_RSS_URL no está configurado' });
+    expect(res.json).toHaveBeenCalledWith({ message: 'Instagram no está configurado para este club' });
   });
 });

@@ -90,7 +90,6 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`Server is running on http://localhost:${PORT}`);
     startInstagramSyncJob({
       clubId: process.env.DEFAULT_CLUB_ID,
-      rssUrl: process.env.INSTAGRAM_RSS_URL,
     });
     startRecordatorioCuotasJob();
     startSyncSheetsJob();

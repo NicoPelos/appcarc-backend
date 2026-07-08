@@ -4,7 +4,7 @@ import { syncInstagramFeed } from '../services/syncInstagram.service.js';
  * @openapi
  * /api/novedades/sync:
  *   post:
- *     summary: Forzar sincronización inmediata con el feed RSS de Instagram
+ *     summary: Forzar sincronización inmediata con Instagram (Graph API)
  *     tags: [Novedades]
  *     security:
  *       - bearerAuth: []
@@ -21,14 +21,13 @@ import { syncInstagramFeed } from '../services/syncInstagram.service.js';
  *                 skipped: { type: integer }
  *                 total: { type: integer }
  *       500:
- *         description: Error al sincronizar (ej. INSTAGRAM_RSS_URL no configurado)
+ *         description: Error al sincronizar (ej. Instagram no configurado para este club)
  */
 export const syncNovedadesHandler = async (req, res) => {
   try {
-    const rssUrl = process.env.INSTAGRAM_RSS_URL;
     const clubId = req.user?.clubId;
 
-    const result = await syncInstagramFeed({ rssUrl, clubId });
+    const result = await syncInstagramFeed({ clubId });
 
     res.status(200).json({
       message: 'Sincronización completada',

@@ -1,48 +1,45 @@
-import Parser from 'rss-parser';
 import Novedad from '../models/Novedad.js';
+import InstagramConfig from '../models/InstagramConfig.js';
 
-const parser = new Parser({
-  headers: { 'User-Agent': 'Mozilla/5.0 (compatible; AppCarc/1.0)' },
-  customFields: {
-    item: [
-      ['media:content', 'mediaContent', { keepArray: false }],
-      ['enclosure', 'enclosure'],
-    ],
-  },
-});
+const GRAPH_BASE = 'https://graph.instagram.com';
+const MEDIA_FIELDS = 'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp';
 
 const extractImageUrl = (item) => {
-  if (item.mediaContent?.$.url) return item.mediaContent.$.url;
-  if (item.enclosure?.url) return item.enclosure.url;
-  // Algunos feeds RSS de Instagram incluyen la imagen en el contenido HTML
-  const match = item.content?.match(/<img[^>]+src="([^"]+)"/i);
-  return match?.[1] ?? null;
+  if (item.media_type === 'VIDEO') return item.thumbnail_url || item.media_url || null;
+  return item.media_url || null;
 };
 
-const stripHtml = (html = '') => html.replace(/<[^>]*>/g, '').trim();
-
-export const syncInstagramFeed = async ({ rssUrl, clubId }) => {
-  if (!rssUrl) throw new Error('INSTAGRAM_RSS_URL no está configurado');
+export const syncInstagramFeed = async ({ clubId }) => {
   if (!clubId) throw new Error('clubId es requerido para la sincronización');
 
-  const feed = await parser.parseURL(rssUrl);
+  const config = await InstagramConfig.findOne({ clubId });
+  if (!config) throw new Error('Instagram no está configurado para este club');
+
+  const url = `${GRAPH_BASE}/${config.igUserId}/media?fields=${MEDIA_FIELDS}&access_token=${config.accessToken}`;
+  const response = await fetch(url);
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Error de Instagram Graph API (${response.status}): ${body}`);
+  }
+
+  const { data: items = [] } = await response.json();
 
   let inserted = 0;
   let skipped = 0;
 
-  for (const item of feed.items) {
-    const fuenteId = item.guid || item.link;
+  for (const item of items) {
+    const fuenteId = item.id;
     if (!fuenteId) { skipped++; continue; }
 
     const novedad = {
       clubId,
       fuente: 'instagram',
       fuenteId,
-      titulo: stripHtml(item.title || '').slice(0, 200) || 'Post de Instagram',
-      cuerpo: stripHtml(item.contentSnippet || item.content || ''),
+      titulo: 'Nueva publicación de Instagram',
+      cuerpo: item.caption || '',
       imagenUrl: extractImageUrl(item),
-      linkOriginal: item.link || null,
-      fechaPublicacion: item.isoDate ? new Date(item.isoDate) : new Date(),
+      linkOriginal: item.permalink || null,
+      fechaPublicacion: item.timestamp ? new Date(item.timestamp) : new Date(),
       createdBy: 'sync:instagram',
     };
 
@@ -56,5 +53,5 @@ export const syncInstagramFeed = async ({ rssUrl, clubId }) => {
     else skipped++;
   }
 
-  return { inserted, skipped, total: feed.items.length };
+  return { inserted, skipped, total: items.length };
 };

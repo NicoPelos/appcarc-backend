@@ -10,9 +10,7 @@ const JOBS = {
   },
   syncInstagram: async () => {
     const clubId = process.env.DEFAULT_CLUB_ID;
-    const rssUrl = process.env.INSTAGRAM_RSS_URL;
-    if (!rssUrl) throw new Error('INSTAGRAM_RSS_URL no configurado');
-    return syncInstagramFeed({ rssUrl, clubId });
+    return syncInstagramFeed({ clubId });
   },
 };
 
