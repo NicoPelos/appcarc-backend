@@ -1,5 +1,6 @@
 import { syncInstagramFeed } from '../../novedades/services/syncInstagram.service.js';
 import { exportToSheets } from '../../../services/sheetsExport.service.js';
+import { enviarRecordatorios } from '../../../jobs/recordatorioCuotas.job.js';
 
 const JOBS = {
   syncSheets: async () => {
@@ -11,6 +12,10 @@ const JOBS = {
   syncInstagram: async () => {
     const clubId = process.env.DEFAULT_CLUB_ID;
     return syncInstagramFeed({ clubId });
+  },
+  recordatorioCuotas: async () => {
+    await enviarRecordatorios();
+    return { message: 'Recordatorios enviados' };
   },
 };
 

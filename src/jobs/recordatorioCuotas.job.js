@@ -18,7 +18,7 @@ const buildBody = (social, escuelita) => {
   return `Tenés cuotas pendientes: ${partes.join(' y ')}. ¡No te olvides de ponerte al día!`;
 };
 
-const enviarRecordatorios = async () => {
+export const enviarRecordatorios = async () => {
   console.log('📅 Recordatorio de cuotas: iniciando...');
 
   const users = await User.find({
