@@ -9,6 +9,19 @@ const extractImageUrl = (item) => {
   return item.media_url || null;
 };
 
+// Los posts de Instagram no tienen "título" propio, solo un caption. Se usa la
+// primera línea como título y el resto como cuerpo, para no repetir el texto.
+const splitCaption = (caption) => {
+  const lines = (caption || '').trim().split('\n');
+  const firstLineIndex = lines.findIndex((line) => line.trim());
+  if (firstLineIndex === -1) return { titulo: 'Publicación de Instagram', cuerpo: '' };
+
+  return {
+    titulo: lines[firstLineIndex].trim().slice(0, 200),
+    cuerpo: lines.slice(firstLineIndex + 1).join('\n').trim(),
+  };
+};
+
 export const syncInstagramFeed = async ({ clubId }) => {
   if (!clubId) throw new Error('clubId es requerido para la sincronización');
 
@@ -31,12 +44,14 @@ export const syncInstagramFeed = async ({ clubId }) => {
     const fuenteId = item.id;
     if (!fuenteId) { skipped++; continue; }
 
+    const { titulo, cuerpo } = splitCaption(item.caption);
+
     const novedad = {
       clubId,
       fuente: 'instagram',
       fuenteId,
-      titulo: 'Nueva publicación de Instagram',
-      cuerpo: item.caption || '',
+      titulo,
+      cuerpo,
       imagenUrl: extractImageUrl(item),
       linkOriginal: item.permalink || null,
       fechaPublicacion: item.timestamp ? new Date(item.timestamp) : new Date(),
