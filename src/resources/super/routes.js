@@ -11,6 +11,7 @@ import { updateSuperUserHandler }from './handlers/updateSuperUser.handler.js';
 import { deleteSuperUserHandler }from './handlers/deleteSuperUser.handler.js';
 import { resetUserPasswordHandler } from './handlers/resetUserPassword.handler.js';
 import { getSuperAuditHandler }  from './handlers/getSuperAudit.handler.js';
+import { revertSuperAuditHandler } from './handlers/revertSuperAudit.handler.js';
 import { getHealthHandler }      from './handlers/getHealth.handler.js';
 import { runJobHandler }         from './handlers/runJob.handler.js';
 
@@ -31,6 +32,7 @@ router.post('/users/:id/reset-password',    protectSuper, resetUserPasswordHandl
 
 // Audit cross-club
 router.get('/audit', protectSuper, getSuperAuditHandler);
+router.post('/audit/:id/revert', protectSuper, revertSuperAuditHandler);
 
 // Sistema
 router.get('/health',            protectSuper, getHealthHandler);
