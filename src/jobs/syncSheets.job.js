@@ -1,24 +1,34 @@
 import cron from 'node-cron';
 import { exportToSheets } from '../services/sheetsExport.service.js';
+import Club from '../resources/clubs/models/Club.js';
 
-export const startSyncSheetsJob = () => {
-  const clubId = process.env.DEFAULT_CLUB_ID;
-  const clubName = process.env.CLUB_NAME || 'CARC';
+const syncClub = async (club) => {
+  const result = await exportToSheets({
+    clubId: club.slug,
+    clubName: club.nombre,
+    spreadsheetId: club.integraciones?.sheets?.spreadsheetId,
+  });
 
-  if (!clubId) {
-    console.info('ℹ️  syncSheets: DEFAULT_CLUB_ID no configurado, job desactivado.');
-    return;
+  if (club.integraciones?.sheets?.spreadsheetId !== result.spreadsheetId) {
+    club.integraciones.sheets.spreadsheetId = result.spreadsheetId;
+    await club.save();
   }
 
+  console.log(`✅ syncSheets [${club.slug}]: exportación completada → ${result.url}`);
+  console.log(`   Socios: ${result.stats.socios} | Cobros: ${result.stats.cobros} | Horarios: ${result.stats.horarios}`);
+};
+
+export const startSyncSheetsJob = () => {
   // Todos los días a las 3am
   cron.schedule('0 3 * * *', async () => {
     console.log('🔄 syncSheets: iniciando exportación a Google Sheets...');
-    try {
-      const result = await exportToSheets({ clubId, clubName });
-      console.log(`✅ syncSheets: exportación completada → ${result.url}`);
-      console.log(`   Socios: ${result.stats.socios} | Cobros: ${result.stats.cobros} | Horarios: ${result.stats.horarios}`);
-    } catch (err) {
-      console.error('❌ syncSheets: error en exportación:', err.message);
+    const clubs = await Club.find({ active: true, 'modulos.exportSheets': true });
+    for (const club of clubs) {
+      try {
+        await syncClub(club);
+      } catch (err) {
+        console.error(`❌ syncSheets [${club.slug}]: error en exportación:`, err.message);
+      }
     }
   });
 

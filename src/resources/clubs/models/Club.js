@@ -16,6 +16,11 @@ const clubSchema = new mongoose.Schema({
     exportSheets: { type: Boolean, default: false },
     novedades:    { type: Boolean, default: true },
   },
+  integraciones: {
+    sheets: {
+      spreadsheetId: { type: String, default: null },
+    },
+  },
   active:       { type: Boolean, default: true },
   suspendidoAt: { type: Date, default: null },
 }, { timestamps: true });

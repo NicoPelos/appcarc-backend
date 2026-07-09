@@ -3,11 +3,11 @@ import Club from '../../clubs/models/Club.js';
 export const updateClubHandler = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, logoUrl, contacto, plan, modulos } = req.body;
+    const { nombre, logoUrl, contacto, plan, modulos, integraciones } = req.body;
 
     const club = await Club.findByIdAndUpdate(
       id,
-      { $set: { nombre, logoUrl, contacto, plan, modulos } },
+      { $set: { nombre, logoUrl, contacto, plan, modulos, integraciones } },
       { new: true, runValidators: true },
     );
 

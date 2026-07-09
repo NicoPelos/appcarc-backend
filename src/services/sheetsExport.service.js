@@ -342,9 +342,8 @@ const buildMuroLibreRows = async (clubId) => {
 
 const TAB_NAMES = ['Socios', 'Cuotas Sociales', 'Cuotas Escuelita', 'Cobros', 'Escuelita', 'Movimientos', 'Asistencias', 'Muro Libre', 'Horarios'];
 
-const getOrCreateSpreadsheet = async (clubName) => {
-  const existingId = process.env.GOOGLE_SHEET_EXPORT_ID;
-  if (existingId) return { id: existingId, isNew: false };
+const getOrCreateSpreadsheet = async (clubName, spreadsheetId) => {
+  if (spreadsheetId) return { id: spreadsheetId, isNew: false };
 
   const res = await sheets.spreadsheets.create({
     resource: {
@@ -355,7 +354,6 @@ const getOrCreateSpreadsheet = async (clubName) => {
 
   const id = res.data.spreadsheetId;
   console.log(`✅ Google Sheet creado: https://docs.google.com/spreadsheets/d/${id}`);
-  console.log(`   Agregá GOOGLE_SHEET_EXPORT_ID=${id} al .env para reutilizarlo en próximas sincronizaciones.`);
   console.log(`   Compartilo manualmente desde Google Drive con las autoridades del club.`);
   return { id, isNew: true };
 };
@@ -446,7 +444,7 @@ const buildFormatRequests = (sheetId, numCols, cuotasOpts = null) => {
 
 // ─── Export principal ─────────────────────────────────────────────────────────
 
-export const exportToSheets = async ({ clubId, clubName = 'CARC' }) => {
+export const exportToSheets = async ({ clubId, clubName = 'CARC', spreadsheetId: existingSpreadsheetId = null }) => {
   const [socios, cuotasSociales, cuotasEscuelita, cobros, escuelita, movimientos, asistencias, muroLibre, horarios] = await Promise.all([
     buildSociosRows(clubId),
     buildCuotasSocialesRows(clubId),
@@ -459,7 +457,7 @@ export const exportToSheets = async ({ clubId, clubName = 'CARC' }) => {
     buildHorariosRows(clubId),
   ]);
 
-  const { id: spreadsheetId, isNew } = await getOrCreateSpreadsheet(clubName);
+  const { id: spreadsheetId, isNew } = await getOrCreateSpreadsheet(clubName, existingSpreadsheetId);
 
   const sheetIdMap = await getSheetIdMap(spreadsheetId);
   await ensureTabsExist(spreadsheetId, sheetIdMap);

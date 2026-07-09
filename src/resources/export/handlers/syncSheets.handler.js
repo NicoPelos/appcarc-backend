@@ -1,4 +1,5 @@
 import { exportToSheets } from '../../../services/sheetsExport.service.js';
+import Club from '../../clubs/models/Club.js';
 
 /**
  * @openapi
@@ -28,9 +29,15 @@ import { exportToSheets } from '../../../services/sheetsExport.service.js';
 export const syncSheetsHandler = async (req, res) => {
   try {
     const clubId = req.user.clubId;
-    const clubName = process.env.CLUB_NAME || 'CARC';
+    const club = await Club.findOne({ slug: clubId });
+    const clubName = club?.nombre || clubId;
 
-    const result = await exportToSheets({ clubId, clubName });
+    const result = await exportToSheets({ clubId, clubName, spreadsheetId: club?.integraciones?.sheets?.spreadsheetId });
+
+    if (club && club.integraciones?.sheets?.spreadsheetId !== result.spreadsheetId) {
+      club.integraciones.sheets.spreadsheetId = result.spreadsheetId;
+      await club.save();
+    }
 
     return res.status(200).json({
       message: 'Exportación completada',

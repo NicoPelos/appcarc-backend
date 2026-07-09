@@ -2,22 +2,26 @@ import cron from 'node-cron';
 import { syncInstagramFeed } from '../resources/novedades/services/syncInstagram.service.js';
 import { refreshInstagramToken } from '../resources/novedades/services/refreshInstagramToken.service.js';
 import { notifyClub } from '../services/pushNotification.service.js';
+import InstagramConfig from '../resources/novedades/models/InstagramConfig.js';
 
-export const startInstagramSyncJob = ({ clubId }) => {
-  // Corre cada 30 minutos
+export const startInstagramSyncJob = () => {
+  // Corre cada 30 minutos, para cada club que tenga Instagram configurado
   cron.schedule('*/30 * * * *', async () => {
-    try {
-      const result = await syncInstagramFeed({ clubId });
-      if (result.inserted > 0) {
-        console.log(`📸 Instagram sync: ${result.inserted} novedades nuevas (${result.skipped} ya existían)`);
-        notifyClub(clubId, {
-          title: '📸 Novedad del club',
-          body: `Hay ${result.inserted} publicación${result.inserted > 1 ? 'es' : ''} nueva${result.inserted > 1 ? 's' : ''} en Instagram`,
-          data: { tipo: 'instagram_sync' },
-        }).catch((err) => console.error('Error enviando push de Instagram sync:', err));
+    const clubIds = await InstagramConfig.distinct('clubId');
+    for (const clubId of clubIds) {
+      try {
+        const result = await syncInstagramFeed({ clubId });
+        if (result.inserted > 0) {
+          console.log(`📸 Instagram sync [${clubId}]: ${result.inserted} novedades nuevas (${result.skipped} ya existían)`);
+          notifyClub(clubId, {
+            title: '📸 Novedad del club',
+            body: `Hay ${result.inserted} publicación${result.inserted > 1 ? 'es' : ''} nueva${result.inserted > 1 ? 's' : ''} en Instagram`,
+            data: { tipo: 'instagram_sync' },
+          }).catch((err) => console.error(`Error enviando push de Instagram sync [${clubId}]:`, err));
+        }
+      } catch (error) {
+        console.error(`❌ Error en sync de Instagram [${clubId}]:`, error.message);
       }
-    } catch (error) {
-      console.error('❌ Error en sync de Instagram:', error.message);
     }
   });
 
@@ -25,11 +29,14 @@ export const startInstagramSyncJob = ({ clubId }) => {
   // Dura 60 días y se puede refrescar en cualquier momento después de las
   // primeras 24hs, así que esta frecuencia deja margen de sobra.
   cron.schedule('0 4 1,15 * *', async () => {
-    try {
-      await refreshInstagramToken(clubId);
-      console.log('🔑 Token de Instagram refrescado correctamente');
-    } catch (error) {
-      console.error('❌ Error refrescando token de Instagram:', error.message);
+    const clubIds = await InstagramConfig.distinct('clubId');
+    for (const clubId of clubIds) {
+      try {
+        await refreshInstagramToken(clubId);
+        console.log(`🔑 Token de Instagram refrescado correctamente [${clubId}]`);
+      } catch (error) {
+        console.error(`❌ Error refrescando token de Instagram [${clubId}]:`, error.message);
+      }
     }
   });
 

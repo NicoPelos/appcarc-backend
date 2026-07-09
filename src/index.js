@@ -88,9 +88,7 @@ app.use('/api', routes);
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
-    startInstagramSyncJob({
-      clubId: process.env.DEFAULT_CLUB_ID,
-    });
+    startInstagramSyncJob();
     startRecordatorioCuotasJob();
     startSyncSheetsJob();
   });
