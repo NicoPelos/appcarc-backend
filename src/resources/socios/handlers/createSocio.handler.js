@@ -2,6 +2,7 @@ import Socio from '../models/Socio.js';
 import { syncSocioToSheet } from '../services/socioSheetSync.js';
 import { prepareSocioCreateData, syncSocioUserIfPossible } from '../services/socioData.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { notifyRoles } from '../../../services/pushNotification.service.js';
 
 /**
  * @openapi
@@ -69,6 +70,12 @@ export const createSocioHandler = async (req, res) => {
     logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Socio', resourceId: socio._id, before: null, after: socio.toObject() });
 
     res.status(201).json(socio);
+
+    notifyRoles(req.user?.clubId, ['autoridad', 'secretaria'], {
+      title: '🎉 Nuevo socio en el padrón',
+      body: `${socio.nombre} ${socio.apellido} se incorporó como socio`,
+      data: { tipo: 'nuevo_socio', socioId: socio._id.toString() },
+    }).catch((err) => console.error('Error enviando push de nuevo socio:', err));
   } catch (error) {
     console.error('Error creando socio (handler):', error);
     res.status(400).json({ message: error.message });

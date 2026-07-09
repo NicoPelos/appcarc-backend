@@ -18,6 +18,7 @@ import rolesRoutes from './resources/roles/routes.js';
 import superRoutes from './resources/super/routes.js';
 import planesRoutes from './resources/planes/routes.js';
 import advertenciasRoutes from './resources/advertencias/routes.js';
+import formsWebhookRoutes from './resources/formsWebhook/routes.js';
 
 const router = express.Router();
 
@@ -40,5 +41,6 @@ router.use('/roles', rolesRoutes);
 router.use('/super', superRoutes);
 router.use('/planes', planesRoutes);
 router.use('/advertencias', advertenciasRoutes);
+router.use('/forms-webhook', formsWebhookRoutes);
 
 export default router;

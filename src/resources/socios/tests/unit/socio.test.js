@@ -6,7 +6,10 @@ vi.mock('../../services/socioData.service.js', () => ({
   prepareSocioUpdateData: vi.fn((body) => body),
   syncSocioUserIfPossible: vi.fn().mockResolvedValue(),
 }));
-vi.mock('../../../services/pushNotification.service.js', () => ({ sendPushNotification: vi.fn().mockResolvedValue() }));
+vi.mock('../../../services/pushNotification.service.js', () => ({
+  sendPushNotification: vi.fn().mockResolvedValue(),
+  notifyRoles: vi.fn().mockResolvedValue(),
+}));
 vi.mock('../../../usuarios/models/User.js', () => ({ default: { findOne: vi.fn().mockResolvedValue(null) } }));
 
 import { createSocioHandler } from '../../handlers/createSocio.handler.js';
