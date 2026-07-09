@@ -81,6 +81,9 @@ app.get('/', (req, res) => {
   res.send('Club Andino Rio Cuarto API');
 });
 
+// Página pública "link en bio" para Instagram
+app.use('/link', express.static(join(__dirname, '../public/link')));
+
 // Use application routes
 app.use('/api', routes);
 
