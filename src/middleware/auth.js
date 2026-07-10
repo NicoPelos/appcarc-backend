@@ -64,3 +64,14 @@ export const authorize = (permiso) => {
     }
   };
 };
+
+// authorizeSelfSocioOr('socios:write') — deja pasar si el actor es un socio operando
+// sobre su propio registro (req.params.id === req.user.socioId), o si tiene el permiso
+// indicado (staff/admin). Para acciones de "mi propio perfil" que usan una ruta con :id
+// en vez de /me, donde el chequeo genérico de authorize() bloquearía al socio por completo.
+export const authorizeSelfSocioOr = (permiso) => {
+  return async (req, res, next) => {
+    if (req.user?.socioId && req.user.socioId === req.params.id) return next();
+    return authorize(permiso)(req, res, next);
+  };
+};
