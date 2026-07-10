@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Descargar appClub</title>
+<style>
+  :root {
+    --bg: #1A130A;
+    --card: rgba(255,255,255,0.12);
+    --card-border: rgba(255,255,255,0.2);
+    --primary: #D97706;
+    --primary-dark: #B45309;
+    --text-primary: #FFFBEB;
+    --text-secondary: #FDE68A;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  body {
+    background: var(--bg) url("../link/assets/login-bg.jpg") center / cover no-repeat fixed;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 20px;
+  }
+
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .logo-backdrop {
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+    margin-bottom: 12px;
+  }
+
+  .logo-backdrop img {
+    width: 130px;
+    height: 130px;
+    object-fit: contain;
+  }
+
+  h1 {
+    color: var(--text-secondary);
+    font-size: 17px;
+    font-weight: 500;
+    text-align: center;
+    margin: 0 0 4px;
+  }
+
+  .version {
+    color: rgba(255,255,255,0.55);
+    font-size: 12px;
+    text-align: center;
+    margin: 0 0 24px;
+  }
+
+  .card {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 20px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+
+  .link-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: var(--primary);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 15px;
+    padding: 16px 18px;
+    border-radius: 14px;
+    transition: background-color 0.15s ease, transform 0.15s ease;
+  }
+
+  .link-btn:active {
+    background: var(--primary-dark);
+    transform: scale(0.98);
+  }
+
+  .link-btn .icon {
+    font-size: 22px;
+    line-height: 1;
+  }
+
+  .tips {
+    color: rgba(255,255,255,0.6);
+    font-size: 12px;
+    text-align: center;
+    margin-top: 20px;
+    max-width: 340px;
+    line-height: 1.5;
+  }
+
+  .steps {
+    margin-top: 16px;
+    align-items: stretch;
+  }
+
+  .steps-title {
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .steps ol {
+    margin: 0;
+    padding-left: 20px;
+    color: rgba(255,255,255,0.75);
+    font-size: 13px;
+    line-height: 1.6;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .steps code {
+    background: rgba(255,255,255,0.12);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+  <div class="overlay"></div>
+  <div class="container">
+    <div class="logo-backdrop">
+      <img src="../link/assets/logo.png" alt="appClub" />
+    </div>
+    <h1>appClub — Club Andino Río Cuarto</h1>
+    <p class="version">⚠️ Esta versión es solo para Android. Para iPhone, muy pronto.</p>
+
+    <div class="card">
+      <a class="link-btn" href="/uploads/apk/appclub-latest.apk" download>
+        <span class="icon">⬇️</span>
+        <span>Descargar APK</span>
+      </a>
+    </div>
+
+    <div class="card steps">
+      <p class="steps-title">Pasos para instalar (tranquilo, es normal)</p>
+      <ol>
+        <li>Tocá "Descargar APK" arriba.</li>
+        <li>Abrí el archivo descargado (<code>appclub-latest.apk</code>) desde las notificaciones o desde tu carpeta de Descargas.</li>
+        <li>Android va a mostrar un cartel de advertencia (tipo "no reconoce esta app" o pidiendo permiso para instalar de "fuentes desconocidas"). <strong>Esto le pasa a cualquier app que no venga de Play Store, no significa que haya un problema.</strong> Tocá "Configuración" o "Permitir esta vez", activá el permiso, y volvé atrás.</li>
+        <li>Puede aparecer otro cartel de Google Play Protect diciendo que no puede verificar la app — tocá "Instalar de todas formas".</li>
+        <li>Confirmá "Instalar". Si ya tenías una versión, esta la reemplaza sin perder tus datos.</li>
+        <li>Listo, ya podés abrir appClub normalmente.</li>
+      </ol>
+    </div>
+  </div>
+</body>
+</html>
