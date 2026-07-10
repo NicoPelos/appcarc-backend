@@ -106,4 +106,5 @@ describe('Usuarios auth handlers (unit)', () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
   });
+
 });
