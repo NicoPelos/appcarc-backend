@@ -1,9 +1,15 @@
+import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
 import multer from 'multer';
 import Socio from '../models/Socio.js';
 
 const FOTO_DIR = path.resolve('uploads/fotos');
+// El volumen de /uploads es un bind mount persistente en el host — nada
+// garantiza que la subcarpeta fotos/ exista de antemano (nunca se creó en
+// producción, lo que rompía toda subida de foto con "unable to open for
+// write"). La creamos al levantar el server para que sea auto-reparable.
+fs.mkdirSync(FOTO_DIR, { recursive: true });
 // La imagen se re-comprime a 256x256 en el servidor (ver abajo), así que el
 // límite acá es solo un techo de transporte, no de almacenamiento — lo
 // suficientemente alto para no rechazar fotos de cámara normales (con

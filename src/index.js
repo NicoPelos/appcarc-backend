@@ -24,6 +24,11 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Detrás de un solo reverse proxy (Tailscale Funnel / ngrok) que agrega
+// X-Forwarded-For — sin esto, express-rate-limit rechaza ese header por
+// considerarlo no confiable y tira ERR_ERL_UNEXPECTED_X_FORWARDED_FOR.
+app.set('trust proxy', 1);
+
 // Swagger Configuration
 const swaggerOptions = {
   definition: {
