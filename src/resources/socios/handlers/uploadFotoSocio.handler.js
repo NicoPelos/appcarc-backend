@@ -4,7 +4,11 @@ import multer from 'multer';
 import Socio from '../models/Socio.js';
 
 const FOTO_DIR = path.resolve('uploads/fotos');
-const MAX_SIZE_MB = 5;
+// La imagen se re-comprime a 256x256 en el servidor (ver abajo), así que el
+// límite acá es solo un techo de transporte, no de almacenamiento — lo
+// suficientemente alto para no rechazar fotos de cámara normales (con
+// quality: 0.7 desde el picker del mobile, igual pueden pesar varios MB).
+const MAX_SIZE_MB = 20;
 
 export const upload = multer({
   storage: multer.memoryStorage(),
@@ -16,6 +20,20 @@ export const upload = multer({
     cb(null, true);
   },
 });
+
+// multer llama a next(err) cuando se excede el límite de tamaño, antes de
+// llegar al handler — sin esto, Express devuelve una página HTML de error
+// que rompe el parseo de JSON del lado del cliente (la app nunca se entera
+// del mensaje real, solo ve un error de parseo genérico).
+export const handleUploadError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ message: `La imagen supera el tamaño máximo permitido (${MAX_SIZE_MB}MB).` });
+  }
+  if (err) {
+    return res.status(400).json({ message: err.message || 'Error al procesar la imagen' });
+  }
+  next();
+};
 
 /**
  * @openapi
