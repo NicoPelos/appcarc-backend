@@ -11,6 +11,7 @@ import { getMyProfileHandler } from './handlers/getMyProfile.handler.js';
 import { updateMyProfileHandler } from './handlers/updateMyProfile.handler.js';
 import { getSocioDeudaHandler } from './handlers/getSocioDeuda.handler.js';
 import { upload, uploadFotoSocioHandler, handleUploadError } from './handlers/uploadFotoSocio.handler.js';
+import { deleteFotoSocioHandler } from './handlers/deleteFotoSocio.handler.js';
 import { protect, authorize, authorizeSelfSocioOr } from '../../middleware/auth.js';
 import { PERMISOS } from '../../constants/permisos.js';
 
@@ -100,6 +101,7 @@ router.put('/me/profile', protect, updateMyProfileHandler);
 
 router.get('/:id/deuda', protect, getSocioDeudaHandler);
 router.put('/:id/foto', protect, authorizeSelfSocioOr(PERMISOS.SOCIOS_WRITE), upload.single('foto'), handleUploadError, uploadFotoSocioHandler);
+router.delete('/:id/foto', protect, authorizeSelfSocioOr(PERMISOS.SOCIOS_WRITE), deleteFotoSocioHandler);
 
 router.get('/:id/qr', protect, getSocioQrHandler);
 router.post('/verify', protect, authorize(PERMISOS.SOCIOS_READ), verifySocioQrHandler);
