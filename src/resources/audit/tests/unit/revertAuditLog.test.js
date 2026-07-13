@@ -9,8 +9,13 @@ vi.mock('../../services/audit.service.js', () => ({
   logAudit: vi.fn(),
 }));
 
+vi.mock('../../services/reversers/index.js', () => ({
+  REVERSERS: {},
+}));
+
 import { revertAuditLogHandler } from '../../handlers/revertAuditLog.handler.js';
 import AuditLog from '../../models/AuditLog.js';
+import { REVERSERS } from '../../services/reversers/index.js';
 
 const mockRes = () => {
   const res = {};
@@ -37,7 +42,14 @@ const buildLog = (overrides = {}) => ({
 });
 
 describe('revertAuditLogHandler', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Object.keys(REVERSERS).forEach((key) => delete REVERSERS[key]);
+    vi.spyOn(mongoose, 'startSession').mockResolvedValue({
+      withTransaction: vi.fn(async (cb) => cb()),
+      endSession: vi.fn(),
+    });
+  });
   afterEach(() => vi.restoreAllMocks());
 
   it('devuelve 400 si el id es inválido', async () => {
@@ -118,6 +130,39 @@ describe('revertAuditLogHandler', () => {
     const req = { params: { id: VALID_ID }, user: USER };
     const res = mockRes();
     await revertAuditLogHandler(req, res);
+    expect(res.status).toHaveBeenCalledWith(422);
+  });
+
+  it('delega en el reverser registrado en vez del genérico, para recursos con cascada', async () => {
+    const log = buildLog({ resource: 'Cobro', action: 'DELETE', before: { movimientoId: 'mov1' } });
+    AuditLog.findOne.mockResolvedValue(log);
+
+    const reverser = vi.fn().mockResolvedValue(undefined);
+    REVERSERS.Cobro = reverser;
+    const modelSpy = vi.spyOn(mongoose, 'model');
+
+    const req = { params: { id: VALID_ID }, user: USER };
+    const res = mockRes();
+    await revertAuditLogHandler(req, res);
+
+    expect(reverser).toHaveBeenCalledWith(log, expect.objectContaining({ actor: USER.email }));
+    expect(modelSpy).not.toHaveBeenCalled();
+    expect(log.save).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('propaga el status de error de un reverser (ej. 422 sin snapshot)', async () => {
+    const log = buildLog({ resource: 'Cobro', action: 'DELETE', before: null });
+    AuditLog.findOne.mockResolvedValue(log);
+
+    const error = new Error('No hay snapshot anterior para revertir');
+    error.status = 422;
+    REVERSERS.Cobro = vi.fn().mockRejectedValue(error);
+
+    const req = { params: { id: VALID_ID }, user: USER };
+    const res = mockRes();
+    await revertAuditLogHandler(req, res);
+
     expect(res.status).toHaveBeenCalledWith(422);
   });
 });

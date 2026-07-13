@@ -9,9 +9,14 @@ vi.mock('../../../audit/services/audit.service.js', () => ({
   logAudit: vi.fn(),
 }));
 
+vi.mock('../../../audit/services/reversers/index.js', () => ({
+  REVERSERS: {},
+}));
+
 import { revertSuperAuditHandler } from '../../handlers/revertSuperAudit.handler.js';
 import AuditLog from '../../../audit/models/AuditLog.js';
 import { logAudit } from '../../../audit/services/audit.service.js';
+import { REVERSERS } from '../../../audit/services/reversers/index.js';
 
 const mockRes = () => {
   const res = {};
@@ -38,7 +43,14 @@ const buildLog = (overrides = {}) => ({
 });
 
 describe('revertSuperAuditHandler', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Object.keys(REVERSERS).forEach((key) => delete REVERSERS[key]);
+    vi.spyOn(mongoose, 'startSession').mockResolvedValue({
+      withTransaction: vi.fn(async (cb) => cb()),
+      endSession: vi.fn(),
+    });
+  });
   afterEach(() => vi.restoreAllMocks());
 
   it('devuelve 400 si el id es inválido', async () => {
@@ -107,5 +119,23 @@ describe('revertSuperAuditHandler', () => {
     const res = mockRes();
     await revertSuperAuditHandler(req, res);
     expect(res.status).toHaveBeenCalledWith(422);
+  });
+
+  it('delega en el reverser registrado, usando el clubId dueño del log', async () => {
+    const log = buildLog({ resource: 'Movimiento', action: 'DELETE', clubId: 'otroClub', before: { sourceModel: null } });
+    AuditLog.findById.mockResolvedValue(log);
+
+    const reverser = vi.fn().mockResolvedValue(undefined);
+    REVERSERS.Movimiento = reverser;
+    const modelSpy = vi.spyOn(mongoose, 'model');
+
+    const req = { params: { id: VALID_ID }, user: SUPERADMIN };
+    const res = mockRes();
+    await revertSuperAuditHandler(req, res);
+
+    expect(reverser).toHaveBeenCalledWith(log, expect.objectContaining({ actor: SUPERADMIN.email }));
+    expect(modelSpy).not.toHaveBeenCalled();
+    expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({ clubId: 'otroClub' }));
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 });
