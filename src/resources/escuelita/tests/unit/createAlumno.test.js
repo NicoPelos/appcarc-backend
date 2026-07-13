@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import mongoose from 'mongoose';
 import { createAlumnoHandler } from '../../handlers/createAlumno.handler.js';
 import Socio from '../../../socios/models/Socio.js';
 import Escuelita from '../../models/Escuelita.js';
+
+vi.mock('../../services/sincronizarSuscripcionPlan.service.js', () => ({
+  sincronizarSuscripcionEscuelita: vi.fn(),
+}));
+
+import { sincronizarSuscripcionEscuelita } from '../../services/sincronizarSuscripcionPlan.service.js';
 
 const mockRes = () => {
   const res = {};
@@ -20,6 +27,11 @@ describe('createAlumnoHandler', () => {
     Escuelita.findOne = vi.fn();
     vi.spyOn(Escuelita.prototype, 'save').mockResolvedValue(undefined);
     vi.spyOn(Escuelita.prototype, 'populate').mockResolvedValue(undefined);
+    vi.spyOn(mongoose, 'startSession').mockResolvedValue({
+      withTransaction: vi.fn(async (cb) => cb()),
+      endSession: vi.fn(),
+    });
+    sincronizarSuscripcionEscuelita.mockReset().mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -84,7 +96,33 @@ describe('createAlumnoHandler', () => {
 
     expect(Escuelita.prototype.save).toHaveBeenCalledTimes(1);
     expect(Escuelita.prototype.populate).toHaveBeenCalledTimes(2);
+    expect(sincronizarSuscripcionEscuelita).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it('should sync the Suscripcion when created with a planId', async () => {
+    Socio.findOne.mockResolvedValue(FAKE_SOCIO);
+    Escuelita.findOne.mockResolvedValue(null);
+    const res = mockRes();
+    await createAlumnoHandler({ body: { socioId: SOCIO_ID, planId: 'plan1' }, user: USER }, res);
+
+    expect(sincronizarSuscripcionEscuelita).toHaveBeenCalledWith(expect.objectContaining({
+      clubId: 'club1', planId: 'plan1',
+    }));
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it('should propagate a sync error status (ej. plan inválido)', async () => {
+    Socio.findOne.mockResolvedValue(FAKE_SOCIO);
+    Escuelita.findOne.mockResolvedValue(null);
+    const error = new Error('El plan indicado no existe, está inactivo o no es de tipo escuelita');
+    error.status = 400;
+    sincronizarSuscripcionEscuelita.mockRejectedValue(error);
+
+    const res = mockRes();
+    await createAlumnoHandler({ body: { socioId: SOCIO_ID, planId: 'plan-invalido' }, user: USER }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it('should return 500 on unexpected error', async () => {

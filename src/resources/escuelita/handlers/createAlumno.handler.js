@@ -1,6 +1,8 @@
+import mongoose from 'mongoose';
 import Socio from '../../socios/models/Socio.js';
 import Escuelita from '../models/Escuelita.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { sincronizarSuscripcionEscuelita } from '../services/sincronizarSuscripcionPlan.service.js';
 
 /**
  * @openapi
@@ -52,6 +54,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
  */
 
 export const createAlumnoHandler = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
     const { socioId, fechaInscripcion, estado = 'activo', observaciones = '', planId } = req.body;
 
@@ -78,27 +81,48 @@ export const createAlumnoHandler = async (req, res) => {
       return res.status(400).json({ message: 'La fecha de inscripción es inválida' });
     }
 
-    const alumno = new Escuelita({
-      clubId: req.user.clubId,
-      socioId,
-      dni: socio.dni || '',
-      fechaInscripcion: inscriptionDate,
-      estado,
-      planId: planId || null,
-      observaciones,
-      createdBy: req.user.email || req.user.id,
-      updatedBy: req.user.email || req.user.id,
+    let alumno;
+    await session.withTransaction(async () => {
+      alumno = new Escuelita({
+        clubId: req.user.clubId,
+        socioId,
+        dni: socio.dni || '',
+        fechaInscripcion: inscriptionDate,
+        estado,
+        planId: planId || null,
+        observaciones,
+        createdBy: req.user.email || req.user.id,
+        updatedBy: req.user.email || req.user.id,
+      });
+
+      await alumno.save({ session });
+
+      // Si se inscribe directamente con un plan asignado, también hay que
+      // crear la Suscripcion de cobro correspondiente (ver appcarc-backend#12).
+      if (planId) {
+        await sincronizarSuscripcionEscuelita({
+          clubId: req.user.clubId,
+          socioId: alumno.socioId,
+          planId,
+          req,
+          session,
+        });
+      }
     });
 
-    await alumno.save();
     await alumno.populate('socioId', 'socioNumber nombre apellido dni correoElectronico telefono estado active');
     await alumno.populate('planId', 'nombre tipo modalidad atributos');
 
     logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Escuelita', resourceId: alumno._id, before: null, after: alumno.toObject() });
     res.status(201).json(alumno);
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     console.error('Error creando alumno de escuelita:', error);
     res.status(500).json({ message: 'Error al crear alumno de escuelita' });
+  } finally {
+    session.endSession();
   }
 };
 

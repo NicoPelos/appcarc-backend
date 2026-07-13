@@ -1,5 +1,7 @@
+import mongoose from 'mongoose';
 import Escuelita from '../models/Escuelita.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { sincronizarSuscripcionEscuelita } from '../services/sincronizarSuscripcionPlan.service.js';
 
 /**
  * @openapi
@@ -51,6 +53,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
  */
 
 export const updateAlumnoHandler = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
     const updates = {};
     const { estado, fechaInscripcion, observaciones, planId } = req.body;
@@ -83,23 +86,47 @@ export const updateAlumnoHandler = async (req, res) => {
     const alumnoAntes = await Escuelita.findOne({ _id: req.params.id, clubId: req.user?.clubId, active: true }).lean();
     if (!alumnoAntes) return res.status(404).json({ message: 'Alumno de escuelita no encontrado' });
 
-    const alumno = await Escuelita.findOneAndUpdate(
-      { _id: req.params.id, clubId: req.user?.clubId, active: true },
-      updates,
-      { returnDocument: 'after' }
-    )
-      .populate('socioId', 'socioNumber nombre apellido dni correoElectronico telefono estado active')
-      .populate('planId', 'nombre tipo modalidad atributos');
+    let alumno;
+    await session.withTransaction(async () => {
+      alumno = await Escuelita.findOneAndUpdate(
+        { _id: req.params.id, clubId: req.user?.clubId, active: true },
+        updates,
+        { returnDocument: 'after', session },
+      );
 
-    if (!alumno) {
-      return res.status(404).json({ message: 'Alumno de escuelita no encontrado' });
-    }
+      if (!alumno) {
+        const error = new Error('Alumno de escuelita no encontrado');
+        error.status = 404;
+        throw error;
+      }
+
+      // El plan de escuelita determina qué se cobra: si cambia (o se quita),
+      // hay que mantener sincronizada la Suscripcion de cobro correspondiente
+      // (ver appcarc-backend#12).
+      if (planId !== undefined) {
+        await sincronizarSuscripcionEscuelita({
+          clubId: req.user.clubId,
+          socioId: alumno.socioId,
+          planId: updates.planId,
+          req,
+          session,
+        });
+      }
+    });
+
+    await alumno.populate('socioId', 'socioNumber nombre apellido dni correoElectronico telefono estado active');
+    await alumno.populate('planId', 'nombre tipo modalidad atributos');
 
     logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Escuelita', resourceId: alumno._id, before: alumnoAntes, after: alumno.toObject() });
     res.status(200).json(alumno);
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     console.error('Error actualizando alumno de escuelita:', error);
     res.status(500).json({ message: 'Error al actualizar alumno de escuelita' });
+  } finally {
+    session.endSession();
   }
 };
 
