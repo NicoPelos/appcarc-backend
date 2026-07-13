@@ -5,7 +5,12 @@ vi.mock('../../models/Plan.js', () => ({
   default: { find: vi.fn() },
 }));
 
+vi.mock('../../../suscripciones/models/Suscripcion.js', () => ({
+  default: { aggregate: vi.fn() },
+}));
+
 import Plan from '../../models/Plan.js';
+import Suscripcion from '../../../suscripciones/models/Suscripcion.js';
 
 const mockUser = { clubId: 'CARC' };
 const mockRes = () => {
@@ -18,11 +23,14 @@ const mockRes = () => {
 const makeQuery = (result) =>
   ({ populate: vi.fn().mockReturnThis(), sort: vi.fn().mockReturnThis(), lean: vi.fn().mockResolvedValue(result) });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  Suscripcion.aggregate.mockResolvedValue([]);
+});
 
 describe('getPlanesHandler', () => {
-  it('devuelve lista de planes activos', async () => {
-    const planes = [{ nombre: 'Socio Activo', tipo: 'social' }];
+  it('devuelve lista de planes activos con suscripcionesActivas en 0 si no hay conteos', async () => {
+    const planes = [{ _id: 'p1', nombre: 'Socio Activo', tipo: 'social' }];
     Plan.find.mockReturnValue(makeQuery(planes));
 
     const req = { user: mockUser, query: {} };
@@ -32,7 +40,23 @@ describe('getPlanesHandler', () => {
 
     expect(Plan.find).toHaveBeenCalledWith({ clubId: 'CARC', active: true });
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(planes);
+    expect(res.json).toHaveBeenCalledWith([{ ...planes[0], suscripcionesActivas: 0 }]);
+  });
+
+  it('agrega el conteo real de suscripciones activas por plan', async () => {
+    const planes = [{ _id: 'p1', nombre: 'AvanzadosX1' }, { _id: 'p2', nombre: 'JuvenilesX1' }];
+    Plan.find.mockReturnValue(makeQuery(planes));
+    Suscripcion.aggregate.mockResolvedValue([{ _id: 'p1', count: 3 }]);
+
+    const req = { user: mockUser, query: {} };
+    const res = mockRes();
+
+    await getPlanesHandler(req, res);
+
+    expect(res.json).toHaveBeenCalledWith([
+      { ...planes[0], suscripcionesActivas: 3 },
+      { ...planes[1], suscripcionesActivas: 0 },
+    ]);
   });
 
   it('filtra por tipo', async () => {
