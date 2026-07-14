@@ -38,7 +38,7 @@ export const enviarRecordatorios = async () => {
 
       if (!social?.mesesDeuda && !escuelita?.mesesDeuda) continue;
 
-      await sendPushNotification([user.expoPushToken], {
+      await sendPushNotification([{ userId: user._id, clubId: user.clubId, token: user.expoPushToken }], {
         title: `Recordatorio de cuotas - ${getMesActual()}`,
         body: buildBody(social, escuelita),
         data: { tipo: 'recordatorio_cuotas' },

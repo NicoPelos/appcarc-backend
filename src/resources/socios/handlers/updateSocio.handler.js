@@ -104,11 +104,11 @@ export const updateSocioHandler = async (req, res) => {
     }
 
     if (Object.keys(changes).length > 0) {
-      const user = await User.findOne({ socioId: socioAntes._id.toString(), active: true, expoPushToken: { $ne: null } })
-        .select('expoPushToken').lean();
-      if (user?.expoPushToken) {
+      const user = await User.findOne({ socioId: socioAntes._id.toString(), active: true })
+        .select('expoPushToken clubId').lean();
+      if (user) {
         const body = buildNotificationMessage(changes);
-        sendPushNotification([user.expoPushToken], {
+        sendPushNotification([{ userId: user._id, clubId: user.clubId, token: user.expoPushToken }], {
           title: 'Actualización de tu ficha de socio',
           body,
           data: { tipo: 'socio_update', socioId: id },
