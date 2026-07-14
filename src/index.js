@@ -89,6 +89,9 @@ app.get('/', (req, res) => {
 // Página pública "link en bio" para Instagram
 app.use('/link', express.static(join(__dirname, '../public/link')));
 
+// PWA de la app (alternativa a la instalación nativa, pensada para iOS)
+app.use('/app', express.static(join(__dirname, '../public/app'), { extensions: ['html'] }));
+
 // Use application routes
 app.use('/api', routes);
 

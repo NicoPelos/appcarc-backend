@@ -18,6 +18,10 @@ uploads/
 # Binarios / APKs
 public/downloads/
 
+# Build de la PWA (se genera con `npx expo export -p web` en appCARC-mobile
+# y se copia acá — no es código fuente, se regenera en cada actualización)
+public/app/
+
 # Mac
 .DS_Store
 
