@@ -8,7 +8,7 @@ const CLUB_ID = process.env.DEFAULT_CLUB_ID || 'CARC';
 
 const NOTIFICATION = {
   title: 'Hay una versión nueva de la app',
-  body: 'Descargala acá: https://raspberrypi.tail703951.ts.net/download',
+  body: 'Entrá a nuestra bio de Instagram y tocá "Descargar la app (Android)" para actualizarla.',
   data: { tipo: 'app-update', url: 'https://raspberrypi.tail703951.ts.net/download' },
 };
 
