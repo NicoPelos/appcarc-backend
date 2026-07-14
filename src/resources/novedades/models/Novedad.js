@@ -6,7 +6,7 @@ const novedadSchema = new mongoose.Schema({
   cuerpo: { type: String, default: '' },
   imagenUrl: { type: String, default: null },
   linkOriginal: { type: String, default: null },
-  fuente: { type: String, enum: ['instagram', 'manual'], required: true, index: true },
+  fuente: { type: String, enum: ['instagram', 'manual', 'rss'], required: true, index: true },
   fuenteId: { type: String, default: undefined }, // GUID del item RSS — evita duplicados
   categoria: { type: String, default: '' },
   fechaPublicacion: { type: Date, default: Date.now, index: true },
