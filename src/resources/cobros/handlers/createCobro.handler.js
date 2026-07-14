@@ -117,13 +117,14 @@ export const createCobroHandler = async (req, res) => {
     const socioIds = Object.keys(cuotasBySocioId);
     const users = await User.find({
       socioId: { $in: socioIds },
+      clubId: req.user?.clubId,
       active: true,
-    }).select('socioId expoPushToken').lean();
+    }).select('socioId clubId expoPushToken').lean();
 
     for (const user of users) {
       const cuotas = cuotasBySocioId[user.socioId];
       if (!cuotas?.length) continue;
-      sendPushNotification([{ userId: user._id, clubId: req.user?.clubId, token: user.expoPushToken }], {
+      sendPushNotification([{ userId: user._id, clubId: user.clubId, token: user.expoPushToken }], {
         title: 'Pago registrado',
         body: buildCuotaBody(cuotas, etiquetaNombreById),
         data: { tipo: 'cobro_registrado', cobroId: result.cobro._id.toString() },
