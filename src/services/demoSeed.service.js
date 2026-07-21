@@ -15,7 +15,9 @@ import Movimiento from '../resources/movimientos/models/Movimiento.js';
 import Escuelita from '../resources/escuelita/models/Escuelita.js';
 import Asistencia from '../resources/asistencias/models/Asistencia.js';
 import Novedad from '../resources/novedades/models/Novedad.js';
+import Notification from '../resources/notificaciones/models/Notification.js';
 import { PERMISOS, TODOS_LOS_PERMISOS } from '../constants/permisos.js';
+import { ADVERTENCIA } from '../constants/advertenciaCodes.js';
 
 // Club exclusivo para el entorno demo (autoservicio público, ver
 // appcarc-backend#9). TODO lo que este archivo borra/crea está scopeado a
@@ -106,6 +108,7 @@ async function borrarDatosDemo() {
     Escuelita.deleteMany({ clubId: DEMO_CLUB_ID }),
     Asistencia.deleteMany({ clubId: DEMO_CLUB_ID }),
     Novedad.deleteMany({ clubId: DEMO_CLUB_ID }),
+    Notification.deleteMany({ clubId: DEMO_CLUB_ID }),
     Plan.deleteMany({ clubId: DEMO_CLUB_ID }),
     Precios.deleteMany({ clubId: DEMO_CLUB_ID }),
     Etiqueta.deleteMany({ clubId: DEMO_CLUB_ID }),
@@ -125,7 +128,7 @@ const SOCIOS_DEMO = [
   { dni: '99000007', socioNumber: 'DEMO-007', nombre: 'Gimena', apellido: 'Escuelita Con Deuda', estado: 'Activo', deudaMeses: 0, escuelita: true, escuelitaDeuda: true },
   { dni: '99000008', socioNumber: 'DEMO-008', nombre: 'Hugo', apellido: 'Muro Libre', estado: 'Activo', deudaMeses: 0, muroLibre: true },
   { dni: '99000009', socioNumber: 'DEMO-009', nombre: 'Irene', apellido: 'Común', estado: 'Activo', deudaMeses: 1 },
-  { dni: '99000010', socioNumber: 'DEMO-010', nombre: 'Demo', apellido: 'Socio', estado: 'Activo', deudaMeses: 1, esLoginSocio: true },
+  { dni: '99000010', socioNumber: 'DEMO-010', nombre: 'Demo', apellido: 'Socio', estado: 'Activo', deudaMeses: 1, esLoginSocio: true, muroLibre: true, muroLibreAdvertencia: true },
   { dni: '99000011', socioNumber: 'DEMO-011', nombre: 'Demo', apellido: 'Admin', estado: 'Activo', deudaMeses: 0, esLoginAdmin: true },
   { dni: '99000012', socioNumber: 'DEMO-012', nombre: 'Julia', apellido: 'Adherente Con Deuda', estado: 'Adherente', deudaMeses: 3 },
 ];
@@ -280,22 +283,31 @@ export async function resetDemoClub() {
         }
 
         if (def.muroLibre) {
-          await Asistencia.create([{
-            clubId: DEMO_CLUB_ID,
-            tipo: 'muro_libre',
-            socioId: socio._id,
-            nombre: socio.nombre,
-            apellido: socio.apellido,
-            dni: socio.dni,
-            esSocio: true,
-            fecha: new Date(),
-            tipoPase: 'diario',
-            estadoPago: 'pagado',
-            monto: 5000,
-            formaPago: 'Efectivo',
-            createdBy: BY,
-            updatedBy: BY,
-          }], { session });
+          // Varias visitas repartidas en las últimas semanas, no solo hoy.
+          const diasAtras = [0, 6, 13, 20];
+          for (let v = 0; v < diasAtras.length; v++) {
+            const fechaVisita = new Date(Date.now() - diasAtras[v] * 24 * 60 * 60 * 1000);
+            const esUltima = v === 0;
+            await Asistencia.create([{
+              clubId: DEMO_CLUB_ID,
+              tipo: 'muro_libre',
+              socioId: socio._id,
+              nombre: socio.nombre,
+              apellido: socio.apellido,
+              dni: socio.dni,
+              esSocio: true,
+              fecha: fechaVisita,
+              tipoPase: 'diario',
+              estadoPago: 'pagado',
+              monto: 5000,
+              formaPago: 'Efectivo',
+              advertencias: (esUltima && def.muroLibreAdvertencia)
+                ? [{ codigo: ADVERTENCIA.CUOTA_SOCIAL_IMPAGA, mensaje: `Sin cuota social pagada para ${currentPeriodo(0)}` }]
+                : [],
+              createdBy: BY,
+              updatedBy: BY,
+            }], { session });
+          }
         }
       });
     } finally {
@@ -306,7 +318,7 @@ export async function resetDemoClub() {
   const passwordHashSocio = await bcrypt.hash(DEMO_CREDENTIALS.socio.password, 10);
   const passwordHashAdmin = await bcrypt.hash(DEMO_CREDENTIALS.admin.password, 10);
 
-  await User.insertMany([
+  const [userSocio] = await User.insertMany([
     {
       email: DEMO_CREDENTIALS.socio.email,
       password: passwordHashSocio,
@@ -325,6 +337,16 @@ export async function resetDemoClub() {
       socioId: String(socioIdByLogin.admin),
       active: true,
     },
+  ]);
+
+  const dias = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+  await Notification.insertMany([
+    // Sin ver
+    { clubId: DEMO_CLUB_ID, userId: userSocio._id, title: 'Pago registrado', body: 'Se registró el pago de tu cuota social para el mes pasado', data: { tipo: 'cobro_registrado' }, read: false, createdAt: dias(0) },
+    { clubId: DEMO_CLUB_ID, userId: userSocio._id, title: 'Novedad del club', body: 'Salida de trekking este fin de semana — anotate en la bio de Instagram', data: { tipo: 'novedad' }, read: false, createdAt: dias(1) },
+    // Historial (ya leídas)
+    { clubId: DEMO_CLUB_ID, userId: userSocio._id, title: 'Recordatorio de cuotas - este mes', body: 'Tenés cuotas pendientes: cuota social (1 mes). ¡No te olvides de ponerte al día!', data: { tipo: 'recordatorio_cuotas' }, read: true, createdAt: dias(5) },
+    { clubId: DEMO_CLUB_ID, userId: userSocio._id, title: 'Actualización de tu ficha de socio', body: 'Se actualizó tu teléfono de contacto', data: { tipo: 'socio_update' }, read: true, createdAt: dias(12) },
   ]);
 
   await Novedad.insertMany([
