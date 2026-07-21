@@ -8,6 +8,8 @@ import User from '../../../resources/usuarios/models/User.js';
 import Escuelita from '../../../resources/escuelita/models/Escuelita.js';
 import Asistencia from '../../../resources/asistencias/models/Asistencia.js';
 import Plan from '../../../resources/planes/models/Plan.js';
+import Rol from '../../../resources/roles/models/Rol.js';
+import { PERMISOS } from '../../../constants/permisos.js';
 
 const mockRes = () => {
   const res = {};
@@ -25,11 +27,11 @@ describe('resetDemoClub (integración)', () => {
     expect(club.active).toBe(true);
 
     const socios = await Socio.find({ clubId: DEMO_CLUB_ID }).lean();
-    expect(socios.length).toBe(14);
+    expect(socios.length).toBe(16);
 
     const users = await User.find({ clubId: DEMO_CLUB_ID }).lean();
     expect(users.map((u) => u.email).sort()).toEqual(
-      [DEMO_CREDENTIALS.socio.email, DEMO_CREDENTIALS.admin.email].sort(),
+      Object.values(DEMO_CREDENTIALS).map((c) => c.email).sort(),
     );
 
     const alDia = socios.find((s) => s.apellido === 'Al Día');
@@ -77,15 +79,39 @@ describe('resetDemoClub (integración)', () => {
     expect(pedro.totalDeuda).toBeGreaterThan(0);
   });
 
+  it('crea logins de secretaria/profesor/palestrero con permisos acotados y propios', async () => {
+    await resetDemoClub();
+
+    const users = await User.find({ clubId: DEMO_CLUB_ID }).lean();
+    for (const rol of ['secretaria', 'profesor', 'palestrero']) {
+      const user = users.find((u) => u.roles.includes(rol));
+      expect(user, `debería existir un login con rol ${rol}`).toBeTruthy();
+      expect(user.roles).toContain('socio'); // también son socios, como en CARC real
+
+      const rolDoc = await Rol.findOne({ clubId: DEMO_CLUB_ID, nombre: rol }).lean();
+      expect(rolDoc).toBeTruthy();
+      // No deberían tener permisos de administración total.
+      expect(rolDoc.permisos).not.toContain(PERMISOS.USUARIOS_WRITE);
+    }
+
+    const profesorRol = await Rol.findOne({ clubId: DEMO_CLUB_ID, nombre: 'profesor' }).lean();
+    expect(profesorRol.permisos).toContain(PERMISOS.ESCUELITA_WRITE);
+    expect(profesorRol.permisos).not.toContain(PERMISOS.MURO_LIBRE_WRITE);
+
+    const palestreroRol = await Rol.findOne({ clubId: DEMO_CLUB_ID, nombre: 'palestrero' }).lean();
+    expect(palestreroRol.permisos).toContain(PERMISOS.MURO_LIBRE_WRITE);
+    expect(palestreroRol.permisos).not.toContain(PERMISOS.ESCUELITA_WRITE);
+  });
+
   it('es idempotente: correrlo dos veces no duplica datos ni rompe', async () => {
     await resetDemoClub();
     await resetDemoClub();
 
     const socios = await Socio.find({ clubId: DEMO_CLUB_ID }).lean();
-    expect(socios.length).toBe(14);
+    expect(socios.length).toBe(16);
 
     const users = await User.find({ clubId: DEMO_CLUB_ID }).lean();
-    expect(users.length).toBe(2);
+    expect(users.length).toBe(5);
   });
 
   it('no toca datos de otros clubes', async () => {

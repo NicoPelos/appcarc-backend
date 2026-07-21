@@ -29,6 +29,9 @@ const BY = 'seed:demo';
 export const DEMO_CREDENTIALS = {
   socio: { email: 'socio@demo.appclub.ar', password: 'DemoSocio2026!' },
   admin: { email: 'admin@demo.appclub.ar', password: 'DemoAdmin2026!' },
+  secretaria: { email: 'secretaria@demo.appclub.ar', password: 'DemoSecretaria2026!' },
+  profesor: { email: 'profesor@demo.appclub.ar', password: 'DemoProfesor2026!' },
+  palestrero: { email: 'palestrero@demo.appclub.ar', password: 'DemoPalestrero2026!' },
 };
 
 const P = PERMISOS;
@@ -130,11 +133,13 @@ const SOCIOS_DEMO = [
   { dni: '99000007', socioNumber: 'DEMO-007', nombre: 'Gimena', apellido: 'Escuelita Avanzados', estado: 'Activo', deudaMeses: 0, escuelitaPlan: 'avanzadosX2', escuelitaDeuda: true },
   { dni: '99000008', socioNumber: 'DEMO-008', nombre: 'Hugo', apellido: 'Muro Libre', estado: 'Activo', deudaMeses: 0, muroLibre: true },
   { dni: '99000009', socioNumber: 'DEMO-009', nombre: 'Irene', apellido: 'Común', estado: 'Activo', deudaMeses: 1 },
-  { dni: '99000010', socioNumber: 'DEMO-010', nombre: 'Demo', apellido: 'Socio', estado: 'Activo', deudaMeses: 1, esLoginSocio: true, muroLibre: true, muroLibreAdvertencia: true },
-  { dni: '99000011', socioNumber: 'DEMO-011', nombre: 'Demo', apellido: 'Admin', estado: 'Activo', deudaMeses: 0, esLoginAdmin: true },
+  { dni: '99000010', socioNumber: 'DEMO-010', nombre: 'Demo', apellido: 'Socio', estado: 'Activo', deudaMeses: 1, loginRole: 'socio', muroLibre: true, muroLibreAdvertencia: true },
+  { dni: '99000011', socioNumber: 'DEMO-011', nombre: 'Demo', apellido: 'Admin', estado: 'Activo', deudaMeses: 0, loginRole: 'admin' },
   { dni: '99000012', socioNumber: 'DEMO-012', nombre: 'Julia', apellido: 'Adherente Con Deuda', estado: 'Adherente', deudaMeses: 3 },
   { dni: '99000013', socioNumber: 'DEMO-013', nombre: 'Karina', apellido: 'Escuelita Pausada', estado: 'Activo', deudaMeses: 0, escuelitaPlan: 'principiantesX2', escuelitaEstado: 'pausado' },
-  { dni: '99000014', socioNumber: 'DEMO-014', nombre: 'Pedro', apellido: 'Profesor', estado: 'Activo', deudaMeses: 0, esStaffProfesor: true },
+  { dni: '99000014', socioNumber: 'DEMO-014', nombre: 'Pedro', apellido: 'Profesor', estado: 'Activo', deudaMeses: 0, esStaffProfesor: true, loginRole: 'profesor' },
+  { dni: '99000015', socioNumber: 'DEMO-015', nombre: 'Rocío', apellido: 'Palestrero', estado: 'Activo', deudaMeses: 0, loginRole: 'palestrero' },
+  { dni: '99000016', socioNumber: 'DEMO-016', nombre: 'Sofía', apellido: 'Secretaria', estado: 'Activo', deudaMeses: 0, loginRole: 'secretaria' },
 ];
 
 const ROLES_DEMO = [
@@ -155,6 +160,27 @@ const ROLES_DEMO = [
       P.ASISTENCIAS_READ, P.ASISTENCIAS_WRITE,
       P.NOVEDADES_WRITE,
       P.AUDIT_READ,
+    ],
+  },
+  {
+    nombre: 'profesor',
+    permisos: [
+      P.SOCIOS_READ,
+      P.ESCUELITA_READ, P.ESCUELITA_WRITE, P.ESCUELITA_DELETE, P.ESCUELITA_CHECKIN,
+      P.PLANES_READ,
+      P.ETIQUETAS_READ, P.PRECIOS_READ,
+      P.HORARIOS_READ, P.HORARIOS_WRITE, P.HORARIOS_DELETE,
+      P.ASISTENCIAS_READ, P.ASISTENCIAS_WRITE,
+    ],
+  },
+  {
+    nombre: 'palestrero',
+    permisos: [
+      P.SOCIOS_READ,
+      P.MURO_LIBRE_READ, P.MURO_LIBRE_WRITE, P.MURO_LIBRE_DELETE, P.MURO_LIBRE_CHECKIN,
+      P.HORARIOS_READ, P.HORARIOS_WRITE, P.HORARIOS_DELETE,
+      P.ETIQUETAS_READ, P.PRECIOS_READ,
+      P.MOVIMIENTOS_READ, P.MOVIMIENTOS_WRITE,
     ],
   },
   { nombre: 'socio', permisos: [P.MURO_LIBRE_READ, P.MURO_LIBRE_CHECKIN, P.ASISTENCIAS_READ] },
@@ -285,15 +311,14 @@ export async function resetDemoClub() {
       nombre: def.nombre,
       dni: def.dni,
       estado: def.estado,
-      correoElectronico: def.esLoginSocio ? DEMO_CREDENTIALS.socio.email : def.esLoginAdmin ? DEMO_CREDENTIALS.admin.email : null,
+      correoElectronico: def.loginRole ? DEMO_CREDENTIALS[def.loginRole].email : null,
       clubId: DEMO_CLUB_ID,
       active: true,
       createdBy: BY,
       updatedBy: BY,
     });
 
-    if (def.esLoginSocio) socioIdByLogin.socio = socio._id;
-    if (def.esLoginAdmin) socioIdByLogin.admin = socio._id;
+    if (def.loginRole) socioIdByLogin[def.loginRole] = socio._id;
 
     if (def.estado === 'Baja') continue; // sin suscripción ni cuotas — coherente con estar de baja
 
@@ -449,29 +474,26 @@ export async function resetDemoClub() {
     }
   }
 
-  const passwordHashSocio = await bcrypt.hash(DEMO_CREDENTIALS.socio.password, 10);
-  const passwordHashAdmin = await bcrypt.hash(DEMO_CREDENTIALS.admin.password, 10);
+  const USUARIOS_DEMO = [
+    { loginRole: 'socio', nombre: 'Demo Socio', roles: ['socio'] },
+    { loginRole: 'admin', nombre: 'Demo Admin', roles: ['admin', 'socio'] },
+    { loginRole: 'secretaria', nombre: 'Sofía Secretaria', roles: ['secretaria', 'socio'] },
+    { loginRole: 'profesor', nombre: 'Pedro Profesor', roles: ['profesor', 'socio'] },
+    { loginRole: 'palestrero', nombre: 'Rocío Palestrero', roles: ['palestrero', 'socio'] },
+  ];
 
-  const [userSocio] = await User.insertMany([
-    {
-      email: DEMO_CREDENTIALS.socio.email,
-      password: passwordHashSocio,
-      nombre: 'Demo Socio',
-      roles: ['socio'],
+  const usersCreados = await User.insertMany(
+    await Promise.all(USUARIOS_DEMO.map(async (u) => ({
+      email: DEMO_CREDENTIALS[u.loginRole].email,
+      password: await bcrypt.hash(DEMO_CREDENTIALS[u.loginRole].password, 10),
+      nombre: u.nombre,
+      roles: u.roles,
       clubId: DEMO_CLUB_ID,
-      socioId: String(socioIdByLogin.socio),
+      socioId: String(socioIdByLogin[u.loginRole]),
       active: true,
-    },
-    {
-      email: DEMO_CREDENTIALS.admin.email,
-      password: passwordHashAdmin,
-      nombre: 'Demo Admin',
-      roles: ['admin', 'socio'],
-      clubId: DEMO_CLUB_ID,
-      socioId: String(socioIdByLogin.admin),
-      active: true,
-    },
-  ]);
+    }))),
+  );
+  const userSocio = usersCreados.find((u) => u.email === DEMO_CREDENTIALS.socio.email);
 
   const dias = (n) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
   await Notification.insertMany([

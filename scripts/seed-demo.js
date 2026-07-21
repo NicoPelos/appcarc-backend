@@ -11,7 +11,8 @@ const result = await resetDemoClub();
 
 console.log(`\n✅ Club demo reseteado: ${result.socios} socios ficticios.`);
 console.log('\nCredenciales:');
-console.log(`  Socio: ${DEMO_CREDENTIALS.socio.email} / ${DEMO_CREDENTIALS.socio.password}`);
-console.log(`  Admin: ${DEMO_CREDENTIALS.admin.email} / ${DEMO_CREDENTIALS.admin.password}`);
+for (const [rol, { email, password }] of Object.entries(DEMO_CREDENTIALS)) {
+  console.log(`  ${rol.padEnd(11)}: ${email} / ${password}`);
+}
 
 await mongoose.disconnect();
