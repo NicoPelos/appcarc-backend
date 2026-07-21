@@ -5,6 +5,8 @@ import { getClubsHandler }       from './handlers/getClubs.handler.js';
 import { createClubHandler }     from './handlers/createClub.handler.js';
 import { updateClubHandler }     from './handlers/updateClub.handler.js';
 import { suspendClubHandler }    from './handlers/suspendClub.handler.js';
+import { getClubInstagramConfigHandler } from './handlers/getClubInstagramConfig.handler.js';
+import { updateClubInstagramConfigHandler } from './handlers/updateClubInstagramConfig.handler.js';
 import { getUsersHandler }       from './handlers/getUsers.handler.js';
 import { createSuperUserHandler }from './handlers/createSuperUser.handler.js';
 import { updateSuperUserHandler }from './handlers/updateSuperUser.handler.js';
@@ -22,6 +24,8 @@ router.get('/clubs',              protectSuper, getClubsHandler);
 router.post('/clubs',             protectSuper, createClubHandler);
 router.patch('/clubs/:id',        protectSuper, updateClubHandler);
 router.patch('/clubs/:id/suspend',protectSuper, suspendClubHandler);
+router.get('/clubs/:id/instagram',   protectSuper, getClubInstagramConfigHandler);
+router.put('/clubs/:id/instagram',   protectSuper, updateClubInstagramConfigHandler);
 
 // Usuarios
 router.get('/users',                        protectSuper, getUsersHandler);
