@@ -14,6 +14,7 @@ import Cobro from '../resources/cobros/models/Cobro.js';
 import Movimiento from '../resources/movimientos/models/Movimiento.js';
 import Escuelita from '../resources/escuelita/models/Escuelita.js';
 import Asistencia from '../resources/asistencias/models/Asistencia.js';
+import Horarios from '../resources/horarios/models/Horarios.js';
 import Novedad from '../resources/novedades/models/Novedad.js';
 import Notification from '../resources/notificaciones/models/Notification.js';
 import { PERMISOS, TODOS_LOS_PERMISOS } from '../constants/permisos.js';
@@ -107,6 +108,7 @@ async function borrarDatosDemo() {
     Suscripcion.deleteMany({ clubId: DEMO_CLUB_ID }),
     Escuelita.deleteMany({ clubId: DEMO_CLUB_ID }),
     Asistencia.deleteMany({ clubId: DEMO_CLUB_ID }),
+    Horarios.deleteMany({ clubId: DEMO_CLUB_ID }),
     Novedad.deleteMany({ clubId: DEMO_CLUB_ID }),
     Notification.deleteMany({ clubId: DEMO_CLUB_ID }),
     Plan.deleteMany({ clubId: DEMO_CLUB_ID }),
@@ -124,13 +126,15 @@ const SOCIOS_DEMO = [
   { dni: '99000003', socioNumber: 'DEMO-003', nombre: 'Carla', apellido: 'Con Deuda Larga', estado: 'Activo', deudaMeses: 4 },
   { dni: '99000004', socioNumber: 'DEMO-004', nombre: 'Diego', apellido: 'Adherente', estado: 'Adherente', deudaMeses: 0 },
   { dni: '99000005', socioNumber: 'DEMO-005', nombre: 'Elena', apellido: 'De Baja', estado: 'Baja', deudaMeses: 0 },
-  { dni: '99000006', socioNumber: 'DEMO-006', nombre: 'Facundo', apellido: 'Escuelita Al Día', estado: 'Activo', deudaMeses: 0, escuelita: true },
-  { dni: '99000007', socioNumber: 'DEMO-007', nombre: 'Gimena', apellido: 'Escuelita Con Deuda', estado: 'Activo', deudaMeses: 0, escuelita: true, escuelitaDeuda: true },
+  { dni: '99000006', socioNumber: 'DEMO-006', nombre: 'Facundo', apellido: 'Escuelita Principiantes', estado: 'Activo', deudaMeses: 0, escuelitaPlan: 'principiantesX1' },
+  { dni: '99000007', socioNumber: 'DEMO-007', nombre: 'Gimena', apellido: 'Escuelita Avanzados', estado: 'Activo', deudaMeses: 0, escuelitaPlan: 'avanzadosX2', escuelitaDeuda: true },
   { dni: '99000008', socioNumber: 'DEMO-008', nombre: 'Hugo', apellido: 'Muro Libre', estado: 'Activo', deudaMeses: 0, muroLibre: true },
   { dni: '99000009', socioNumber: 'DEMO-009', nombre: 'Irene', apellido: 'Común', estado: 'Activo', deudaMeses: 1 },
   { dni: '99000010', socioNumber: 'DEMO-010', nombre: 'Demo', apellido: 'Socio', estado: 'Activo', deudaMeses: 1, esLoginSocio: true, muroLibre: true, muroLibreAdvertencia: true },
   { dni: '99000011', socioNumber: 'DEMO-011', nombre: 'Demo', apellido: 'Admin', estado: 'Activo', deudaMeses: 0, esLoginAdmin: true },
   { dni: '99000012', socioNumber: 'DEMO-012', nombre: 'Julia', apellido: 'Adherente Con Deuda', estado: 'Adherente', deudaMeses: 3 },
+  { dni: '99000013', socioNumber: 'DEMO-013', nombre: 'Karina', apellido: 'Escuelita Pausada', estado: 'Activo', deudaMeses: 0, escuelitaPlan: 'principiantesX2', escuelitaEstado: 'pausado' },
+  { dni: '99000014', socioNumber: 'DEMO-014', nombre: 'Pedro', apellido: 'Profesor', estado: 'Activo', deudaMeses: 0, esStaffProfesor: true },
 ];
 
 const ROLES_DEMO = [
@@ -175,24 +179,98 @@ export async function resetDemoClub() {
 
   await Rol.insertMany(ROLES_DEMO.map((r) => ({ clubId: DEMO_CLUB_ID, nombre: r.nombre, permisos: r.permisos, active: true })));
 
-  const [etiquetaSocial, etiquetaEscuelita, etiquetaMuroDiario] = await Etiqueta.insertMany([
+  const [
+    etiquetaSocial,
+    etiquetaEscuelitaX1,
+    etiquetaEscuelitaX2,
+    etiquetaMuroDiarioSocio,
+    etiquetaMuroDiarioNoSocio,
+    etiquetaHoraProfesor,
+    etiquetaHoraPalestrero,
+  ] = await Etiqueta.insertMany([
     { clubId: DEMO_CLUB_ID, nombre: 'Cuota Social', unidad: 'mes', uso_sistema: 'cuota_social', active: true, createdBy: BY, updatedBy: BY },
-    { clubId: DEMO_CLUB_ID, nombre: 'Cuota Escuelita', unidad: 'mes', uso_sistema: null, active: true, createdBy: BY, updatedBy: BY },
-    { clubId: DEMO_CLUB_ID, nombre: 'Muro Libre Diario', unidad: 'dia', uso_sistema: 'muro_libre_diario_socio', active: true, createdBy: BY, updatedBy: BY },
+    { clubId: DEMO_CLUB_ID, nombre: 'Cuota Escuelita x1', unidad: 'mes', uso_sistema: null, active: true, createdBy: BY, updatedBy: BY },
+    { clubId: DEMO_CLUB_ID, nombre: 'Cuota Escuelita x2', unidad: 'mes', uso_sistema: null, active: true, createdBy: BY, updatedBy: BY },
+    { clubId: DEMO_CLUB_ID, nombre: 'Muro Libre Diario - Socio', unidad: 'dia', uso_sistema: 'muro_libre_diario_socio', active: true, createdBy: BY, updatedBy: BY },
+    { clubId: DEMO_CLUB_ID, nombre: 'Muro Libre Diario - No Socio', unidad: 'dia', uso_sistema: 'muro_libre_diario_no_socio', active: true, createdBy: BY, updatedBy: BY },
+    { clubId: DEMO_CLUB_ID, nombre: 'Hora Profesor', unidad: 'hora', uso_sistema: null, active: true, createdBy: BY, updatedBy: BY },
+    { clubId: DEMO_CLUB_ID, nombre: 'Hora Palestrero', unidad: 'hora', uso_sistema: null, active: true, createdBy: BY, updatedBy: BY },
   ]);
 
   const vigenteDesde = new Date();
   vigenteDesde.setUTCMonth(vigenteDesde.getUTCMonth() - 6);
   await Precios.insertMany([
     { clubId: DEMO_CLUB_ID, etiquetaId: etiquetaSocial._id, nombre: 'Cuota Social', unidad: 'mes', monto: 15000, vigenteDesde, active: true, createdBy: BY, updatedBy: BY },
-    { clubId: DEMO_CLUB_ID, etiquetaId: etiquetaEscuelita._id, nombre: 'Cuota Escuelita', unidad: 'mes', monto: 20000, vigenteDesde, active: true, createdBy: BY, updatedBy: BY },
-    { clubId: DEMO_CLUB_ID, etiquetaId: etiquetaMuroDiario._id, nombre: 'Muro Libre Diario', unidad: 'dia', monto: 5000, vigenteDesde, active: true, createdBy: BY, updatedBy: BY },
+    { clubId: DEMO_CLUB_ID, etiquetaId: etiquetaEscuelitaX1._id, nombre: 'Cuota Escuelita x1', unidad: 'mes', monto: 20000, vigenteDesde, active: true, createdBy: BY, updatedBy: BY },
+    { clubId: DEMO_CLUB_ID, etiquetaId: etiquetaEscuelitaX2._id, nombre: 'Cuota Escuelita x2', unidad: 'mes', monto: 30000, vigenteDesde, active: true, createdBy: BY, updatedBy: BY },
+    { clubId: DEMO_CLUB_ID, etiquetaId: etiquetaMuroDiarioSocio._id, nombre: 'Muro Libre Diario - Socio', unidad: 'dia', monto: 5000, vigenteDesde, active: true, createdBy: BY, updatedBy: BY },
+    { clubId: DEMO_CLUB_ID, etiquetaId: etiquetaMuroDiarioNoSocio._id, nombre: 'Muro Libre Diario - No Socio', unidad: 'dia', monto: 8000, vigenteDesde, active: true, createdBy: BY, updatedBy: BY },
+    { clubId: DEMO_CLUB_ID, etiquetaId: etiquetaHoraProfesor._id, nombre: 'Hora Profesor', unidad: 'hora', monto: 4000, vigenteDesde, active: true, createdBy: BY, updatedBy: BY },
+    { clubId: DEMO_CLUB_ID, etiquetaId: etiquetaHoraPalestrero._id, nombre: 'Hora Palestrero', unidad: 'hora', monto: 3500, vigenteDesde, active: true, createdBy: BY, updatedBy: BY },
   ]);
 
-  const [planSocial, planEscuelita] = await Plan.insertMany([
-    { clubId: DEMO_CLUB_ID, nombre: 'Socio Activo', tipo: 'social', modalidad: 'mensual', etiquetaId: etiquetaSocial._id, atributos: {}, active: true, createdBy: BY, updatedBy: BY },
-    { clubId: DEMO_CLUB_ID, nombre: 'Escuelita X2', tipo: 'escuelita', modalidad: 'mensual', etiquetaId: etiquetaEscuelita._id, atributos: { frecuenciaSemanal: 2 }, active: true, createdBy: BY, updatedBy: BY },
+  const [
+    planSocial,
+    planPrincipiantesX1,
+    planPrincipiantesX2,
+    planAvanzadosX2,
+    planMuroSocio,
+    planMuroNoSocio,
+  ] = await Plan.insertMany([
+    {
+      clubId: DEMO_CLUB_ID, nombre: 'Socio Activo',
+      descripcion: 'Cuota mensual estándar para socios activos del club.',
+      tipo: 'social', modalidad: 'mensual', etiquetaId: etiquetaSocial._id, atributos: {},
+      active: true, createdBy: BY, updatedBy: BY,
+    },
+    {
+      clubId: DEMO_CLUB_ID, nombre: 'Escuelita Principiantes X1',
+      descripcion: 'Para alumnos que recién empiezan a escalar: una clase por semana.',
+      tipo: 'escuelita', modalidad: 'mensual', etiquetaId: etiquetaEscuelitaX1._id,
+      atributos: { frecuenciaSemanal: 1, codigo: 'principiantes_x1' },
+      active: true, createdBy: BY, updatedBy: BY,
+    },
+    {
+      clubId: DEMO_CLUB_ID, nombre: 'Escuelita Principiantes X2',
+      descripcion: 'Alumnos principiantes que ya entrenan dos veces por semana.',
+      tipo: 'escuelita', modalidad: 'mensual', etiquetaId: etiquetaEscuelitaX2._id,
+      atributos: { frecuenciaSemanal: 2, codigo: 'principiantes_x2' },
+      active: true, createdBy: BY, updatedBy: BY,
+    },
+    {
+      clubId: DEMO_CLUB_ID, nombre: 'Escuelita Avanzados X2',
+      descripcion: 'Grupo avanzado de escalada, dos clases semanales con mayor nivel técnico.',
+      tipo: 'escuelita', modalidad: 'mensual', etiquetaId: etiquetaEscuelitaX2._id,
+      atributos: { frecuenciaSemanal: 2, codigo: 'avanzados_x2' },
+      active: true, createdBy: BY, updatedBy: BY,
+    },
+    {
+      clubId: DEMO_CLUB_ID, nombre: 'Muro Libre Diario - Socio',
+      descripcion: 'Pase diario para socios que quieren usar el muro de escalada libre, sin necesidad de una cuota mensual.',
+      tipo: 'muro_libre', modalidad: 'por_uso', etiquetaId: etiquetaMuroDiarioSocio._id,
+      atributos: { requiereSocio: true },
+      active: true, createdBy: BY, updatedBy: BY,
+    },
+    {
+      clubId: DEMO_CLUB_ID, nombre: 'Muro Libre Diario - No Socio',
+      descripcion: 'Pase diario para quienes no son socios del club y quieren probar el muro de escalada.',
+      tipo: 'muro_libre', modalidad: 'por_uso', etiquetaId: etiquetaMuroDiarioNoSocio._id,
+      atributos: { requiereSocio: false },
+      active: true, createdBy: BY, updatedBy: BY,
+    },
   ]);
+  // Referenciados para que no queden como "declarados pero sin usar" — son
+  // parte del catálogo de planes de muestra, aunque el seed no los use para
+  // suscribir a ningún socio ficticio (el pase de muro libre no requiere
+  // suscripción, se paga por uso).
+  void planMuroSocio;
+  void planMuroNoSocio;
+
+  const ESCUELITA_PLANES = {
+    principiantesX1: { plan: planPrincipiantesX1, etiquetaId: etiquetaEscuelitaX1._id, monto: 20000, frecuencia: 1 },
+    principiantesX2: { plan: planPrincipiantesX2, etiquetaId: etiquetaEscuelitaX2._id, monto: 30000, frecuencia: 2 },
+    avanzadosX2: { plan: planAvanzadosX2, etiquetaId: etiquetaEscuelitaX2._id, monto: 30000, frecuencia: 2 },
+  };
 
   const fechaDesde = currentPeriodo(-6);
   // El período actual también cuenta como "adeudable" — desde fechaDesde
@@ -245,12 +323,15 @@ export async function resetDemoClub() {
           });
         }
 
-        if (def.escuelita) {
+        if (def.escuelitaPlan) {
+          const cfg = ESCUELITA_PLANES[def.escuelitaPlan];
+          const escuelitaEstado = def.escuelitaEstado || 'activo';
+
           const suscripcionEscuelita = (await Suscripcion.create([{
             clubId: DEMO_CLUB_ID,
             socioId: socio._id,
-            planId: planEscuelita._id,
-            etiquetaId: etiquetaEscuelita._id,
+            planId: cfg.plan._id,
+            etiquetaId: cfg.etiquetaId,
             fechaDesde,
             active: true,
             createdBy: BY,
@@ -262,8 +343,11 @@ export async function resetDemoClub() {
             socioId: socio._id,
             dni: socio.dni,
             fechaInscripcion: vigenteDesde,
-            estado: 'activo',
-            planId: planEscuelita._id,
+            estado: escuelitaEstado,
+            planId: cfg.plan._id,
+            observaciones: escuelitaEstado === 'pausado'
+              ? 'Alumno pausado temporalmente — no se anota asistencia hasta que retome.'
+              : `Alumno de "${cfg.plan.nombre}", ${cfg.frecuencia}x por semana.`,
             active: true,
             createdBy: BY,
             updatedBy: BY,
@@ -274,11 +358,37 @@ export async function resetDemoClub() {
             await registrarPagoDemo({
               socio,
               suscripcion: suscripcionEscuelita,
-              etiquetaId: etiquetaEscuelita._id,
+              etiquetaId: cfg.etiquetaId,
               periodo: currentPeriodo(-6 + i),
-              monto: 20000,
+              monto: cfg.monto,
               session,
             });
+          }
+
+          // Clases a las que asistió, respetando su frecuencia semanal — un
+          // alumno pausado no tiene asistencia reciente.
+          if (escuelitaEstado === 'activo') {
+            const SEMANAS_HISTORIAL = 4;
+            for (let semana = 0; semana < SEMANAS_HISTORIAL; semana++) {
+              for (let clase = 0; clase < cfg.frecuencia; clase++) {
+                const diasAtras = semana * 7 + clase * 3;
+                await Asistencia.create([{
+                  clubId: DEMO_CLUB_ID,
+                  tipo: 'escuelita',
+                  socioId: socio._id,
+                  nombre: socio.nombre,
+                  apellido: socio.apellido,
+                  dni: socio.dni,
+                  esSocio: true,
+                  fecha: new Date(Date.now() - diasAtras * 24 * 60 * 60 * 1000),
+                  categoria: cfg.plan.nombre,
+                  checkinMethod: 'MANUAL',
+                  observaciones: '',
+                  createdBy: BY,
+                  updatedBy: BY,
+                }], { session });
+              }
+            }
           }
         }
 
@@ -304,6 +414,30 @@ export async function resetDemoClub() {
               advertencias: (esUltima && def.muroLibreAdvertencia)
                 ? [{ codigo: ADVERTENCIA.CUOTA_SOCIAL_IMPAGA, mensaje: `Sin cuota social pagada para ${currentPeriodo(0)}` }]
                 : [],
+              createdBy: BY,
+              updatedBy: BY,
+            }], { session });
+          }
+        }
+
+        if (def.esStaffProfesor) {
+          // Horas dictando clases de escuelita, para mostrar el cálculo de
+          // "deuda del club con el staff" (Horarios + Precios por hora).
+          const turnos = [
+            { diasAtras: 2, horas: 3 },
+            { diasAtras: 9, horas: 3 },
+            { diasAtras: 16, horas: 2 },
+          ];
+          for (const { diasAtras, horas } of turnos) {
+            await Horarios.create([{
+              idHorarios: new mongoose.Types.ObjectId().toString(),
+              clubId: DEMO_CLUB_ID,
+              socioId: socio._id,
+              fecha: new Date(Date.now() - diasAtras * 24 * 60 * 60 * 1000),
+              etiquetaId: etiquetaHoraProfesor._id,
+              totalHoras: horas,
+              tipoTarea: 'Clases de escuelita',
+              observaciones: 'Horas dictando clases de escuelita.',
               createdBy: BY,
               updatedBy: BY,
             }], { session });
