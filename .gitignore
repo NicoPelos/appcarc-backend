@@ -22,6 +22,10 @@ public/downloads/
 # y se copia acá — no es código fuente, se regenera en cada actualización)
 public/app/
 
+# Entorno virtual de Python del manual MkDocs (mkdocs-manual/) — se recrea con
+# `python3 -m venv .venv && pip install mkdocs-material`, no es código fuente.
+mkdocs-manual/.venv/
+
 # Mac
 .DS_Store
 
