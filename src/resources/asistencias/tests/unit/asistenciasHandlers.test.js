@@ -68,16 +68,14 @@ describe('getAsistenciasHandler', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  it('should apply date range filter', async () => {
+  it('should apply date range filter using Argentina timezone (UTC-3) for date-only bounds', async () => {
     const req = { query: { from: '2026-06-01', to: '2026-06-30' }, user: USER };
     const res = mockRes();
 
     await getAsistenciasHandler(req, res);
 
-    const expectedTo = new Date('2026-06-30');
-    expectedTo.setUTCHours(23, 59, 59, 999);
     expect(Asistencia.find).toHaveBeenCalledWith(expect.objectContaining({
-      fecha: { $gte: new Date('2026-06-01'), $lte: expectedTo },
+      fecha: { $gte: new Date('2026-06-01T00:00:00-03:00'), $lte: new Date('2026-06-30T23:59:59.999-03:00') },
     }));
   });
 

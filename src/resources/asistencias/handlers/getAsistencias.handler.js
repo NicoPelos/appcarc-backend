@@ -73,12 +73,12 @@ export const getAsistenciasHandler = async (req, res) => {
 
     if (from || to) {
       filter.fecha = {};
-      if (from) filter.fecha.$gte = new Date(from);
+      // Argentina no tiene horario de verano (siempre UTC-3) — si viene solo
+      // fecha (sin hora), interpretarla como el día en huso horario argentino,
+      // no UTC, para que coincida con el "hoy" real del usuario.
+      if (from) filter.fecha.$gte = from.includes('T') ? new Date(from) : new Date(`${from}T00:00:00-03:00`);
       if (to) {
-        const toDate = new Date(to);
-        // Si viene solo fecha (sin hora), incluir hasta el final del día UTC
-        if (!to.includes('T')) toDate.setUTCHours(23, 59, 59, 999);
-        filter.fecha.$lte = toDate;
+        filter.fecha.$lte = to.includes('T') ? new Date(to) : new Date(`${to}T23:59:59.999-03:00`);
       }
     }
 
