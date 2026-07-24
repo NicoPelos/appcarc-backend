@@ -100,6 +100,28 @@ describe('sincronizarSuscripcionEscuelita', () => {
     expect(logAudit).toHaveBeenCalledTimes(2);
   });
 
+  it('reasignar el plan dos veces en el mismo período: desactiva la suscripción errónea en vez de dejarle fechaHasta anterior a fechaDesde', async () => {
+    const now = new Date();
+    const periodoActual = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+
+    const elegidaPorError = {
+      _id: 's-error', etiquetaId: 'etq-x1', planId: { _id: 'planX1', tipo: 'escuelita' },
+      fechaDesde: periodoActual, fechaHasta: null, active: true,
+      toObject: () => ({}), save: vi.fn().mockResolvedValue(undefined),
+    };
+    Plan.findOne = vi.fn().mockReturnValue(chainableFindOne({ _id: 'planX2', etiquetaId: 'etq-x2', tipo: 'escuelita' }));
+    Suscripcion.find = vi.fn().mockReturnValue({ populate: vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue([elegidaPorError]) }) });
+    Suscripcion.findOne = vi.fn().mockReturnValue(chainableFindOne(null));
+    const saveSpy = vi.spyOn(Suscripcion.prototype, 'save').mockResolvedValue(undefined);
+
+    await sincronizarSuscripcionEscuelita({ clubId: CLUB_ID, socioId: SOCIO_ID, planId: 'planX2', req, session });
+
+    expect(elegidaPorError.active).toBe(false);
+    expect(elegidaPorError.fechaHasta).toBeNull(); // nunca se toca fechaHasta, evitando el rango invertido
+    expect(elegidaPorError.save).toHaveBeenCalledWith({ session });
+    expect(saveSpy).toHaveBeenCalledWith({ session }); // la nueva Suscripcion (planX2) se crea normalmente
+  });
+
   it('reactiva una Suscripcion inactiva existente en vez de chocar contra el índice único', async () => {
     const inactiva = {
       _id: 's-inactiva', active: false, planId: 'planViejo', fechaHasta: '2026-05',

@@ -59,7 +59,14 @@ export async function sincronizarSuscripcionEscuelita({ clubId, socioId, planId,
     if (yaCorrecta && String(s._id) === String(yaCorrecta._id)) continue;
 
     const before = s.toObject();
-    s.fechaHasta = periodoAnterior;
+    if (s.fechaDesde >= periodoActual) {
+      // Se creó este mismo período y nunca llegó a estar vigente de verdad
+      // (ej. se eligió el plan equivocado y se corrigió al toque) — desactivarla
+      // en vez de cerrarla con una fecha anterior a su propio inicio.
+      s.active = false;
+    } else {
+      s.fechaHasta = periodoAnterior;
+    }
     s.updatedBy = actor;
     await s.save({ session });
     logAudit({ clubId, req, action: 'UPDATE', resource: 'Suscripcion', resourceId: s._id, before, after: s.toObject() });

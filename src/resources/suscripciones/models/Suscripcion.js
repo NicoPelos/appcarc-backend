@@ -38,8 +38,12 @@ const suscripcionSchema = new mongoose.Schema({
     type: String,
     default: null,
     validate: {
-      validator: (v) => v === null || PERIODO_PATTERN.test(v),
-      message: 'fechaHasta debe tener formato YYYY-MM o ser null',
+      validator: function (v) {
+        if (v === null) return true;
+        if (!PERIODO_PATTERN.test(v)) return false;
+        return v >= this.fechaDesde;
+      },
+      message: 'fechaHasta debe tener formato YYYY-MM y no puede ser anterior a fechaDesde',
     },
   },
   active: {
