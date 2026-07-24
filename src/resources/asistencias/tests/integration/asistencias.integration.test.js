@@ -31,7 +31,7 @@ describe('POST /api/asistencias/escuelita (integración)', () => {
   it('rechaza si el socio no está inscripto activamente en la escuelita (400)', async () => {
     const { token } = await createAdminUser();
     const socio = await createSocio();
-    await inscribir(socio, 'pausado');
+    await inscribir(socio, 'baja');
 
     const res = await request(app)
       .post('/api/asistencias/escuelita')

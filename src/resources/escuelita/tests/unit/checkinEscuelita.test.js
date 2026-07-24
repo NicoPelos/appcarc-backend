@@ -70,9 +70,9 @@ describe('checkinEscuelitaHandler', () => {
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
-  it('retorna 402 si la inscripción está pausada', async () => {
+  it('retorna 402 si la inscripción está dada de baja', async () => {
     Escuelita.findOne.mockReturnValue({
-      populate: vi.fn().mockResolvedValue({ ...mockAlumno, estado: 'pausado' }),
+      populate: vi.fn().mockResolvedValue({ ...mockAlumno, estado: 'baja' }),
     });
     const req = { user: mockUser, body: { token: 'tok' } };
     const res = mockRes();

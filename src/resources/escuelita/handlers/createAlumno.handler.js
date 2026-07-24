@@ -46,8 +46,8 @@ import { sincronizarSuscripcionEscuelita } from '../services/sincronizarSuscripc
  *           description: Fecha de inscripción del alumno. Si no se envía, se usa la fecha actual.
  *         estado:
  *           type: string
- *           enum: [activo, pausado, baja]
- *           description: Estado del alumno en escuelita (activo, pausado o baja). Si no se envía, se asume "activo".
+ *           enum: [activo, baja]
+ *           description: Estado del alumno en escuelita (activo o baja). Si no se envía, se asume "activo".
  *         observaciones:
  *           type: string
  *           description: Observaciones adicionales sobre el alumno de escuelita (opcional)
@@ -62,7 +62,7 @@ export const createAlumnoHandler = async (req, res) => {
       return res.status(400).json({ message: 'socioId es obligatorio' });
     }
 
-    if (!['activo', 'pausado', 'baja'].includes(estado)) {
+    if (!['activo', 'baja'].includes(estado)) {
       return res.status(400).json({ message: 'Estado de alumno inválido' });
     }
 

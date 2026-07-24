@@ -22,7 +22,7 @@ const escuelitaSchema = new mongoose.Schema({
   },
   estado: {
     type: String,
-    enum: ['activo', 'pausado', 'baja'],
+    enum: ['activo', 'baja'],
     default: 'activo',
     index: true,
   },

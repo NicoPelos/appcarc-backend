@@ -41,8 +41,8 @@ import { sincronizarSuscripcionEscuelita } from '../services/sincronizarSuscripc
  *       properties:
  *         estado:
  *           type: string
- *           enum: [activo, pausado, baja]
- *           description: Estado del alumno en escuelita (activo, pausado o baja)
+ *           enum: [activo, baja]
+ *           description: Estado del alumno en escuelita (activo o baja)
  *         fechaInscripcion:
  *           type: string
  *           format: date-time
@@ -59,7 +59,7 @@ export const updateAlumnoHandler = async (req, res) => {
     const { estado, fechaInscripcion, observaciones, planId } = req.body;
 
     if (estado !== undefined) {
-      if (!['activo', 'pausado', 'baja'].includes(estado)) {
+      if (!['activo', 'baja'].includes(estado)) {
         return res.status(400).json({ message: 'Estado de alumno inválido' });
       }
       updates.estado = estado;

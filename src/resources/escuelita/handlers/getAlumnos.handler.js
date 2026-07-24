@@ -28,9 +28,9 @@ import Escuelita from '../models/Escuelita.js';
  *         name: estado
  *         schema:
  *           type: string
- *           enum: [activo, pausado, baja, todos]
+ *           enum: [activo, baja, todos]
  *         required: false
- *         description: Estado del alumno en escuelita (activo, pausado, baja o todos)
+ *         description: Estado del alumno en escuelita (activo, baja o todos)
  *     responses:
  *       200:
  *         description: Lista de alumnos de escuelita obtenida exitosamente
