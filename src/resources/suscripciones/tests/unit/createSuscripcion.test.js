@@ -1,11 +1,19 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import mongoose from 'mongoose';
 import { createSuscripcionHandler } from '../../handlers/createSuscripcion.handler.js';
 
-const mockSave = vi.fn();
-
-vi.mock('../../models/Suscripcion.js', () => ({
-  default: vi.fn().mockImplementation((data) => ({ ...data, save: mockSave, toObject: vi.fn().mockReturnValue(data) })),
+const { mockSave, mockFind, mockFindOne } = vi.hoisted(() => ({
+  mockSave: vi.fn(),
+  mockFind: vi.fn(),
+  mockFindOne: vi.fn(),
 }));
+
+vi.mock('../../models/Suscripcion.js', () => {
+  const SuscripcionMock = vi.fn().mockImplementation((data) => ({ ...data, save: mockSave, toObject: vi.fn().mockReturnValue(data) }));
+  SuscripcionMock.find = mockFind;
+  SuscripcionMock.findOne = mockFindOne;
+  return { default: SuscripcionMock };
+});
 
 vi.mock('../../../socios/models/Socio.js', () => ({
   default: { findOne: vi.fn() },
@@ -45,8 +53,14 @@ beforeEach(() => {
   vi.clearAllMocks();
   Socio.findOne.mockResolvedValue({ _id: 'socio123', clubId: 'CARC' });
   Etiqueta.findOne.mockResolvedValue({ _id: ETIQUETA_ID, clubId: 'CARC', nombre: 'Cuota Social', unidad: 'mes' });
-  Plan.findOne.mockResolvedValue({ _id: PLAN_ID, etiquetaId: ETIQUETA_ID });
+  Plan.findOne.mockResolvedValue({ _id: PLAN_ID, etiquetaId: ETIQUETA_ID, tipo: 'social', noGeneraDeuda: false });
   mockSave.mockResolvedValue();
+  mockFind.mockReturnValue({ populate: () => ({ session: () => Promise.resolve([]) }) });
+  mockFindOne.mockReturnValue({ session: () => Promise.resolve(null) });
+  vi.spyOn(mongoose, 'startSession').mockResolvedValue({
+    withTransaction: vi.fn(async (cb) => cb()),
+    endSession: vi.fn(),
+  });
 });
 
 describe('createSuscripcionHandler', () => {
@@ -144,14 +158,14 @@ describe('createSuscripcionHandler', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('Etiqueta') }));
   });
 
-  it('crea suscripción con exento:true cuando se envía en el body', async () => {
+  it('exento en el body se ignora: no se persiste si el plan no es noGeneraDeuda', async () => {
     const req = { user: mockUser, body: { ...validBody, exento: true } };
     const res = mockRes();
 
     await createSuscripcionHandler(req, res);
 
     const SuscripcionMock = (await import('../../models/Suscripcion.js')).default;
-    expect(SuscripcionMock).toHaveBeenCalledWith(expect.objectContaining({ exento: true }));
+    expect(SuscripcionMock).toHaveBeenCalledWith(expect.objectContaining({ exento: false }));
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
@@ -185,5 +199,39 @@ describe('createSuscripcionHandler', () => {
     await createSuscripcionHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  it('cierra la suscripción activa anterior del mismo tipo de plan antes de crear la nueva', async () => {
+    const suscripcionVieja = {
+      _id: 'sus-vieja',
+      planId: { tipo: 'social' },
+      etiquetaId: 'etiqueta-vieja',
+      fechaHasta: null,
+      save: vi.fn().mockResolvedValue(undefined),
+      toObject: vi.fn().mockReturnValue({}),
+    };
+    mockFind.mockReturnValue({ populate: () => ({ session: () => Promise.resolve([suscripcionVieja]) }) });
+
+    const req = { user: mockUser, body: { socioId: 'socio123', planId: PLAN_ID, fechaDesde: '2026-03' } };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    expect(suscripcionVieja.save).toHaveBeenCalled();
+    expect(suscripcionVieja.fechaHasta).toBe('2026-02');
+    expect(mockSave).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it('deriva exento de plan.noGeneraDeuda, ignorando lo que mande el body', async () => {
+    Plan.findOne.mockResolvedValue({ _id: PLAN_ID, etiquetaId: ETIQUETA_ID, tipo: 'social', noGeneraDeuda: true });
+    const req = { user: mockUser, body: { socioId: 'socio123', planId: PLAN_ID, fechaDesde: '2026-01', exento: false } };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    expect(mockSave).toHaveBeenCalled();
+    const created = res.json.mock.calls[0][0];
+    expect(created.exento).toBe(true);
   });
 });
