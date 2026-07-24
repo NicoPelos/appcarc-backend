@@ -132,6 +132,21 @@ describe('calcularDeuda', () => {
     expect(result[1].suscripcionId).toBe('sus_002');
   });
 
+  it('exento: mesesDeuda y totalDeuda en 0 sin consultar Cuota', async () => {
+    const sus = mockSuscripcion({ fechaDesde: '2020-01', exento: true });
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
+    mockPreciosFindOne.mockReturnValue(chainablePrecio({ monto: 15000 }));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result[0].mesesDeuda).toBe(0);
+    expect(result[0].totalDeuda).toBe(0);
+    expect(result[0].periodos).toEqual([]);
+    expect(result[0].exento).toBe(true);
+    expect(mockCuotaFind).not.toHaveBeenCalled();
+    expect(mockCuotaFindOne).not.toHaveBeenCalled();
+  });
+
   it('respeta fechaHasta de suscripcion cerrada', async () => {
     const sus = mockSuscripcion({ fechaDesde: '2026-01', fechaHasta: '2026-03' });
     mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));

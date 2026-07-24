@@ -38,6 +38,9 @@ const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
  *                 type: string
  *                 example: "2026-12"
  *                 description: Período de fin en formato YYYY-MM (opcional)
+ *               exento:
+ *                 type: boolean
+ *                 description: Si es true, esta suscripción no genera deuda (ej. Socio Honorario)
  *     responses:
  *       201:
  *         description: Suscripción creada
@@ -50,7 +53,7 @@ const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
  */
 export const createSuscripcionHandler = async (req, res) => {
   try {
-    const { socioId, planId, etiquetaId: etiquetaIdBody, fechaDesde, fechaHasta } = req.body;
+    const { socioId, planId, etiquetaId: etiquetaIdBody, fechaDesde, fechaHasta, exento } = req.body;
 
     if (!socioId) {
       return res.status(400).json({ message: 'socioId es requerido' });
@@ -92,6 +95,7 @@ export const createSuscripcionHandler = async (req, res) => {
       etiquetaId,
       fechaDesde,
       fechaHasta: fechaHasta ?? null,
+      exento: exento === true,
       createdBy: req.user.email || req.user.id,
       updatedBy: req.user.email || req.user.id,
     });

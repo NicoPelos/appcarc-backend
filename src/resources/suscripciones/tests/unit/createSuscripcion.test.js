@@ -144,6 +144,27 @@ describe('createSuscripcionHandler', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('Etiqueta') }));
   });
 
+  it('crea suscripción con exento:true cuando se envía en el body', async () => {
+    const req = { user: mockUser, body: { ...validBody, exento: true } };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    const SuscripcionMock = (await import('../../models/Suscripcion.js')).default;
+    expect(SuscripcionMock).toHaveBeenCalledWith(expect.objectContaining({ exento: true }));
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it('exento por defecto es false si no se envía', async () => {
+    const req = { user: mockUser, body: validBody };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    const SuscripcionMock = (await import('../../models/Suscripcion.js')).default;
+    expect(SuscripcionMock).toHaveBeenCalledWith(expect.objectContaining({ exento: false }));
+  });
+
   it('retorna 500 si hay error de base de datos', async () => {
     mockSave.mockRejectedValue(new Error('DB error'));
     const req = { user: mockUser, body: validBody };

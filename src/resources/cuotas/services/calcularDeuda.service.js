@@ -60,6 +60,22 @@ export const calcularDeuda = async ({ socioId, clubId }) => {
       const desde = sus.fechaDesde;
       const hasta = sus.fechaHasta || hoy;
 
+      if (sus.exento) {
+        return {
+          suscripcionId: sus._id,
+          etiqueta: sus.etiquetaId,
+          fechaDesde: sus.fechaDesde,
+          fechaHasta: sus.fechaHasta,
+          ultimoPeriodoPagado: null,
+          periodoActual: hoy,
+          mesesDeuda: 0,
+          periodos: [],
+          precioUnitario: null,
+          totalDeuda: 0,
+          exento: true,
+        };
+      }
+
       if (desde > hoy) {
         return {
           suscripcionId: sus._id,

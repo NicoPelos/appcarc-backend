@@ -51,6 +51,10 @@ const suscripcionSchema = new mongoose.Schema({
     default: true,
     index: true,
   },
+  exento: {
+    type: Boolean,
+    default: false,
+  },
   createdBy: {
     type: String,
     required: true,

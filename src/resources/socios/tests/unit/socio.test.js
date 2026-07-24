@@ -11,6 +11,7 @@ vi.mock('../../../services/pushNotification.service.js', () => ({
   notifyRoles: vi.fn().mockResolvedValue(),
 }));
 vi.mock('../../../usuarios/models/User.js', () => ({ default: { findOne: vi.fn().mockResolvedValue(null) } }));
+vi.mock('../../../suscripciones/models/Suscripcion.js', () => ({ default: { find: vi.fn() } }));
 
 import { createSocioHandler } from '../../handlers/createSocio.handler.js';
 import { getSociosHandler } from '../../handlers/getSocios.handler.js';
@@ -19,6 +20,8 @@ import { updateSocioHandler } from '../../handlers/updateSocio.handler.js';
 import { deleteSocioHandler } from '../../handlers/deleteSocio.handler.js';
 import { restoreSocioHandler } from '../../handlers/restoreSocio.handler.js';
 import Socio from '../../models/Socio.js';
+import Suscripcion from '../../../suscripciones/models/Suscripcion.js';
+import User from '../../../usuarios/models/User.js';
 
 const mockRes = () => {
   const res = {};
@@ -133,6 +136,42 @@ describe('Socios handlers (unit)', () => {
     expect(Socio.findOneAndUpdate).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(fake);
+  });
+
+  it('updateSocioHandler cierra automáticamente las suscripciones activas al pasar a Baja', async () => {
+    const socioAntes = { _id: 'id1', apellido: 'Perez', estado: 'Activo', toObject: vi.fn().mockReturnValue({ estado: 'Activo' }) };
+    const socioDespues = { _id: 'id1', apellido: 'Perez', estado: 'Baja', toObject: vi.fn().mockReturnValue({ estado: 'Baja' }) };
+    Socio.findOne.mockResolvedValueOnce(socioAntes);
+    Socio.findOneAndUpdate.mockResolvedValueOnce(socioDespues);
+
+    const susActiva = { _id: 'sus1', fechaHasta: null, toObject: vi.fn().mockReturnValue({}), save: vi.fn().mockResolvedValue(undefined) };
+    Suscripcion.find.mockResolvedValueOnce([susActiva]);
+    User.findOne.mockReturnValueOnce({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) }) });
+
+    const req = { params: { id: 'id1' }, body: { estado: 'Baja' }, user: { clubId: 'club1', id: 'user1', email: 'admin@carc.test' } };
+    const res = mockRes();
+
+    await updateSocioHandler(req, res);
+
+    expect(Suscripcion.find).toHaveBeenCalledWith({ clubId: 'club1', socioId: 'id1', active: true, fechaHasta: null });
+    expect(susActiva.fechaHasta).toMatch(/^\d{4}-\d{2}$/);
+    expect(susActiva.save).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('updateSocioHandler no toca Suscripciones si el estado no cambia a Baja', async () => {
+    const socioAntes = { _id: 'id1', apellido: 'Perez', estado: 'Activo', toObject: vi.fn().mockReturnValue({ estado: 'Activo' }) };
+    const socioDespues = { _id: 'id1', apellido: 'Actualizado', estado: 'Activo', toObject: vi.fn().mockReturnValue({ estado: 'Activo' }) };
+    Socio.findOne.mockResolvedValueOnce(socioAntes);
+    Socio.findOneAndUpdate.mockResolvedValueOnce(socioDespues);
+
+    const req = { params: { id: 'id1' }, body: { nombre: 'Actualizado' }, user: { clubId: 'club1', id: 'user1' } };
+    const res = mockRes();
+
+    await updateSocioHandler(req, res);
+
+    expect(Suscripcion.find).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it('deleteSocioHandler should soft-delete and return success message', async () => {
