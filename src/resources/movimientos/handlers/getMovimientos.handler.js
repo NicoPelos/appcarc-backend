@@ -87,6 +87,26 @@ const buildDetalle = async (movimientos) => {
  *           type: string
  *         required: false
  *         description: Filtrar movimientos de un socio en particular (solo cobros/muro libre de un único socio)
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Buscar por concepto, responsable o nombre de socio (case-insensitive)
+ *       - in: query
+ *         name: desde
+ *         schema:
+ *           type: string
+ *           example: "2026-01-01"
+ *         required: false
+ *         description: Fecha desde (incluida), formato YYYY-MM-DD
+ *       - in: query
+ *         name: hasta
+ *         schema:
+ *           type: string
+ *           example: "2026-01-31"
+ *         required: false
+ *         description: Fecha hasta (incluida), formato YYYY-MM-DD
  *     responses:
  *       200:
  *         description: Lista de movimientos obtenida exitosamente
@@ -96,7 +116,7 @@ const buildDetalle = async (movimientos) => {
 
 export const getMovimientosHandler = async (req, res) => {
   try {
-    const { page = 1, limit = 20, trash, type, socioId } = req.query;
+    const { page = 1, limit = 20, trash, type, socioId, search, desde, hasta } = req.query;
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
@@ -104,6 +124,17 @@ export const getMovimientosHandler = async (req, res) => {
     const filter = { clubId: req.user?.clubId, active: !showTrash };
     if (type && ['Ingreso', 'Egreso'].includes(type)) filter.type = type;
     if (socioId) filter.socioId = socioId;
+
+    if (search) {
+      const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [{ concept: regex }, { responsable: regex }, { socioNombre: regex }];
+    }
+
+    if (desde || hasta) {
+      filter.date = {};
+      if (desde) filter.date.$gte = new Date(`${desde}T00:00:00.000Z`);
+      if (hasta) filter.date.$lte = new Date(`${hasta}T23:59:59.999Z`);
+    }
 
     const [total, movimientosRaw] = await Promise.all([
       Movimiento.countDocuments(filter),
