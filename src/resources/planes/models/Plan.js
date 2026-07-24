@@ -39,6 +39,10 @@ const planSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed,
     default: {},
   },
+  noGeneraDeuda: {
+    type: Boolean,
+    default: false,
+  },
   active: {
     type: Boolean,
     default: true,

@@ -40,7 +40,7 @@ const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
  *                 description: Período de fin en formato YYYY-MM (opcional)
  *               exento:
  *                 type: boolean
- *                 description: Si es true, esta suscripción no genera deuda (ej. Socio Honorario)
+ *                 description: Si es true, esta suscripción no genera deuda (ej. Socio Honorario). Se fuerza a true automáticamente si el Plan tiene noGeneraDeuda.
  *     responses:
  *       201:
  *         description: Suscripción creada
@@ -95,7 +95,7 @@ export const createSuscripcionHandler = async (req, res) => {
       etiquetaId,
       fechaDesde,
       fechaHasta: fechaHasta ?? null,
-      exento: exento === true,
+      exento: exento === true || planDoc?.noGeneraDeuda === true,
       createdBy: req.user.email || req.user.id,
       updatedBy: req.user.email || req.user.id,
     });

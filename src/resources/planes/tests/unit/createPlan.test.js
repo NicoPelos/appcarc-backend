@@ -55,6 +55,25 @@ describe('createPlanHandler', () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
+  it('crea un plan con noGeneraDeuda:true cuando se envía', async () => {
+    const req = { user: mockUser, body: { ...BASE_BODY, noGeneraDeuda: true } };
+    const res = mockRes();
+
+    await createPlanHandler(req, res);
+
+    expect(Plan).toHaveBeenCalledWith(expect.objectContaining({ noGeneraDeuda: true }));
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it('noGeneraDeuda por defecto es false si no se envía', async () => {
+    const req = { user: mockUser, body: BASE_BODY };
+    const res = mockRes();
+
+    await createPlanHandler(req, res);
+
+    expect(Plan).toHaveBeenCalledWith(expect.objectContaining({ noGeneraDeuda: false }));
+  });
+
   it('retorna 400 si falta nombre', async () => {
     const req = { user: mockUser, body: { ...BASE_BODY, nombre: '' } };
     const res = mockRes();

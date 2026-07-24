@@ -165,6 +165,18 @@ describe('createSuscripcionHandler', () => {
     expect(SuscripcionMock).toHaveBeenCalledWith(expect.objectContaining({ exento: false }));
   });
 
+  it('fuerza exento:true si el Plan tiene noGeneraDeuda, aunque el body no lo pida', async () => {
+    Plan.findOne.mockResolvedValue({ _id: PLAN_ID, etiquetaId: ETIQUETA_ID, noGeneraDeuda: true });
+    const req = { user: mockUser, body: { socioId: 'socio123', planId: PLAN_ID, fechaDesde: '2026-01' } };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    const SuscripcionMock = (await import('../../models/Suscripcion.js')).default;
+    expect(SuscripcionMock).toHaveBeenCalledWith(expect.objectContaining({ exento: true }));
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
   it('retorna 500 si hay error de base de datos', async () => {
     mockSave.mockRejectedValue(new Error('DB error'));
     const req = { user: mockUser, body: validBody };

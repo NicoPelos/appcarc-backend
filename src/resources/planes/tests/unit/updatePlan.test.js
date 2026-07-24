@@ -55,6 +55,20 @@ describe('updatePlanHandler', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it('actualiza noGeneraDeuda correctamente', async () => {
+    const plan = makePlan({ noGeneraDeuda: false });
+    Plan.findOne.mockResolvedValue(plan);
+
+    const req = { params: { id: PLAN_ID }, user: mockUser, body: { noGeneraDeuda: true } };
+    const res = mockRes();
+
+    await updatePlanHandler(req, res);
+
+    expect(plan.noGeneraDeuda).toBe(true);
+    expect(plan.save).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it('retorna 404 si el plan no existe', async () => {
     Plan.findOne.mockResolvedValue(null);
 

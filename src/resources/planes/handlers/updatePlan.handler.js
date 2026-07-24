@@ -35,6 +35,9 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *                 type: string
  *               atributos:
  *                 type: object
+ *               noGeneraDeuda:
+ *                 type: boolean
+ *                 description: Si es true, las suscripciones creadas con este plan no generan deuda (ej. Socio Honorario, Canje)
  *     responses:
  *       200:
  *         description: Plan actualizado
@@ -53,7 +56,7 @@ const MODALIDADES = ['mensual', 'por_uso'];
 export const updatePlanHandler = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, descripcion, tipo, modalidad, etiquetaId, atributos } = req.body;
+    const { nombre, descripcion, tipo, modalidad, etiquetaId, atributos, noGeneraDeuda } = req.body;
 
     const plan = await Plan.findOne({ _id: id, clubId: req.user.clubId, active: true });
     if (!plan) return res.status(404).json({ message: 'Plan no encontrado' });
@@ -76,6 +79,7 @@ export const updatePlanHandler = async (req, res) => {
       plan.etiquetaId = etiquetaId;
     }
     if (atributos !== undefined) plan.atributos = atributos;
+    if (noGeneraDeuda !== undefined) plan.noGeneraDeuda = noGeneraDeuda === true;
 
     plan.updatedBy = req.user.email || req.user.id;
     await plan.save();

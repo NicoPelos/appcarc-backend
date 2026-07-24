@@ -36,6 +36,9 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *                 type: object
  *                 description: Datos flexibles (frecuenciaSemanal, requiereSocio, etc.)
  *                 example: { frecuenciaSemanal: 2, categoria: "Principiantes" }
+ *               noGeneraDeuda:
+ *                 type: boolean
+ *                 description: Si es true, las suscripciones creadas con este plan no generan deuda (ej. Socio Honorario, Canje)
  *     responses:
  *       201:
  *         description: Plan creado
@@ -53,7 +56,7 @@ const MODALIDADES = ['mensual', 'por_uso'];
 
 export const createPlanHandler = async (req, res) => {
   try {
-    const { nombre, descripcion = '', tipo, modalidad, etiquetaId, atributos = {} } = req.body;
+    const { nombre, descripcion = '', tipo, modalidad, etiquetaId, atributos = {}, noGeneraDeuda = false } = req.body;
 
     if (!nombre) return res.status(400).json({ message: 'nombre es requerido' });
     if (!tipo || !TIPOS.includes(tipo)) return res.status(400).json({ message: `tipo debe ser: ${TIPOS.join(', ')}` });
@@ -71,6 +74,7 @@ export const createPlanHandler = async (req, res) => {
       modalidad,
       etiquetaId,
       atributos,
+      noGeneraDeuda: noGeneraDeuda === true,
       createdBy: req.user.email || req.user.id,
       updatedBy: req.user.email || req.user.id,
     });
