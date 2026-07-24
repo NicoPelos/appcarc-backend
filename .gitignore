@@ -31,3 +31,7 @@ mkdocs-manual/.venv/
 
 # Windows
 Thumbs.db
+
+# Excels de trabajo (padrón, control de caja) y workspace local — no son código fuente
+*.xlsx
+appcarc-backend.code-workspace
