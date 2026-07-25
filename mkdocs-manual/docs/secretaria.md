@@ -41,7 +41,7 @@ Al inscribir a alguien en un plan de escuelita, appClub crea automáticamente su
 4. Buscá al socio por nombre o DNI y tocalo en los resultados.
 5. Queda inscripto como `activo` y aparece en la lista de inscriptos con su plan.
 
-Si un alumno deja de asistir temporalmente, se lo puede pasar a `pausado` desde su ficha (solapa `Pausados`) sin darlo de baja del todo.
+Si un alumno deja de asistir a escuelita, se lo da de baja desde su ficha — queda registrado como `baja` sin borrar su historial. Si vuelve más adelante, se lo puede reinscribir de nuevo.
 
 ## 3. Tomar asistencia de escuelita
 

@@ -11,7 +11,7 @@ profesor@demo.appclub.ar / DemoProfesor2026!
 
 ## 1. Ver tus alumnos y su plan
 
-La pantalla de **Escuelita** muestra a todos los alumnos inscriptos, con el plan de cada uno (por ejemplo "Principiantes X1" o "Avanzados X2" — eso define cuántas clases por semana le corresponden). Se puede filtrar por plan y por estado (`Activos / Pausados / Baja`).
+La pantalla de **Escuelita** muestra a todos los alumnos inscriptos, con el plan de cada uno (por ejemplo "Principiantes X1" o "Avanzados X2" — eso define cuántas clases por semana le corresponden). Se puede filtrar por plan y por estado (`Activos / Baja`).
 
 <figure markdown>
   ![Alumnos inscriptos](assets/screenshots/profesor-escuelita-alumnos.png){ width="260" }
@@ -29,7 +29,7 @@ Cada clase dictada se registra como una asistencia. La solapa `Asistencia` muest
 
 1. Andá a `Escuelita` → solapa `Asistencia`.
 2. Tocá la lupa (arriba a la derecha) y buscá al alumno por nombre, DNI, o escaneá su credencial QR.
-3. Al confirmarlo, te muestra cuántas clases lleva esa semana sobre el total de su plan (por ejemplo "2/2 esta semana") y cualquier advertencia (cuota vencida, plan pausado, etc.).
+3. Al confirmarlo, te muestra cuántas clases lleva esa semana sobre el total de su plan (por ejemplo "2/2 esta semana") y cualquier advertencia (cuota social o de escuelita impaga, límite semanal alcanzado, etc.).
 
 ## 3. Cargar tus horas trabajadas
 

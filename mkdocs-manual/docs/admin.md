@@ -46,7 +46,8 @@ Un **Plan** es lo que se le ofrece a un socio: "Cuota Social", "Escuelita Princi
 3. Ponele un nombre claro y una descripción — se usa en toda la app para que el resto del equipo sepa qué incluye.
 4. Asociale la etiqueta de cobro correspondiente (ver [Precios y etiquetas](#3-precios-y-etiquetas)) — de ahí sale el precio.
 5. Si es de escuelita, definí cuántas clases por semana incluye — eso es lo que controla el límite al tomar asistencia.
-6. Guardá. El plan ya queda disponible para inscribir socios (escuelita) o para referenciar en un cobro.
+6. Si el plan no debe generar deuda (por ejemplo "Socio Honorario" o un canje), activá `No genera deuda` — cualquier suscripción que se asigne con ese plan queda exenta automáticamente, sin tener que marcarlo caso por caso.
+7. Guardá. El plan ya queda disponible para inscribir socios (escuelita) o para asignar directamente ([Suscribir un socio a un plan](#4-suscribir-un-socio-a-un-plan)).
 
 ## 3. Precios y etiquetas
 
@@ -64,10 +65,25 @@ Una **Etiqueta** es un concepto de cobro (ej. "Cuota Escuelita X2", "Hora Profes
 
 ## 4. Suscribir un socio a un plan
 
-Una **Suscripción** es el vínculo entre un socio y un plan — es lo que determina qué le corresponde pagar cada mes.
+Una **Suscripción** es el vínculo entre un socio y un plan — es lo que determina qué le corresponde pagar cada mes. Para **escuelita** se crea sola al inscribir al alumno (ver el manual de [Secretaría](secretaria.md)/[Profesor](profesor.md)); para el resto de los planes (Cuota Social, Muro Libre mensual, etc.) se asigna desde la ficha del socio.
 
-!!! warning "Limitación conocida"
-    Para **escuelita**, la suscripción se crea sola al inscribir al alumno (ver el manual de [Secretaría](secretaria.md)/[Profesor](profesor.md)). Pero para planes que **no** son de escuelita (por ejemplo pasar a un socio a "Cuota Social" o activarle un "Muro Libre mensual"), todavía no hay una pantalla en la app para hacerlo — se resuelve manualmente por fuera de la app. Ya está anotado como pendiente ([issue #8](https://github.com/NicoPelos/appCARC-mobile/issues/8)).
+<figure markdown>
+  ![Asignar plan desde la ficha del socio](assets/screenshots/admin-asignar-plan.png){ width="260" }
+  <figcaption>Asignar plan desde la ficha del socio</figcaption>
+</figure>
+
+**Asignar un plan**
+
+1. Abrí la ficha del socio y tocá `Asignar plan`.
+2. Elegí el plan de la lista (solo se muestran planes que no son de escuelita).
+3. Confirmá el período de inicio (por defecto, el mes actual).
+4. Si el plan elegido está marcado como `No genera deuda` (ver [Planes](#2-planes-crear-planes-nuevos)), se muestra un aviso — esa suscripción no va a generar cuotas.
+5. Guardá. Si el socio ya tenía una suscripción activa del mismo tipo de plan, se cierra automáticamente para que no queden dos activas en simultáneo.
+
+**Dar de baja un plan**
+
+1. En la ficha del socio, dentro del detalle de deuda, tocá `Dar de baja` sobre la suscripción que quieras cerrar.
+2. Confirmá el período hasta el cual estuvo vigente — a partir de ahí deja de generar deuda nueva.
 
 ## 5. Movimientos — caja del club
 
@@ -91,7 +107,12 @@ Es el registro de caja del club: ingresos y egresos que **no** vienen de un cobr
 4. Cargá el monto, un concepto corto y, si hace falta, una descripción más larga.
 5. Confirmá — queda en la lista, filtrable por tipo con las solapas `Todos / Ingreso / Egreso`.
 
-Un movimiento borrado no se pierde: pasa a la solapa `Papelera`, así siempre queda rastro de qué se eliminó.
+<figure markdown>
+  ![Buscador y filtro de período](assets/screenshots/admin-movimientos-buscador.png){ width="260" }
+  <figcaption>Buscador y filtro de período</figcaption>
+</figure>
+
+Con el buscador podés filtrar por concepto o responsable, y con los chips de período acotar a `Este mes`, `Mes anterior` o `Todo`. La lista carga de a tandas: al llegar al final se trae más automáticamente.
 
 ## 6. Horas del staff — deuda a pagar
 
