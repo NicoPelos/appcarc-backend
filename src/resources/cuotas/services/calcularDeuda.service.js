@@ -49,6 +49,7 @@ export const calcularDeuda = async ({ socioId, clubId }) => {
     socioId,
     clubId,
     active: true,
+    $or: [{ fechaHasta: null }, { fechaHasta: { $gte: hoy } }],
   })
     .populate('etiquetaId', 'nombre unidad uso_sistema')
     .lean();

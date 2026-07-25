@@ -48,7 +48,7 @@ describe('resetDemoClub (integración)', () => {
     expect(deudaBaja).toEqual([]);
   });
 
-  it('arma alumnos de escuelita con clases asistidas, un plan pausado y horas de staff', async () => {
+  it('arma alumnos de escuelita con clases asistidas, un alumno de baja y horas de staff', async () => {
     await resetDemoClub();
 
     const facundo = await Socio.findOne({ clubId: DEMO_CLUB_ID, apellido: 'Escuelita Principiantes' }).lean();
@@ -61,9 +61,9 @@ describe('resetDemoClub (integración)', () => {
     // Avanzados X2 → 2 clases/semana × 4 semanas de historial
     expect(clasesGimena.length).toBe(8);
 
-    const karina = await Socio.findOne({ clubId: DEMO_CLUB_ID, apellido: 'Escuelita Pausada' }).lean();
+    const karina = await Socio.findOne({ clubId: DEMO_CLUB_ID, apellido: 'Escuelita Baja' }).lean();
     const alumnoKarina = await Escuelita.findOne({ clubId: DEMO_CLUB_ID, socioId: karina._id }).lean();
-    expect(alumnoKarina.estado).toBe('pausado');
+    expect(alumnoKarina.estado).toBe('baja');
     const clasesKarina = await Asistencia.find({ clubId: DEMO_CLUB_ID, socioId: karina._id, tipo: 'escuelita' }).lean();
     expect(clasesKarina.length).toBe(0);
 

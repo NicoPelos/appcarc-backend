@@ -136,7 +136,7 @@ const SOCIOS_DEMO = [
   { dni: '99000010', socioNumber: 'DEMO-010', nombre: 'Demo', apellido: 'Socio', estado: 'Activo', deudaMeses: 1, loginRole: 'socio', muroLibre: true, muroLibreAdvertencia: true },
   { dni: '99000011', socioNumber: 'DEMO-011', nombre: 'Demo', apellido: 'Admin', estado: 'Activo', deudaMeses: 0, loginRole: 'admin' },
   { dni: '99000012', socioNumber: 'DEMO-012', nombre: 'Julia', apellido: 'Adherente Con Deuda', estado: 'Adherente', deudaMeses: 3 },
-  { dni: '99000013', socioNumber: 'DEMO-013', nombre: 'Karina', apellido: 'Escuelita Pausada', estado: 'Activo', deudaMeses: 0, escuelitaPlan: 'principiantesX2', escuelitaEstado: 'pausado' },
+  { dni: '99000013', socioNumber: 'DEMO-013', nombre: 'Karina', apellido: 'Escuelita Baja', estado: 'Activo', deudaMeses: 0, escuelitaPlan: 'principiantesX2', escuelitaEstado: 'baja' },
   { dni: '99000014', socioNumber: 'DEMO-014', nombre: 'Pedro', apellido: 'Profesor', estado: 'Activo', deudaMeses: 0, esStaffProfesor: true, loginRole: 'profesor' },
   { dni: '99000015', socioNumber: 'DEMO-015', nombre: 'Rocío', apellido: 'Palestrero', estado: 'Activo', deudaMeses: 0, loginRole: 'palestrero' },
   { dni: '99000016', socioNumber: 'DEMO-016', nombre: 'Sofía', apellido: 'Secretaria', estado: 'Activo', deudaMeses: 0, loginRole: 'secretaria' },
@@ -370,8 +370,8 @@ export async function resetDemoClub() {
             fechaInscripcion: vigenteDesde,
             estado: escuelitaEstado,
             planId: cfg.plan._id,
-            observaciones: escuelitaEstado === 'pausado'
-              ? 'Alumno pausado temporalmente — no se anota asistencia hasta que retome.'
+            observaciones: escuelitaEstado === 'baja'
+              ? 'Alumno dado de baja de la escuelita — no se anota asistencia.'
               : `Alumno de "${cfg.plan.nombre}", ${cfg.frecuencia}x por semana.`,
             active: true,
             createdBy: BY,
@@ -391,7 +391,7 @@ export async function resetDemoClub() {
           }
 
           // Clases a las que asistió, respetando su frecuencia semanal — un
-          // alumno pausado no tiene asistencia reciente.
+          // alumno dado de baja no tiene asistencia reciente.
           if (escuelitaEstado === 'activo') {
             const SEMANAS_HISTORIAL = 4;
             for (let semana = 0; semana < SEMANAS_HISTORIAL; semana++) {

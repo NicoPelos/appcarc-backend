@@ -64,6 +64,19 @@ describe('calcularDeuda', () => {
     expect(result).toEqual([]);
   });
 
+  it('solo trae suscripciones vigentes (fechaHasta null o >= hoy)', async () => {
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
+
+    await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(mockSuscripcionFind).toHaveBeenCalledWith(expect.objectContaining({
+      socioId: 'socio_001',
+      clubId: 'CARC',
+      active: true,
+      $or: [{ fechaHasta: null }, { fechaHasta: { $gte: expect.stringMatching(/^\d{4}-\d{2}$/) } }],
+    }));
+  });
+
   it('incluye suscripcionId y etiqueta en el resultado', async () => {
     const sus = mockSuscripcion({ fechaDesde: '2026-06' });
     mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
