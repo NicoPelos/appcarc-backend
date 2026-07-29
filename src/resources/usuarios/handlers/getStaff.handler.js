@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import { obtenerRolIdsPorSlugs } from '../../roles/services/resolverRoles.service.js';
 
 const ROLES_STAFF = ['profesor', 'palestrero', 'limpieza', 'arreglos', 'colaborador', 'admin', 'secretaria'];
 
@@ -16,16 +17,19 @@ const ROLES_STAFF = ['profesor', 'palestrero', 'limpieza', 'arreglos', 'colabora
  */
 export const getStaffHandler = async (req, res) => {
   try {
+    const rolIds = await obtenerRolIdsPorSlugs({ clubId: req.user.clubId, slugs: ROLES_STAFF });
     const users = await User.find({
       clubId: req.user.clubId,
       active: true,
-      roles: { $in: ROLES_STAFF },
+      roles: { $in: rolIds },
     })
       .select('nombre email roles socioId')
+      .populate('roles', 'slug')
       .sort({ nombre: 1 })
       .lean();
 
-    res.status(200).json(users);
+    const staff = users.map((u) => ({ ...u, roles: u.roles.map((r) => r.slug) }));
+    res.status(200).json(staff);
   } catch (error) {
     console.error('Error obteniendo staff:', error);
     res.status(500).json({ message: 'Error al obtener staff' });

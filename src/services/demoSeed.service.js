@@ -209,7 +209,8 @@ export async function resetDemoClub() {
 
   await borrarDatosDemo();
 
-  await Rol.insertMany(ROLES_DEMO.map((r) => ({ clubId: DEMO_CLUB_ID, nombre: r.nombre, slug: slugify(r.nombre), permisos: r.permisos, active: true })));
+  const rolesCreados = await Rol.insertMany(ROLES_DEMO.map((r) => ({ clubId: DEMO_CLUB_ID, nombre: r.nombre, slug: slugify(r.nombre), permisos: r.permisos, active: true })));
+  const rolIdPorNombre = Object.fromEntries(rolesCreados.map((r) => [r.nombre, r._id]));
 
   const [
     etiquetaSocial,
@@ -493,7 +494,7 @@ export async function resetDemoClub() {
       email: DEMO_CREDENTIALS[u.loginRole].email,
       password: await bcrypt.hash(DEMO_CREDENTIALS[u.loginRole].password, 10),
       nombre: u.nombre,
-      roles: u.roles,
+      roles: u.roles.map((nombre) => rolIdPorNombre[nombre]),
       clubId: DEMO_CLUB_ID,
       socioId: String(socioIdByLogin[u.loginRole]),
       active: true,

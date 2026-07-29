@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import app from '../../../../index.js';
 import Club from '../../../clubs/models/Club.js';
 import User from '../../../usuarios/models/User.js';
-import { CLUB_ID, createAdminUser, createSocio } from '../../../../testUtils/integrationHelpers.js';
+import { CLUB_ID, createAdminUser, createSocio, getOrCreateRol } from '../../../../testUtils/integrationHelpers.js';
 
 describe('POST /api/super/clubs (integración)', () => {
   it('crea un club nuevo', async () => {
@@ -34,10 +34,11 @@ describe('POST /api/super/clubs (integración)', () => {
   });
 
   it('rechaza el acceso a un usuario que no es superadmin (403)', async () => {
+    const rolAdmin = await getOrCreateRol({ clubId: CLUB_ID, nombre: 'admin' });
     const user = await User.create({
-      email: 'admin-no-super@carc.local', password: 'x', roles: ['admin'], clubId: CLUB_ID,
+      email: 'admin-no-super@carc.local', password: 'x', roles: [rolAdmin._id], clubId: CLUB_ID,
     });
-    const token = jwt.sign({ id: user._id, roles: user.roles, clubId: user.clubId }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user._id, roles: ['admin'], clubId: user.clubId }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     const res = await request(app).get('/api/super/clubs').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(403);
@@ -83,6 +84,7 @@ describe('PATCH /api/super/clubs/:id/suspend (integración)', () => {
 describe('POST /api/super/users (integración)', () => {
   it('crea un usuario admin para un club con contraseña temporal', async () => {
     const { token } = await createAdminUser();
+    await getOrCreateRol({ clubId: CLUB_ID, nombre: 'admin' });
 
     const res = await request(app)
       .post('/api/super/users')
@@ -96,6 +98,7 @@ describe('POST /api/super/users (integración)', () => {
 
   it('rechaza un email duplicado en el mismo club (409)', async () => {
     const { token } = await createAdminUser();
+    await getOrCreateRol({ clubId: CLUB_ID, nombre: 'admin' });
     await request(app).post('/api/super/users').set('Authorization', `Bearer ${token}`).send({ email: 'dup@carc.local', clubId: CLUB_ID });
 
     const res = await request(app).post('/api/super/users').set('Authorization', `Bearer ${token}`).send({ email: 'dup@carc.local', clubId: CLUB_ID });
@@ -106,11 +109,13 @@ describe('POST /api/super/users (integración)', () => {
 describe('GET /api/super/users (integración)', () => {
   it('filtra usuarios por clubId y rol', async () => {
     const { token } = await createAdminUser();
+    const rolSecretariaCarc = await getOrCreateRol({ clubId: CLUB_ID, nombre: 'secretaria' });
+    const rolAdminOtro = await getOrCreateRol({ clubId: 'OTRO_CLUB', nombre: 'admin' });
     await User.create({
-      email: 'secretaria@carc.local', password: 'x', roles: ['secretaria'], clubId: CLUB_ID,
+      email: 'secretaria@carc.local', password: 'x', roles: [rolSecretariaCarc._id], clubId: CLUB_ID,
     });
     await User.create({
-      email: 'admin@otro.local', password: 'x', roles: ['admin'], clubId: 'OTRO_CLUB',
+      email: 'admin@otro.local', password: 'x', roles: [rolAdminOtro._id], clubId: 'OTRO_CLUB',
     });
 
     const res = await request(app)

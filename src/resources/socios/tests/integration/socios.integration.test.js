@@ -4,17 +4,19 @@ import jwt from 'jsonwebtoken';
 import app from '../../../../index.js';
 import User from '../../../usuarios/models/User.js';
 import Socio from '../../models/Socio.js';
+import { getOrCreateRol } from '../../../../testUtils/integrationHelpers.js';
 
 const CLUB_ID = 'CARC';
 
 const createAdminToken = async () => {
+  const rol = await getOrCreateRol({ clubId: CLUB_ID, nombre: 'superadmin' });
   const user = await User.create({
     email: 'admin-test@carc.local',
     password: 'hashed-not-used',
-    roles: ['superadmin'],
+    roles: [rol._id],
     clubId: CLUB_ID,
   });
-  return jwt.sign({ id: user._id, roles: user.roles, clubId: user.clubId }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign({ id: user._id, roles: [rol.slug], clubId: user.clubId }, process.env.JWT_SECRET, { expiresIn: '1h' });
 };
 
 describe('GET /api/socios (integración)', () => {

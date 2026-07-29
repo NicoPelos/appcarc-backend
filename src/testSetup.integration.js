@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { beforeAll, afterEach } from 'vitest';
 
-process.env.MONGO_URI = 'mongodb://localhost:27017/appcarc_test?replicaSet=rs0';
+process.env.MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/appcarc_test?replicaSet=rs0';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret';
 process.env.DEFAULT_CLUB_ID = process.env.DEFAULT_CLUB_ID || 'CARC';
 

@@ -84,15 +84,17 @@ describe('resetDemoClub (integración)', () => {
 
     const users = await User.find({ clubId: DEMO_CLUB_ID }).lean();
     for (const rol of ['secretaria', 'profesor', 'palestrero']) {
-      const user = users.find((u) => u.roles.includes(rol));
-      expect(user, `debería existir un login con rol ${rol}`).toBeTruthy();
-      expect(user.roles).toContain('socio'); // también son socios, como en CARC real
-
       const rolDoc = await Rol.findOne({ clubId: DEMO_CLUB_ID, nombre: rol }).lean();
       expect(rolDoc).toBeTruthy();
       expect(rolDoc.slug).toBe(rol); // nombres del seed demo ya son slugs válidos tal cual
       // No deberían tener permisos de administración total.
       expect(rolDoc.permisos).not.toContain(PERMISOS.USUARIOS_WRITE);
+
+      const rolSocioDoc = await Rol.findOne({ clubId: DEMO_CLUB_ID, nombre: 'socio' }).lean();
+      const tieneRol = (u, id) => u.roles.some((r) => String(r) === String(id));
+      const user = users.find((u) => tieneRol(u, rolDoc._id));
+      expect(user, `debería existir un login con rol ${rol}`).toBeTruthy();
+      expect(tieneRol(user, rolSocioDoc._id)).toBe(true); // también son socios, como en CARC real
     }
 
     const profesorRol = await Rol.findOne({ clubId: DEMO_CLUB_ID, nombre: 'profesor' }).lean();

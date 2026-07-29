@@ -7,7 +7,12 @@ const userSchema = new mongoose.Schema({
   passwordChangedAt: { type: Date },
   googleId: { type: String, default: null },
   nombre: String,
-  roles: { type: [String], default: ['socio'] },
+  // Referencia real al Rol (ver appcarc-backend#24) — antes era [String] con
+  // el nombre del rol, lo que rompía en silencio si un rol se renombraba o
+  // borraba. Sin default: el rol correcto depende del club, no hay uno
+  // universal — quien cree un User tiene que resolverlo explícitamente
+  // (ver src/resources/roles/services/resolverRoles.service.js).
+  roles: { type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Rol' }], default: [] },
   clubId: { type: String, required: true },
   socioId: { type: String, unique: true, sparse: true },
   expoPushToken: { type: String, default: null },

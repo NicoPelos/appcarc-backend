@@ -12,7 +12,7 @@ import Movimiento from '../../../movimientos/models/Movimiento.js';
 import User from '../../../usuarios/models/User.js';
 import { sendPushNotification } from '../../../../services/pushNotification.service.js';
 import {
-  CLUB_ID, createAdminUser, createSocio, createEtiqueta, createPrecio, createSuscripcion,
+  CLUB_ID, createAdminUser, createSocio, createEtiqueta, createPrecio, createSuscripcion, getOrCreateRol,
 } from '../../../../testUtils/integrationHelpers.js';
 
 const setupSocioConSuscripcion = async () => {
@@ -56,10 +56,11 @@ describe('POST /api/cobros (integración)', () => {
     const { token } = await createAdminUser();
     const { socio, suscripcion } = await setupSocioConSuscripcion();
 
+    const rolSocio = await getOrCreateRol({ clubId: CLUB_ID, nombre: 'socio' });
     await User.create({
       email: `socio-${socio._id}@carc.local`,
       password: 'hashed-not-used',
-      roles: ['socio'],
+      roles: [rolSocio._id],
       clubId: CLUB_ID,
       socioId: String(socio._id),
       expoPushToken: 'ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxx]',

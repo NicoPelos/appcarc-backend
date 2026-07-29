@@ -39,6 +39,9 @@ describe('POST /api/roles (integración)', () => {
 
 describe('GET /api/roles (integración)', () => {
   it('lista solo los roles activos del club, ordenados por nombre', async () => {
+    // createAdminUser() ya deja creado un Rol 'superadmin' real para este
+    // club (ver appcarc-backend#24) — el listado también lo incluye, por
+    // eso se filtra acá en vez de esperar exactamente ['alfa', 'zeta'].
     const { token } = await createAdminUser();
     await request(app).post('/api/roles').set('Authorization', `Bearer ${token}`).send({ nombre: 'zeta', permisos: [] });
     await request(app).post('/api/roles').set('Authorization', `Bearer ${token}`).send({ nombre: 'alfa', permisos: [] });
@@ -46,7 +49,8 @@ describe('GET /api/roles (integración)', () => {
     const res = await request(app).get('/api/roles').set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.map((r) => r.nombre)).toEqual(['alfa', 'zeta']);
+    const nombres = res.body.map((r) => r.nombre).filter((n) => n !== 'superadmin');
+    expect(nombres).toEqual(['alfa', 'zeta']);
   });
 });
 

@@ -5,6 +5,11 @@ import Socio from '../../socios/models/Socio.js';
 import bcrypt from 'bcryptjs';
 import tokenService from '../../../services/tokenBlacklistService.js';
 import { getPermisosUsuario } from '../../../services/permisosCache.js';
+import {
+  obtenerRolIdsPorNombres,
+  obtenerRolIdsPorSlugs,
+  obtenerSlugsPorRolIds,
+} from '../../roles/services/resolverRoles.service.js';
 
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -41,12 +46,13 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
     const randomPassword = Math.random().toString(36).slice(-12);
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(randomPassword, salt);
+    const rolesSocio = await obtenerRolIdsPorSlugs({ clubId, slugs: ['socio'] });
 
     user = new User({
       email,
       password: hashedPassword,
       nombre: socio.nombre,
-      roles: ['socio'],
+      roles: rolesSocio,
       clubId,
       socioId: socio._id.toString(),
       active: true,
@@ -75,8 +81,9 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
     await socio.save();
   }
 
-  const token = jwt.sign({ id: user._id, email: user.email, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null }, process.env.JWT_SECRET, { expiresIn: '8h' });
-  const permisos = await getPermisosUsuario(user.clubId, user.roles);
+  const rolesSlugs = await obtenerSlugsPorRolIds(user.roles);
+  const token = jwt.sign({ id: user._id, email: user.email, roles: rolesSlugs, clubId: user.clubId, socioId: user.socioId || null }, process.env.JWT_SECRET, { expiresIn: '8h' });
+  const permisos = await getPermisosUsuario(user.clubId, rolesSlugs);
 
   return {
     token,
@@ -84,7 +91,7 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
       id: user._id,
       nombre: user.nombre || name,
       email,
-      roles: user.roles,
+      roles: rolesSlugs,
       clubId: user.clubId,
       socioId: user.socioId || null,
       picture,
@@ -127,23 +134,29 @@ export const register = async (req, res) => {
 
     const socio = await Socio.findOne({ correoElectronico: email, clubId, active: true });
 
+    const rolesIds = await obtenerRolIdsPorNombres({ clubId, nombres: [role || 'secretaria'] });
+    if (!rolesIds.length) {
+      return res.status(400).json({ message: `El rol "${role || 'secretaria'}" no existe para este club.` });
+    }
+
     const user = new User({
       email,
       password: hashedPassword,
       nombre: nombre || socio?.nombre,
-      roles: role ? [role] : ['secretaria'],
+      roles: rolesIds,
       clubId,
       socioId: socio?._id?.toString() || null,
       mustChangePassword,
     });
     await user.save();
 
+    const rolesSlugs = await obtenerSlugsPorRolIds(user.roles);
     const token = jwt.sign(
-      { id: user._id, email: user.email, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null },
+      { id: user._id, email: user.email, roles: rolesSlugs, clubId: user.clubId, socioId: user.socioId || null },
       process.env.JWT_SECRET,
       { expiresIn: '8h' },
     );
-    const permisos = await getPermisosUsuario(user.clubId, user.roles);
+    const permisos = await getPermisosUsuario(user.clubId, rolesSlugs);
 
     res.status(201).json({
       token,
@@ -151,7 +164,7 @@ export const register = async (req, res) => {
         id: user._id,
         email: user.email,
         nombre: user.nombre,
-        roles: user.roles,
+        roles: rolesSlugs,
         clubId: user.clubId,
         socioId: user.socioId || null,
         mustChangePassword: user.mustChangePassword,
@@ -226,14 +239,15 @@ export const login = async (req, res) => {
     if (!isMatch) return res.status(400).json({ message: 'Credenciales inválidas.' });
     if (!user.active) return res.status(403).json({ message: 'Usuario desactivado' });
 
+    const rolesSlugs = await obtenerSlugsPorRolIds(user.roles);
     const token = jwt.sign(
-      { id: user._id, email: user.email, roles: user.roles, clubId: user.clubId, socioId: user.socioId || null },
+      { id: user._id, email: user.email, roles: rolesSlugs, clubId: user.clubId, socioId: user.socioId || null },
       process.env.JWT_SECRET,
       { expiresIn: '8h' },
     );
 
     const socio = user.socioId ? await Socio.findById(user.socioId).lean() : null;
-    const permisos = await getPermisosUsuario(user.clubId, user.roles);
+    const permisos = await getPermisosUsuario(user.clubId, rolesSlugs);
 
     res.status(200).json({
       token,
@@ -241,7 +255,7 @@ export const login = async (req, res) => {
         id: user._id,
         email: user.email,
         nombre: user.nombre,
-        roles: user.roles,
+        roles: rolesSlugs,
         clubId: user.clubId,
         socioId: user.socioId || null,
         mustChangePassword: !!user.mustChangePassword,

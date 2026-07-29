@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+vi.mock('../../../roles/services/resolverRoles.service.js', () => ({
+  obtenerRolIdsPorNombres: vi.fn().mockResolvedValue(['rol-id-1']),
+}));
+
 import { getUsersHandler }        from '../../handlers/getUsers.handler.js';
 import { createSuperUserHandler } from '../../handlers/createSuperUser.handler.js';
 import { deleteSuperUserHandler } from '../../handlers/deleteSuperUser.handler.js';
 import { resetUserPasswordHandler } from '../../handlers/resetUserPassword.handler.js';
 import User from '../../../usuarios/models/User.js';
 import bcrypt from 'bcryptjs';
+import { obtenerRolIdsPorNombres } from '../../../roles/services/resolverRoles.service.js';
 
 const mockRes = () => {
   const res = {};
@@ -23,6 +29,7 @@ describe('Super — users handlers (unit)', () => {
     User.create            = vi.fn();
     vi.spyOn(bcrypt, 'genSalt').mockResolvedValue('salt');
     vi.spyOn(bcrypt, 'hash').mockResolvedValue('hashed');
+    obtenerRolIdsPorNombres.mockResolvedValue(['rol-id-1']);
   });
 
   afterEach(() => vi.clearAllMocks());
@@ -31,6 +38,7 @@ describe('Super — users handlers (unit)', () => {
     const fakeUsers = [{ _id: 'u1', email: 'a@b.com' }];
     const query = {
       select: vi.fn().mockReturnThis(),
+      populate: vi.fn().mockReturnThis(),
       sort:   vi.fn().mockReturnThis(),
       skip:   vi.fn().mockReturnThis(),
       limit:  vi.fn().mockReturnThis(),
@@ -49,6 +57,7 @@ describe('Super — users handlers (unit)', () => {
   it('getUsersHandler filtra por search (nombre o email)', async () => {
     const query = {
       select: vi.fn().mockReturnThis(),
+      populate: vi.fn().mockReturnThis(),
       sort:   vi.fn().mockReturnThis(),
       skip:   vi.fn().mockReturnThis(),
       limit:  vi.fn().mockReturnThis(),
@@ -69,6 +78,7 @@ describe('Super — users handlers (unit)', () => {
   it('getUsersHandler escapa caracteres especiales de regex en search', async () => {
     const query = {
       select: vi.fn().mockReturnThis(),
+      populate: vi.fn().mockReturnThis(),
       sort:   vi.fn().mockReturnThis(),
       skip:   vi.fn().mockReturnThis(),
       limit:  vi.fn().mockReturnThis(),

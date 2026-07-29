@@ -3,16 +3,20 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import app from '../../../../index.js';
 import User from '../../../usuarios/models/User.js';
-import { CLUB_ID, createAdminUser, createSocio } from '../../../../testUtils/integrationHelpers.js';
+import Rol from '../../models/Rol.js';
+import { CLUB_ID, createAdminUser, createSocio, getOrCreateRol } from '../../../../testUtils/integrationHelpers.js';
 
+// El Rol ya existe (creado vía POST /api/roles en el propio test) — acá solo
+// se resuelve su ObjectId/slug para armar el User y el JWT.
 const crearUsuarioConRol = async (nombreRol) => {
+  const rol = await Rol.findOne({ clubId: CLUB_ID, nombre: nombreRol });
   const user = await User.create({
     email: `${nombreRol}-${Date.now()}@carc.local`,
     password: 'hashed-not-used',
-    roles: [nombreRol],
+    roles: [rol._id],
     clubId: CLUB_ID,
   });
-  const token = jwt.sign({ id: user._id, roles: user.roles, clubId: user.clubId }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  const token = jwt.sign({ id: user._id, roles: [rol.slug], clubId: user.clubId }, process.env.JWT_SECRET, { expiresIn: '1h' });
   return { user, token };
 };
 
@@ -83,14 +87,15 @@ describe('authorize() con roles reales de la base (integración)', () => {
 
   it('un socio no puede ver la lista de socios del club (sin socios:read)', async () => {
     const socio = await createSocio();
+    const rolSocio = await getOrCreateRol({ clubId: CLUB_ID, nombre: 'socio' });
     const user = await User.create({
       email: `socio-${Date.now()}@carc.local`,
       password: 'hashed-not-used',
-      roles: ['socio'],
+      roles: [rolSocio._id],
       clubId: CLUB_ID,
       socioId: String(socio._id),
     });
-    const token = jwt.sign({ id: user._id, roles: user.roles, clubId: user.clubId, socioId: user.socioId }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign({ id: user._id, roles: [rolSocio.slug], clubId: user.clubId, socioId: user.socioId }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     const res = await request(app).get('/api/socios').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(403);

@@ -20,17 +20,19 @@ import CategoriaEscuelita from '../src/resources/escuelita/models/CategoriaEscue
 import Escuelita from '../src/resources/escuelita/models/Escuelita.js';
 import Etiqueta from '../src/resources/etiquetas/models/Etiqueta.js';
 import User from '../src/resources/usuarios/models/User.js';
+import Rol from '../src/resources/roles/models/Rol.js';
 
 await mongoose.connect(process.env.MONGO_URI);
 console.log('✅ MongoDB conectado');
 
-const adminUser = await User.findOne({ roles: 'admin' }).lean();
-if (!adminUser) {
-  console.error('❌ No se encontró ningún usuario admin.');
+const rolAdmin = await Rol.findOne({ nombre: 'admin' }).lean();
+if (!rolAdmin) {
+  console.error('❌ No se encontró ningún rol admin.');
   process.exit(1);
 }
-const clubId = adminUser.clubId;
-const BY = adminUser.email || 'seed-planes';
+const clubId = rolAdmin.clubId;
+const adminUser = await User.findOne({ clubId, roles: rolAdmin._id }).lean();
+const BY = adminUser?.email || 'seed-planes';
 console.log(`📋 Club: ${clubId}\n`);
 
 // ── 1. Planes de Escuelita desde CategoriaEscuelita ──────────────────────────

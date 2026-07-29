@@ -14,13 +14,13 @@ dotenv.config();
 
 import Escuelita from '../src/resources/escuelita/models/Escuelita.js';
 import Plan from '../src/resources/planes/models/Plan.js';
-import User from '../src/resources/usuarios/models/User.js';
+import Rol from '../src/resources/roles/models/Rol.js';
 
 await mongoose.connect(process.env.MONGO_URI);
 console.log('✅ MongoDB conectado');
 
-const adminUser = await User.findOne({ roles: 'admin' }).lean();
-const clubId = adminUser?.clubId;
+const rolAdmin = await Rol.findOne({ nombre: 'admin' }).lean();
+const clubId = rolAdmin?.clubId;
 console.log(`📋 Club: ${clubId}\n`);
 
 // Armar mapa categoriaEscuelitaId → planId

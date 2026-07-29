@@ -1,5 +1,6 @@
 import User from '../resources/usuarios/models/User.js';
 import Notification from '../resources/notificaciones/models/Notification.js';
+import { obtenerRolIdsPorSlugs } from '../resources/roles/services/resolverRoles.service.js';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 const BATCH_SIZE = 100; // Expo acepta hasta 100 por request
@@ -76,7 +77,8 @@ export const notifyClub = async (clubId, { title, body, data = {} }) => {
  * Envía una notificación push a usuarios de un club con alguno de los roles indicados.
  */
 export const notifyRoles = async (clubId, roles, { title, body, data = {} }) => {
-  const users = await User.find({ clubId, active: true, roles: { $in: roles } })
+  const rolIds = await obtenerRolIdsPorSlugs({ clubId, slugs: roles });
+  const users = await User.find({ clubId, active: true, roles: { $in: rolIds } })
     .select('expoPushToken').lean();
 
   return sendPushNotification(

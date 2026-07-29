@@ -4,6 +4,12 @@ vi.mock('../../../../services/permisosCache.js', () => ({
   getPermisosUsuario: vi.fn().mockResolvedValue(['socios:read', 'muroLibre:read']),
 }));
 
+vi.mock('../../../roles/services/resolverRoles.service.js', () => ({
+  obtenerRolIdsPorNombres: vi.fn().mockResolvedValue(['rol-id-1']),
+  obtenerRolIdsPorSlugs: vi.fn().mockResolvedValue(['rol-id-1']),
+  obtenerSlugsPorRolIds: vi.fn().mockResolvedValue(['secretaria']),
+}));
+
 import User from '../../models/User.js';
 import Socio from '../../../socios/models/Socio.js';
 import * as authHandlers from '../../handlers/auth.handler.js';
@@ -11,6 +17,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import tokenService from '../../../../services/tokenBlacklistService.js';
 import mongoose from 'mongoose';
+import { obtenerRolIdsPorNombres, obtenerSlugsPorRolIds } from '../../../roles/services/resolverRoles.service.js';
 
 function mockRes() {
   const res = {};
@@ -30,6 +37,8 @@ describe('Usuarios auth handlers (unit)', () => {
     vi.spyOn(bcrypt, 'hash').mockImplementation(async () => 'hashed-pass');
     vi.spyOn(bcrypt, 'compare').mockImplementation(async () => true);
     vi.spyOn(tokenService, 'addToken').mockImplementation(async () => true);
+    obtenerRolIdsPorNombres.mockResolvedValue(['rol-id-1']);
+    obtenerSlugsPorRolIds.mockResolvedValue(['secretaria']);
   });
 
   afterEach(() => {

@@ -2,14 +2,14 @@ import Rol from '../resources/roles/models/Rol.js';
 
 const TTL_MS = 5 * 60 * 1000; // 5 minutos
 
-// cache: Map<clubId, { permisosPorRol: Map<nombre, Set<permiso>>, expiresAt: number }>
+// cache: Map<clubId, { permisosPorRol: Map<slug, Set<permiso>>, expiresAt: number }>
 const cache = new Map();
 
 async function cargarClub(clubId) {
   const roles = await Rol.find({ clubId, active: true }).lean();
   const permisosPorRol = new Map();
   for (const rol of roles) {
-    permisosPorRol.set(rol.nombre, new Set(rol.permisos));
+    permisosPorRol.set(rol.slug, new Set(rol.permisos));
   }
   cache.set(clubId, { permisosPorRol, expiresAt: Date.now() + TTL_MS });
   return permisosPorRol;

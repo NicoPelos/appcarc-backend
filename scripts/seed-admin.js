@@ -2,6 +2,9 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import bcrypt from 'bcryptjs';
 import User from '../src/resources/usuarios/models/User.js';
+import Rol from '../src/resources/roles/models/Rol.js';
+import { generarSlugUnico } from '../src/resources/roles/services/slug.service.js';
+import { TODOS_LOS_PERMISOS } from '../src/constants/permisos.js';
 
 dotenv.config();
 
@@ -28,11 +31,18 @@ const run = async () => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, salt);
 
+    let rolAdmin = await Rol.findOne({ clubId: DEFAULT_CLUB_ID, nombre: 'admin' });
+    if (!rolAdmin) {
+      const slug = await generarSlugUnico({ clubId: DEFAULT_CLUB_ID, nombre: 'admin' });
+      rolAdmin = await Rol.create({ clubId: DEFAULT_CLUB_ID, nombre: 'admin', slug, permisos: TODOS_LOS_PERMISOS, active: true });
+      console.log(`✅ Rol 'admin' creado para club ${DEFAULT_CLUB_ID} (slug: ${slug})`);
+    }
+
     const adminUser = new User({
       email: ADMIN_EMAIL,
       password: hashedPassword,
       nombre: ADMIN_NOMBRE,
-      role: 'admin',
+      roles: [rolAdmin._id],
       clubId: DEFAULT_CLUB_ID,
       active: true,
     });

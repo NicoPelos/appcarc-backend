@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
+import { obtenerRolIdsPorSlugs, obtenerSlugsPorRolIds } from '../../roles/services/resolverRoles.service.js';
 
 export const syncSocioUserFromSocio = async (socio) => {
   if (!socio?.correoElectronico || !socio?.dni) return null;
@@ -24,8 +25,9 @@ export const syncSocioUserFromSocio = async (socio) => {
     user.email = email;
     user.socioId = user.socioId || socio._id?.toString();
     const protectedRoles = ['admin', 'secretaria', 'socio'];
-    if (!user.roles?.some(r => protectedRoles.includes(r))) {
-      user.roles = ['socio'];
+    const slugsActuales = await obtenerSlugsPorRolIds(user.roles);
+    if (!slugsActuales.some(r => protectedRoles.includes(r))) {
+      user.roles = await obtenerRolIdsPorSlugs({ clubId: user.clubId, slugs: ['socio'] });
       user.active = true;
       const salt = await bcrypt.genSalt(10);
       user.password = await bcrypt.hash(password, salt);
@@ -36,12 +38,13 @@ export const syncSocioUserFromSocio = async (socio) => {
 
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(password, salt);
+  const rolesSocio = await obtenerRolIdsPorSlugs({ clubId: socio.clubId, slugs: ['socio'] });
 
   user = new User({
     email,
     password: hashedPassword,
     nombre,
-    roles: ['socio'],
+    roles: rolesSocio,
     clubId: socio.clubId,
     socioId: socio._id?.toString(),
     active: true,

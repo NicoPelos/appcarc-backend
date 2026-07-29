@@ -4,17 +4,20 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import app from '../../../../index.js';
 import User from '../../models/User.js';
-import { CLUB_ID } from '../../../../testUtils/integrationHelpers.js';
+import { CLUB_ID, getOrCreateRol } from '../../../../testUtils/integrationHelpers.js';
 
 const createUserConPassword = async (password, overrides = {}) => {
   const hashed = await bcrypt.hash(password, 10);
+  const clubId = overrides.clubId || CLUB_ID;
+  const nombresRoles = overrides.roles || ['secretaria'];
+  const roles = await Promise.all(nombresRoles.map((nombre) => getOrCreateRol({ clubId, nombre })));
   return User.create({
     email: overrides.email || 'secretaria@carc.local',
     password: hashed,
-    roles: overrides.roles || ['secretaria'],
-    clubId: overrides.clubId || CLUB_ID,
+    clubId,
     active: overrides.active ?? true,
     ...overrides,
+    roles: roles.map((r) => r._id),
   });
 };
 
@@ -65,7 +68,7 @@ describe('Invalidación de sesión por cambio de contraseña (integración)', ()
     const user = await createUserConPassword('claveOriginal123', { roles: ['superadmin'] });
 
     const tokenViejo = jwt.sign(
-      { id: user._id, roles: user.roles, clubId: user.clubId },
+      { id: user._id, roles: ['superadmin'], clubId: user.clubId },
       process.env.JWT_SECRET,
       { expiresIn: '1h' },
     );
@@ -89,7 +92,7 @@ describe('Invalidación de sesión por cambio de contraseña (integración)', ()
 
     await new Promise((resolve) => setTimeout(resolve, 1100));
     const tokenNuevo = jwt.sign(
-      { id: user._id, roles: user.roles, clubId: user.clubId },
+      { id: user._id, roles: ['superadmin'], clubId: user.clubId },
       process.env.JWT_SECRET,
       { expiresIn: '1h' },
     );
@@ -106,7 +109,7 @@ describe('POST /api/auth/logout (integración)', () => {
   it('invalida el token: no se puede usar después de hacer logout', async () => {
     const user = await createUserConPassword('claveOriginal123', { roles: ['superadmin'] });
     const token = jwt.sign(
-      { id: user._id, roles: user.roles, clubId: user.clubId },
+      { id: user._id, roles: ['superadmin'], clubId: user.clubId },
       process.env.JWT_SECRET,
       { expiresIn: '1h' },
     );

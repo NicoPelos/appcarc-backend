@@ -9,15 +9,15 @@ import { generarSlugUnico } from '../src/resources/roles/services/slug.service.j
 await mongoose.connect(process.env.MONGO_URI);
 console.log('✅ MongoDB conectado');
 
-// Obtener clubId de CARC desde la BD (primer usuario admin)
+// Obtener clubId de CARC desde la BD (primer Rol admin/secretaria existente,
+// o si no hay ninguno, el primer usuario activo).
 import User from '../src/resources/usuarios/models/User.js';
-const adminUser = await User.findOne({ roles: { $in: ['admin', 'secretaria'] } }).lean()
-  ?? await User.findOne({ active: true }).lean();
-if (!adminUser) {
-  console.error('❌ No se encontró ningún usuario. Especificá el clubId manualmente.');
+const rolExistente = await Rol.findOne({ nombre: { $in: ['admin', 'secretaria'] } }).lean();
+const clubId = rolExistente?.clubId ?? (await User.findOne({ active: true }).lean())?.clubId;
+if (!clubId) {
+  console.error('❌ No se encontró ningún rol ni usuario. Especificá el clubId manualmente.');
   process.exit(1);
 }
-const clubId = adminUser.clubId;
 console.log(`📋 Club: ${clubId}`);
 
 const P = PERMISOS;

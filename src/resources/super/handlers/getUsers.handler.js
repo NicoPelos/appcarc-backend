@@ -1,4 +1,5 @@
 import User from '../../usuarios/models/User.js';
+import { obtenerRolIdsPorNombres } from '../../roles/services/resolverRoles.service.js';
 
 export const getUsersHandler = async (req, res) => {
   try {
@@ -8,7 +9,7 @@ export const getUsersHandler = async (req, res) => {
 
     const filter = {};
     if (clubId) filter.clubId = clubId;
-    if (rol) filter.roles = rol;
+    if (rol) filter.roles = { $in: await obtenerRolIdsPorNombres({ clubId, nombres: [rol] }) };
     if (active !== undefined) filter.active = active === 'true';
 
     if (search) {
@@ -20,13 +21,15 @@ export const getUsersHandler = async (req, res) => {
       User.countDocuments(filter),
       User.find(filter)
         .select('-password -expoPushToken')
+        .populate('roles', 'nombre')
         .sort({ createdAt: -1 })
         .skip((pageNumber - 1) * pageSize)
         .limit(pageSize)
         .lean(),
     ]);
 
-    res.status(200).json({ page: pageNumber, limit: pageSize, total, users });
+    const usersConRoles = users.map((u) => ({ ...u, roles: (u.roles || []).map((r) => r.nombre) }));
+    res.status(200).json({ page: pageNumber, limit: pageSize, total, users: usersConRoles });
   } catch (error) {
     console.error('Error obteniendo usuarios:', error);
     res.status(500).json({ message: 'Error al obtener usuarios' });
