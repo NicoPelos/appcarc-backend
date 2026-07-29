@@ -2,7 +2,7 @@ import AuditLog from '../../audit/models/AuditLog.js';
 
 export const getSuperAuditHandler = async (req, res) => {
   try {
-    const { clubId, resource, userId, action, from, to } = req.query;
+    const { clubId, resource, userId, action, reverted, from, to } = req.query;
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
 
@@ -11,6 +11,10 @@ export const getSuperAuditHandler = async (req, res) => {
     if (resource) filter.resource = resource;
     if (userId) filter.userId = userId;
     if (action && ['CREATE', 'UPDATE', 'DELETE'].includes(action)) filter.action = action;
+    // Para la "papelera": un DELETE sin revertir sigue efectivamente borrado;
+    // uno ya revertido significa que el documento se restauró, no está en la papelera.
+    if (reverted === 'false') filter.revertedAt = null;
+    if (reverted === 'true') filter.revertedAt = { $ne: null };
 
     if (from || to) {
       filter.createdAt = {};
