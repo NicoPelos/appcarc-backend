@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 
 import Club from '../resources/clubs/models/Club.js';
 import Rol from '../resources/roles/models/Rol.js';
+import { slugify } from '../resources/roles/services/slug.service.js';
 import User from '../resources/usuarios/models/User.js';
 import Socio from '../resources/socios/models/Socio.js';
 import Etiqueta from '../resources/etiquetas/models/Etiqueta.js';
@@ -85,22 +86,27 @@ async function registrarPagoDemo({ socio, suscripcion, etiquetaId, periodo, mont
   movimiento[0].sourceId = cobro[0]._id;
   await movimiento[0].save({ session });
 
-  await Cuota.create([{
-    clubId: DEMO_CLUB_ID,
-    socioId: socio._id,
-    suscripcionId: suscripcion._id,
-    etiquetaId,
-    periodo,
-    estado: 'pagada',
-    montoEsperadoSnapshot: monto,
-    montoPagadoSnapshot: monto,
-    cobroId: cobro[0]._id,
-    movimientoId: movimiento[0]._id,
-    fechaPago: new Date(),
-    paymentMethod: 'Efectivo',
-    createdBy: BY,
-    updatedBy: BY,
-  }], { session });
+  // upsert en vez de create: (clubId, socioId, suscripcionId, periodo, active)
+  // es único — si por lo que sea ya existiera esa cuota exacta, no tiene
+  // sentido que el seed reviente por eso, con actualizarla alcanza.
+  await Cuota.findOneAndUpdate(
+    { clubId: DEMO_CLUB_ID, socioId: socio._id, suscripcionId: suscripcion._id, periodo, active: true },
+    {
+      $set: {
+        etiquetaId,
+        estado: 'pagada',
+        montoEsperadoSnapshot: monto,
+        montoPagadoSnapshot: monto,
+        cobroId: cobro[0]._id,
+        movimientoId: movimiento[0]._id,
+        fechaPago: new Date(),
+        paymentMethod: 'Efectivo',
+        updatedBy: BY,
+      },
+      $setOnInsert: { createdBy: BY },
+    },
+    { upsert: true, session },
+  );
 }
 
 async function borrarDatosDemo() {
@@ -203,7 +209,7 @@ export async function resetDemoClub() {
 
   await borrarDatosDemo();
 
-  await Rol.insertMany(ROLES_DEMO.map((r) => ({ clubId: DEMO_CLUB_ID, nombre: r.nombre, permisos: r.permisos, active: true })));
+  await Rol.insertMany(ROLES_DEMO.map((r) => ({ clubId: DEMO_CLUB_ID, nombre: r.nombre, slug: slugify(r.nombre), permisos: r.permisos, active: true })));
 
   const [
     etiquetaSocial,

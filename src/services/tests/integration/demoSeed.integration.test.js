@@ -90,6 +90,7 @@ describe('resetDemoClub (integración)', () => {
 
       const rolDoc = await Rol.findOne({ clubId: DEMO_CLUB_ID, nombre: rol }).lean();
       expect(rolDoc).toBeTruthy();
+      expect(rolDoc.slug).toBe(rol); // nombres del seed demo ya son slugs válidos tal cual
       // No deberían tener permisos de administración total.
       expect(rolDoc.permisos).not.toContain(PERMISOS.USUARIOS_WRITE);
     }
