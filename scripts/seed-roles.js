@@ -4,6 +4,7 @@ dotenv.config();
 
 import Rol from '../src/resources/roles/models/Rol.js';
 import { PERMISOS, TODOS_LOS_PERMISOS } from '../src/constants/permisos.js';
+import { generarSlugUnico } from '../src/resources/roles/services/slug.service.js';
 
 await mongoose.connect(process.env.MONGO_URI);
 console.log('✅ MongoDB conectado');
@@ -119,15 +120,14 @@ let creados = 0;
 let actualizados = 0;
 
 for (const rol of ROLES_SEED) {
-  const result = await Rol.findOneAndUpdate(
-    { clubId, nombre: rol.nombre },
-    { $set: { permisos: rol.permisos, active: true } },
-    { upsert: true, new: true },
-  );
-  if (result.createdAt?.getTime() === result.updatedAt?.getTime()) {
-    creados++;
-  } else {
+  const existente = await Rol.findOne({ clubId, nombre: rol.nombre });
+  if (existente) {
+    await Rol.updateOne({ _id: existente._id }, { $set: { permisos: rol.permisos, active: true } });
     actualizados++;
+  } else {
+    const slug = await generarSlugUnico({ clubId, nombre: rol.nombre });
+    await Rol.create({ clubId, nombre: rol.nombre, slug, permisos: rol.permisos, active: true });
+    creados++;
   }
 }
 

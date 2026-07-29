@@ -45,6 +45,31 @@ describe('createRolHandler', () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
+  it('genera un slug a partir del nombre', async () => {
+    Rol.findOne.mockResolvedValue(null);
+    mockSave.mockResolvedValue();
+
+    const req = { user: mockUser, body: { nombre: 'Profesor Senior' } };
+    const res = mockRes();
+    await createRolHandler(req, res);
+
+    expect(Rol).toHaveBeenCalledWith(expect.objectContaining({ slug: 'profesor-senior' }));
+  });
+
+  it('desambigua el slug si ya existe uno igual en el club', async () => {
+    Rol.findOne
+      .mockResolvedValueOnce(null) // chequeo de nombre duplicado en el handler
+      .mockResolvedValueOnce({ slug: 'entrenador' }) // generarSlugUnico: "entrenador" ocupado
+      .mockResolvedValueOnce(null); // "entrenador-2" libre
+    mockSave.mockResolvedValue();
+
+    const req = { user: mockUser, body: { nombre: 'Entrenador' } };
+    const res = mockRes();
+    await createRolHandler(req, res);
+
+    expect(Rol).toHaveBeenCalledWith(expect.objectContaining({ slug: 'entrenador-2' }));
+  });
+
   it('retorna 400 si falta nombre', async () => {
     const req = { user: mockUser, body: {} };
     const res = mockRes();

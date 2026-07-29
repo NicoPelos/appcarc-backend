@@ -1,6 +1,7 @@
 import Rol from '../models/Rol.js';
 import { TODOS_LOS_PERMISOS } from '../../../constants/permisos.js';
 import { invalidarClub } from '../../../services/permisosCache.js';
+import { generarSlugUnico } from '../services/slug.service.js';
 
 /**
  * @openapi
@@ -47,7 +48,8 @@ export const createRolHandler = async (req, res) => {
     const existe = await Rol.findOne({ clubId: req.user.clubId, nombre });
     if (existe) return res.status(409).json({ message: `El rol '${nombre}' ya existe` });
 
-    const rol = new Rol({ clubId: req.user.clubId, nombre, permisos });
+    const slug = await generarSlugUnico({ clubId: req.user.clubId, nombre });
+    const rol = new Rol({ clubId: req.user.clubId, nombre, slug, permisos });
     await rol.save();
     invalidarClub(req.user.clubId);
     res.status(201).json(rol);
