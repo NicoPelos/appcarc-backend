@@ -17,6 +17,11 @@ import { revertSuperAuditHandler } from './handlers/revertSuperAudit.handler.js'
 import { resolveRefsHandler }    from './handlers/resolveRefs.handler.js';
 import { getHealthHandler }      from './handlers/getHealth.handler.js';
 import { runJobHandler }         from './handlers/runJob.handler.js';
+import { getSuperRolesHandler }  from './handlers/getSuperRoles.handler.js';
+import { createSuperRolHandler } from './handlers/createSuperRol.handler.js';
+import { updateSuperRolHandler } from './handlers/updateSuperRol.handler.js';
+import { deleteSuperRolHandler } from './handlers/deleteSuperRol.handler.js';
+import { getPermisosCatalogoHandler } from './handlers/getPermisosCatalogo.handler.js';
 
 const router = express.Router();
 
@@ -34,6 +39,13 @@ router.post('/users',                       protectSuper, createSuperUserHandler
 router.patch('/users/:id',                  protectSuper, updateSuperUserHandler);
 router.delete('/users/:id',                 protectSuper, deleteSuperUserHandler);
 router.post('/users/:id/reset-password',    protectSuper, resetUserPasswordHandler);
+
+// Roles cross-club
+router.get('/roles',        protectSuper, getSuperRolesHandler);
+router.post('/roles',       protectSuper, createSuperRolHandler);
+router.patch('/roles/:id',  protectSuper, updateSuperRolHandler);
+router.delete('/roles/:id', protectSuper, deleteSuperRolHandler);
+router.get('/permisos',     protectSuper, getPermisosCatalogoHandler);
 
 // Audit cross-club
 router.get('/audit', protectSuper, getSuperAuditHandler);

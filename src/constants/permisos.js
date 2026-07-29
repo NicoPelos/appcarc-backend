@@ -80,3 +80,26 @@ export const PERMISOS = {
 };
 
 export const TODOS_LOS_PERMISOS = Object.values(PERMISOS);
+
+// Agrupación de PERMISOS por categoría, para UIs que arman un rol eligiendo
+// permisos (ver appcarc-superadmin#5 punto 2) — un checkbox plano de ~47
+// ítems es inmanejable, conviene agruparlos por el mismo recurso que ya
+// separa a PERMISOS en comentarios más arriba.
+export const PERMISOS_POR_CATEGORIA = [
+  { categoria: 'Socios', permisos: [PERMISOS.SOCIOS_READ, PERMISOS.SOCIOS_CREATE, PERMISOS.SOCIOS_WRITE, PERMISOS.SOCIOS_DELETE, PERMISOS.SOCIOS_RESTORE] },
+  { categoria: 'Cobros', permisos: [PERMISOS.COBROS_READ, PERMISOS.COBROS_WRITE, PERMISOS.COBROS_DELETE] },
+  { categoria: 'Movimientos', permisos: [PERMISOS.MOVIMIENTOS_READ, PERMISOS.MOVIMIENTOS_WRITE, PERMISOS.MOVIMIENTOS_DELETE] },
+  { categoria: 'Escuelita', permisos: [PERMISOS.ESCUELITA_READ, PERMISOS.ESCUELITA_WRITE, PERMISOS.ESCUELITA_DELETE, PERMISOS.ESCUELITA_CHECKIN, PERMISOS.ESCUELITA_PURGAR] },
+  { categoria: 'Muro Libre', permisos: [PERMISOS.MURO_LIBRE_READ, PERMISOS.MURO_LIBRE_WRITE, PERMISOS.MURO_LIBRE_DELETE, PERMISOS.MURO_LIBRE_CHECKIN] },
+  { categoria: 'Horarios', permisos: [PERMISOS.HORARIOS_READ, PERMISOS.HORARIOS_WRITE, PERMISOS.HORARIOS_DELETE, PERMISOS.HORARIOS_DEUDA] },
+  { categoria: 'Etiquetas', permisos: [PERMISOS.ETIQUETAS_READ, PERMISOS.ETIQUETAS_WRITE, PERMISOS.ETIQUETAS_DELETE] },
+  { categoria: 'Precios', permisos: [PERMISOS.PRECIOS_READ, PERMISOS.PRECIOS_WRITE, PERMISOS.PRECIOS_DELETE] },
+  { categoria: 'Planes', permisos: [PERMISOS.PLANES_READ, PERMISOS.PLANES_WRITE, PERMISOS.PLANES_DELETE] },
+  { categoria: 'Suscripciones', permisos: [PERMISOS.SUSCRIPCIONES_READ, PERMISOS.SUSCRIPCIONES_WRITE, PERMISOS.SUSCRIPCIONES_CLOSE, PERMISOS.SUSCRIPCIONES_DELETE] },
+  { categoria: 'Asistencias', permisos: [PERMISOS.ASISTENCIAS_READ, PERMISOS.ASISTENCIAS_WRITE] },
+  { categoria: 'Novedades', permisos: [PERMISOS.NOVEDADES_WRITE] },
+  { categoria: 'Export', permisos: [PERMISOS.EXPORT_SHEETS] },
+  { categoria: 'Auditoría', permisos: [PERMISOS.AUDIT_READ, PERMISOS.AUDIT_REVERT] },
+  { categoria: 'Usuarios', permisos: [PERMISOS.USUARIOS_WRITE] },
+  { categoria: 'Roles', permisos: [PERMISOS.ROLES_READ, PERMISOS.ROLES_WRITE, PERMISOS.ROLES_DELETE] },
+];
