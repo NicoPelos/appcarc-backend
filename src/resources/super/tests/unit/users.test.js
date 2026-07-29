@@ -46,6 +46,45 @@ describe('Super — users handlers (unit)', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ total: 5 }));
   });
 
+  it('getUsersHandler filtra por search (nombre o email)', async () => {
+    const query = {
+      select: vi.fn().mockReturnThis(),
+      sort:   vi.fn().mockReturnThis(),
+      skip:   vi.fn().mockReturnThis(),
+      limit:  vi.fn().mockReturnThis(),
+      lean:   vi.fn().mockResolvedValue([]),
+    };
+    User.find.mockReturnValue(query);
+
+    const req = { query: { search: 'ana' } };
+    const res = mockRes();
+    await getUsersHandler(req, res);
+
+    const filterArg = User.find.mock.calls[0][0];
+    expect(filterArg.$or).toHaveLength(2);
+    expect(filterArg.$or[0].nombre.test('Ana García')).toBe(true);
+    expect(filterArg.$or[1].email.test('ana@carc.com')).toBe(true);
+  });
+
+  it('getUsersHandler escapa caracteres especiales de regex en search', async () => {
+    const query = {
+      select: vi.fn().mockReturnThis(),
+      sort:   vi.fn().mockReturnThis(),
+      skip:   vi.fn().mockReturnThis(),
+      limit:  vi.fn().mockReturnThis(),
+      lean:   vi.fn().mockResolvedValue([]),
+    };
+    User.find.mockReturnValue(query);
+
+    const req = { query: { search: '(test)' } };
+    const res = mockRes();
+    await getUsersHandler(req, res);
+
+    const filterArg = User.find.mock.calls[0][0];
+    expect(filterArg.$or[0].nombre.test('(test)')).toBe(true);
+    expect(filterArg.$or[0].nombre.test('test')).toBe(false);
+  });
+
   it('createSuperUserHandler devuelve 400 si falta email', async () => {
     const req = { body: { clubId: 'CARC' } };
     const res = mockRes();

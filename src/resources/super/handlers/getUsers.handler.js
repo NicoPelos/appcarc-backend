@@ -2,7 +2,7 @@ import User from '../../usuarios/models/User.js';
 
 export const getUsersHandler = async (req, res) => {
   try {
-    const { clubId, rol, active, page = 1, limit = 50 } = req.query;
+    const { clubId, rol, active, search, page = 1, limit = 50 } = req.query;
     const pageNumber = Math.max(1, parseInt(page) || 1);
     const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 50));
 
@@ -10,6 +10,11 @@ export const getUsersHandler = async (req, res) => {
     if (clubId) filter.clubId = clubId;
     if (rol) filter.roles = rol;
     if (active !== undefined) filter.active = active === 'true';
+
+    if (search) {
+      const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [{ nombre: regex }, { email: regex }];
+    }
 
     const [total, users] = await Promise.all([
       User.countDocuments(filter),
