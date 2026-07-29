@@ -1,8 +1,33 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
+import jwt from 'jsonwebtoken';
 import app from '../../../../index.js';
 import Asistencia from '../../../asistencias/models/Asistencia.js';
-import { createAdminUser, createSocio } from '../../../../testUtils/integrationHelpers.js';
+import User from '../../../usuarios/models/User.js';
+import { CLUB_ID, createAdminUser, createSocio } from '../../../../testUtils/integrationHelpers.js';
+
+// asistencias:read (asistencia/check-in propios o de alumnos) es un permiso
+// distinto de advertencias:read (panel de contacto con datos de todo el
+// club) — un rol con el primero pero no el segundo no debe poder ver esto.
+// Crea el Rol vía POST /api/roles (no Rol.create directo) porque ese endpoint
+// invalida permisosCache — igual que en authorizePermisos.integration.test.js.
+const crearUsuarioConPermisos = async (permisos) => {
+  const { token: adminToken } = await createAdminUser();
+  const nombre = `rol-test-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const rolRes = await request(app)
+    .post('/api/roles')
+    .set('Authorization', `Bearer ${adminToken}`)
+    .send({ nombre, permisos });
+
+  const user = await User.create({
+    email: `${nombre}@carc.local`,
+    password: 'hashed-not-used',
+    roles: [rolRes.body._id],
+    clubId: CLUB_ID,
+  });
+  const token = jwt.sign({ id: user._id, roles: [rolRes.body.slug], clubId: user.clubId }, process.env.JWT_SECRET, { expiresIn: '1h' });
+  return { user, token };
+};
 
 const crearAsistenciaConAdvertencia = async ({
   socio, tipo = 'escuelita', codigo = 'CUOTA_SOCIAL_IMPAGA', fecha = new Date(),
@@ -91,5 +116,22 @@ describe('GET /api/advertencias (integración)', () => {
 
     const res = await request(app).get('/api/advertencias').set('Authorization', `Bearer ${token}`);
     expect(res.body.advertencias[0].waLink).toBeNull();
+  });
+
+  it('un rol con asistencias:read pero sin advertencias:read no puede ver el panel (403)', async () => {
+    const { token } = await crearUsuarioConPermisos(['asistencias:read', 'asistencias:write']);
+
+    const res = await request(app).get('/api/advertencias').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(403);
+  });
+
+  it('un rol con advertencias:read (sin asistencias:read) sí puede ver el panel', async () => {
+    const { token } = await crearUsuarioConPermisos(['advertencias:read']);
+    const socio = await createSocio();
+    await crearAsistenciaConAdvertencia({ socio });
+
+    const res = await request(app).get('/api/advertencias').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.total).toBe(1);
   });
 });

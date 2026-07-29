@@ -5,6 +5,6 @@ import { getAdvertenciasHandler } from './handlers/getAdvertencias.handler.js';
 
 const router = express.Router();
 
-router.get('/', protect, authorize(PERMISOS.ASISTENCIAS_READ), getAdvertenciasHandler);
+router.get('/', protect, authorize(PERMISOS.ADVERTENCIAS_READ), getAdvertenciasHandler);
 
 export default router;

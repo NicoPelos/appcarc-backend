@@ -60,6 +60,13 @@ export const PERMISOS = {
   ASISTENCIAS_READ:  'asistencias:read',
   ASISTENCIAS_WRITE: 'asistencias:write',
 
+  // Advertencias — panel de seguimiento con datos de contacto de socios
+  // (nombre, teléfono, WhatsApp), separado de asistencias:read a propósito:
+  // ese permiso también lo usan roles como profesor/colaborador/socio para
+  // ver asistencia (propia o de sus alumnos), que no debe habilitar ver
+  // los datos de contacto de todo el club para hacer seguimiento de deuda.
+  ADVERTENCIAS_READ: 'advertencias:read',
+
   // Novedades
   NOVEDADES_WRITE: 'novedades:write',
 
@@ -97,6 +104,7 @@ export const PERMISOS_POR_CATEGORIA = [
   { categoria: 'Planes', permisos: [PERMISOS.PLANES_READ, PERMISOS.PLANES_WRITE, PERMISOS.PLANES_DELETE] },
   { categoria: 'Suscripciones', permisos: [PERMISOS.SUSCRIPCIONES_READ, PERMISOS.SUSCRIPCIONES_WRITE, PERMISOS.SUSCRIPCIONES_CLOSE, PERMISOS.SUSCRIPCIONES_DELETE] },
   { categoria: 'Asistencias', permisos: [PERMISOS.ASISTENCIAS_READ, PERMISOS.ASISTENCIAS_WRITE] },
+  { categoria: 'Advertencias', permisos: [PERMISOS.ADVERTENCIAS_READ] },
   { categoria: 'Novedades', permisos: [PERMISOS.NOVEDADES_WRITE] },
   { categoria: 'Export', permisos: [PERMISOS.EXPORT_SHEETS] },
   { categoria: 'Auditoría', permisos: [PERMISOS.AUDIT_READ, PERMISOS.AUDIT_REVERT] },
