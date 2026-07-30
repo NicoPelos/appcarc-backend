@@ -220,6 +220,7 @@ describe('calcularDeuda', () => {
       clubId: 'CARC',
       socioId: 'socio_001',
       tipo: 'muro_libre',
+      tipoPase: 'diario',
       active: true,
       estadoPago: 'pendiente',
     }));

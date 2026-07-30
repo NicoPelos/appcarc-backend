@@ -39,17 +39,21 @@ const getPrecioVigente = async ({ clubId, etiquetaId, fecha }) => {
 };
 
 /**
- * Cargos que no son mensuales/por suscripción (por ejemplo, check-ins de Muro
- * Libre pagados "pendiente" en el momento). Se acumulan en un array genérico
- * de "otros cargos" para que a futuro cualquier otro cobro por evento/uso
- * (salidas, alquileres, etc.) se sume acá con el mismo formato, sin volver a
- * cambiar el contrato de /api/socios/:id/deuda.
+ * Cargos que no son mensuales/por suscripción: pases DIARIOS de Muro Libre
+ * pagados "pendiente" en el momento del check-in. Los pases MENSUALES no
+ * entran acá — desde que el check-in mensual suscribe al socio (ver
+ * registrarMuroLibre.service.js), esa deuda ya la cubre calcularDeudaSuscripciones
+ * a través de la Suscripcion real. Se acumulan en un array genérico de "otros
+ * cargos" para que a futuro cualquier otro cobro por evento/uso (salidas,
+ * alquileres, etc.) se sume acá con el mismo formato, sin volver a cambiar el
+ * contrato de /api/socios/:id/deuda.
  */
 const calcularCargoMuroLibre = async ({ socioId, clubId }) => {
   const pendientes = await Asistencia.find({
     clubId,
     socioId,
     tipo: 'muro_libre',
+    tipoPase: 'diario',
     active: true,
     estadoPago: 'pendiente',
   }).select('fecha precioSugeridoSnapshot tipoPase').sort({ fecha: 1 }).lean();

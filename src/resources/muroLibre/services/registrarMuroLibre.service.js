@@ -5,6 +5,7 @@ import Precios from '../../cuotas/models/Precios.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
+import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
@@ -130,36 +131,52 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         }
       }
 
-      // Pase mensual: solo socios con Cuota de etiqueta muro_libre_mensual_socio pagada para el período
+      // Pase mensual: requiere una Suscripcion real a la etiqueta muro_libre_mensual_socio.
+      // Si el socio todavía no está suscripto, se lo suscribe en este mismo check-in.
       let estadoPagoOverride = null;
+      let etiquetaMensual = null;
+      let suscripcionMensual = null;
+      let periodoMensual = null;
+      let cuotaMensualVigente = null;
+
       if (tipoPase === 'mensual') {
         if (!socio) {
           throw new BusinessError('El pase mensual solo está disponible para socios');
         }
-        const periodoActual = buildPeriodo(fecha);
-        const etiquetaMensual = await Etiqueta.findOne({
+
+        periodoMensual = buildPeriodo(fecha);
+        etiquetaMensual = await Etiqueta.findOne({
           clubId,
           uso_sistema: 'muro_libre_mensual_socio',
           active: true,
         }).lean();
 
-        const cuotaVigente = etiquetaMensual
-          ? await Cuota.findOne({
-              socioId: socio._id,
-              clubId,
-              etiquetaId: etiquetaMensual._id,
-              periodo: periodoActual,
-              estado: 'pagada',
-            }).session(session)
-          : null;
+        if (!etiquetaMensual) {
+          throw new BusinessError('No hay una etiqueta de Muro Libre Mensual configurada para este club');
+        }
 
-        if (!cuotaVigente) {
+        suscripcionMensual = await Suscripcion.findOne({
+          clubId,
+          socioId: socio._id,
+          etiquetaId: etiquetaMensual._id,
+          active: true,
+        }).session(session);
+
+        cuotaMensualVigente = await Cuota.findOne({
+          socioId: socio._id,
+          clubId,
+          etiquetaId: etiquetaMensual._id,
+          periodo: periodoMensual,
+          estado: 'pagada',
+        }).session(session);
+
+        if (cuotaMensualVigente) {
+          estadoPagoOverride = 'exento';
+        } else if (String(body?.estadoPago || 'pendiente').trim().toLowerCase() !== 'pagado') {
           advertencias.push({
             codigo: ADVERTENCIA.PASE_MENSUAL_IMPAGO,
-            mensaje: `Sin pase mensual pagado para ${periodoActual}`,
+            mensaje: `Sin pase mensual pagado para ${periodoMensual}`,
           });
-        } else {
-          estadoPagoOverride = 'exento';
         }
       }
 
@@ -240,6 +257,44 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         registro.movimientoId = movimiento._id;
         registro.updatedBy = actor;
         await registro.save({ session });
+      }
+
+      // Alta de la suscripción y de la cuota real del pase mensual, para que
+      // quede reflejado en /api/socios/:id/deuda y no se vuelva a pedir pago
+      // si el socio entra otra vez en el mismo período.
+      if (tipoPase === 'mensual' && !cuotaMensualVigente) {
+        if (!suscripcionMensual) {
+          suscripcionMensual = new Suscripcion({
+            clubId,
+            socioId: socio._id,
+            etiquetaId: etiquetaMensual._id,
+            fechaDesde: periodoMensual,
+            active: true,
+            createdBy: actor,
+            updatedBy: actor,
+          });
+          await suscripcionMensual.save({ session });
+        }
+
+        if (estadoPago === 'pagado') {
+          const cuotaMensual = new Cuota({
+            clubId,
+            socioId: socio._id,
+            suscripcionId: suscripcionMensual._id,
+            etiquetaId: etiquetaMensual._id,
+            periodo: periodoMensual,
+            estado: 'pagada',
+            montoEsperadoSnapshot: precioSugeridoSnapshot ?? monto,
+            montoPagadoSnapshot: monto,
+            precioSugeridoSnapshot,
+            paymentMethod,
+            fechaPago: fecha,
+            movimientoId: movimiento?._id ?? null,
+            createdBy: actor,
+            updatedBy: actor,
+          });
+          await cuotaMensual.save({ session });
+        }
       }
 
       result = { registro, movimiento };

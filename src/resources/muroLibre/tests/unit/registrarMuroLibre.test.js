@@ -8,6 +8,7 @@ import Precios from '../../../cuotas/models/Precios.js';
 import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 import Asistencia from '../../../asistencias/models/Asistencia.js';
 import Movimiento from '../../../movimientos/models/Movimiento.js';
+import Suscripcion from '../../../suscripciones/models/Suscripcion.js';
 
 const CLUB_ID = 'club1';
 const SOCIO_ID = '507f1f77bcf86cd799439011';
@@ -35,12 +36,18 @@ describe('registrarMuroLibre service (unit)', () => {
   let sessionMock;
   let registroSaveSpy;
   let movimientoSaveSpy;
+  let suscripcionSaveSpy;
+  let cuotaSaveSpy;
   let savedRegistros;
   let savedMovimientos;
+  let savedSuscripciones;
+  let savedCuotas;
 
   beforeEach(() => {
     savedRegistros = [];
     savedMovimientos = [];
+    savedSuscripciones = [];
+    savedCuotas = [];
 
     sessionMock = {
       withTransaction: vi.fn(async (callback) => callback()),
@@ -53,6 +60,7 @@ describe('registrarMuroLibre service (unit)', () => {
     Cuota.findOne = vi.fn();
     Precios.findOne = vi.fn();
     Etiqueta.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: ETIQUETA_ID }) });
+    Suscripcion.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(null) });
 
     Asistencia.findOne = vi.fn().mockReturnValue({
       session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) }),
@@ -67,6 +75,18 @@ describe('registrarMuroLibre service (unit)', () => {
     movimientoSaveSpy = vi.spyOn(Movimiento.prototype, 'save').mockImplementation(async function () {
       if (!this._id) this._id = new mongoose.Types.ObjectId();
       savedMovimientos.push(this);
+      return this;
+    });
+
+    suscripcionSaveSpy = vi.spyOn(Suscripcion.prototype, 'save').mockImplementation(async function () {
+      if (!this._id) this._id = new mongoose.Types.ObjectId();
+      savedSuscripciones.push(this);
+      return this;
+    });
+
+    cuotaSaveSpy = vi.spyOn(Cuota.prototype, 'save').mockImplementation(async function () {
+      if (!this._id) this._id = new mongoose.Types.ObjectId();
+      savedCuotas.push(this);
       return this;
     });
   });
@@ -186,6 +206,70 @@ describe('registrarMuroLibre service (unit)', () => {
       expect.objectContaining({ codigo: 'PASE_MENSUAL_IMPAGO' }),
     ]));
     expect(registroSaveSpy).toHaveBeenCalled();
+    // Al no estar suscripto todavía, el check-in lo suscribe igual (aunque quede pendiente)
+    expect(suscripcionSaveSpy).toHaveBeenCalledTimes(1);
+    expect(cuotaSaveSpy).not.toHaveBeenCalled();
+  });
+
+  it('suscribe automáticamente y crea la Cuota pagada cuando el socio paga el pase mensual sin estar suscripto', async () => {
+    mockSocioQuery({ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' });
+    mockPrecioVigenteQuery({ monto: 8000 });
+    // Primera llamada: cuota social (impaga) — segunda: cuota mensual (no existe)
+    Cuota.findOne = vi.fn()
+      .mockReturnValueOnce({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) }) })
+      .mockReturnValueOnce({ session: vi.fn().mockResolvedValue(null) });
+    Suscripcion.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(null) });
+
+    const result = await registrarMuroLibre({
+      clubId: CLUB_ID, user: USER,
+      body: { socioId: SOCIO_ID, tipoPase: 'mensual', estadoPago: 'pagado', paymentMethod: 'Efectivo', fecha: '2026-06-15T00:00:00.000Z' },
+    });
+
+    expect(suscripcionSaveSpy).toHaveBeenCalledTimes(1);
+    expect(savedSuscripciones[0]).toMatchObject({ clubId: CLUB_ID, fechaDesde: '2026-06', active: true });
+    expect(String(savedSuscripciones[0].socioId)).toBe(String(SOCIO_ID));
+    expect(String(savedSuscripciones[0].etiquetaId)).toBe(String(ETIQUETA_ID));
+    expect(cuotaSaveSpy).toHaveBeenCalledTimes(1);
+    expect(savedCuotas[0]).toMatchObject({
+      clubId: CLUB_ID, periodo: '2026-06', estado: 'pagada', montoPagadoSnapshot: 8000, paymentMethod: 'Efectivo',
+    });
+    expect(String(savedCuotas[0].socioId)).toBe(String(SOCIO_ID));
+    expect(String(savedCuotas[0].etiquetaId)).toBe(String(ETIQUETA_ID));
+    expect(String(savedCuotas[0].suscripcionId)).toBe(String(savedSuscripciones[0]._id));
+    expect(result.advertencias).not.toEqual(expect.arrayContaining([
+      expect.objectContaining({ codigo: 'PASE_MENSUAL_IMPAGO' }),
+    ]));
+  });
+
+  it('no crea una nueva Suscripcion si ya estaba suscripto, solo la Cuota al pagar', async () => {
+    const existingSuscripcionId = new mongoose.Types.ObjectId();
+    mockSocioQuery({ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' });
+    mockPrecioVigenteQuery({ monto: 8000 });
+    Cuota.findOne = vi.fn()
+      .mockReturnValueOnce({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) }) })
+      .mockReturnValueOnce({ session: vi.fn().mockResolvedValue(null) });
+    Suscripcion.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue({ _id: existingSuscripcionId }) });
+
+    await registrarMuroLibre({
+      clubId: CLUB_ID, user: USER,
+      body: { socioId: SOCIO_ID, tipoPase: 'mensual', estadoPago: 'pagado', paymentMethod: 'Efectivo', fecha: '2026-06-15T00:00:00.000Z' },
+    });
+
+    expect(suscripcionSaveSpy).not.toHaveBeenCalled();
+    expect(cuotaSaveSpy).toHaveBeenCalledTimes(1);
+    expect(String(savedCuotas[0].suscripcionId)).toBe(String(existingSuscripcionId));
+  });
+
+  it('falla con mensaje claro si no hay etiqueta de Muro Libre Mensual configurada', async () => {
+    mockSocioQuery({ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' });
+    Etiqueta.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
+
+    await expect(registrarMuroLibre({
+      clubId: CLUB_ID, user: USER,
+      body: { socioId: SOCIO_ID, tipoPase: 'mensual', estadoPago: 'pendiente' },
+    })).rejects.toMatchObject({ message: 'No hay una etiqueta de Muro Libre Mensual configurada para este club' });
+
+    expect(suscripcionSaveSpy).not.toHaveBeenCalled();
   });
 
   it('should register pendiente without movimiento and monto zero', async () => {
