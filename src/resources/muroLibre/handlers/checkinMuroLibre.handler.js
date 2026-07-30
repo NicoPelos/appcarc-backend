@@ -43,6 +43,10 @@ import { notifyRoles, notifySocio } from '../../../services/pushNotification.ser
  *               observaciones:
  *                 type: string
  *                 description: Observaciones adicionales
+ *               fecha:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Fecha del check-in (default ahora) — para cargar asistencia de un día anterior
  *     responses:
  *       201:
  *         description: Check-in registrado exitosamente
@@ -56,7 +60,7 @@ import { notifyRoles, notifySocio } from '../../../services/pushNotification.ser
 
 export const checkinMuroLibreHandler = async (req, res) => {
   try {
-    const { token, dni, tipoPase, estadoPago, paymentMethod, enviarComprobanteWp, observaciones } = req.body;
+    const { token, dni, tipoPase, estadoPago, paymentMethod, enviarComprobanteWp, observaciones, fecha } = req.body;
 
     const { socio, method } = await resolveSocioFromQrTokenOrDni({
       token,
@@ -76,6 +80,7 @@ export const checkinMuroLibreHandler = async (req, res) => {
         paymentMethod,
         enviarComprobanteWp,
         observaciones,
+        fecha,
       },
       scannedBy: req.user?.id,
       checkinMethod: method,

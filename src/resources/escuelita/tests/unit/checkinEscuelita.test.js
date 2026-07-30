@@ -114,6 +114,41 @@ describe('checkinEscuelitaHandler', () => {
     }));
   });
 
+  it('retorna 400 si la fecha es inválida', async () => {
+    const req = { user: mockUser, body: { token: 'tok', fecha: 'no-es-una-fecha' } };
+    const res = mockRes();
+
+    await checkinEscuelitaHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(Asistencia.create).not.toHaveBeenCalled();
+  });
+
+  it('registra la asistencia con la fecha pasada, no con la de hoy', async () => {
+    const req = { user: mockUser, body: { token: 'tok', fecha: '2026-02-10T15:00:00.000Z' } };
+    const res = mockRes();
+
+    await checkinEscuelitaHandler(req, res);
+
+    expect(Asistencia.create).toHaveBeenCalledWith(expect.objectContaining({
+      fecha: new Date('2026-02-10T15:00:00.000Z'),
+    }));
+  });
+
+  it('calcula el período de cuota y el límite semanal en base a la fecha pasada, no a la real', async () => {
+    const req = { user: mockUser, body: { token: 'tok', fecha: '2026-02-10T15:00:00.000Z' } };
+    const res = mockRes();
+
+    await checkinEscuelitaHandler(req, res);
+
+    // La cuota se busca con periodo '2026-02' (el de la fecha pasada), no el mes real.
+    expect(Cuota.findOne).toHaveBeenCalledWith(expect.objectContaining({ periodo: '2026-02' }));
+    // El conteo semanal filtra por el rango de esa semana, no "ahora".
+    const countArgs = Asistencia.countDocuments.mock.calls[0][0];
+    expect(countArgs.fecha.$gte.getTime()).toBeLessThan(new Date('2026-02-10T15:00:00.000Z').getTime());
+    expect(countArgs.fecha.$lte.getTime()).toBeGreaterThan(new Date('2026-02-10T15:00:00.000Z').getTime());
+  });
+
   it('retorna 500 si hay error inesperado', async () => {
     Asistencia.create.mockRejectedValue(new Error('DB error'));
     const req = { user: mockUser, body: { token: 'tok' } };

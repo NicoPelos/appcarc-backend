@@ -67,6 +67,20 @@ describe('checkinMuroLibreHandler', () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
+  it('should forward fecha from the body to registrarMuroLibre', async () => {
+    const req = {
+      body: { dni: '123', tipoPase: 'diario', estadoPago: 'pendiente', fecha: '2026-07-20T15:00:00.000Z' },
+      user: { clubId: 'club1', id: 'staff1' },
+    };
+    const res = mockRes();
+
+    await checkinMuroLibreHandler(req, res);
+
+    expect(muroLibreService.registrarMuroLibre).toHaveBeenCalledWith(expect.objectContaining({
+      body: expect.objectContaining({ fecha: '2026-07-20T15:00:00.000Z' }),
+    }));
+  });
+
   it('should return 400 when neither token nor DNI is provided', async () => {
     const req = { body: { tipoPase: 'diario' }, user: { clubId: 'club1', id: 'staff1' } };
     const res = mockRes();

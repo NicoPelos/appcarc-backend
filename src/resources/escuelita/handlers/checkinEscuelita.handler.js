@@ -5,34 +5,7 @@ import Asistencia from '../../asistencias/models/Asistencia.js';
 import { resolveSocioFromQrTokenOrDni, BusinessError } from '../../socios/services/socioQr.service.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 import { notifyRoles, notifySocio } from '../../../services/pushNotification.service.js';
-
-const periodoActual = () => {
-  const OFFSET_MS = -3 * 60 * 60 * 1000;
-  const local = new Date(Date.now() + OFFSET_MS);
-  return `${local.getUTCFullYear()}-${String(local.getUTCMonth() + 1).padStart(2, '0')}`;
-};
-
-// Lunes a domingo de la semana actual en Argentina (UTC-3)
-const getWeekBounds = () => {
-  const OFFSET_MS = -3 * 60 * 60 * 1000;
-  const localNow = new Date(Date.now() + OFFSET_MS);
-  const day = localNow.getUTCDay(); // 0=Dom, 1=Lun...
-  const diffToMonday = day === 0 ? 6 : day - 1;
-
-  const monday = new Date(localNow);
-  monday.setUTCDate(localNow.getUTCDate() - diffToMonday);
-  monday.setUTCHours(0, 0, 0, 0);
-
-  const sunday = new Date(monday);
-  sunday.setUTCDate(monday.getUTCDate() + 6);
-  sunday.setUTCHours(23, 59, 59, 999);
-
-  // Convertir de hora local a UTC para comparar con fechas almacenadas
-  return {
-    start: new Date(monday.getTime() - OFFSET_MS),
-    end:   new Date(sunday.getTime() - OFFSET_MS),
-  };
-};
+import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC } from '../../../services/fechaArgentina.js';
 
 /**
  * @openapi
@@ -57,9 +30,15 @@ const getWeekBounds = () => {
  *                 description: DNI del socio
  *               observaciones:
  *                 type: string
+ *               fecha:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Fecha del check-in (default ahora) — para cargar asistencia de un día anterior
  *     responses:
  *       201:
  *         description: Asistencia registrada
+ *       400:
+ *         description: Datos inválidos
  *       402:
  *         description: Sin cuota pagada o límite de clases alcanzado
  *       404:
@@ -69,9 +48,14 @@ const getWeekBounds = () => {
  */
 export const checkinEscuelitaHandler = async (req, res) => {
   try {
-    const { token, dni, observaciones } = req.body;
+    const { token, dni, observaciones, fecha: fechaRaw } = req.body;
     const { clubId } = req.user;
     const actor = req.user.email || req.user.id;
+
+    const fecha = fechaRaw ? new Date(fechaRaw) : new Date();
+    if (Number.isNaN(fecha.getTime())) {
+      return res.status(400).json({ message: 'La fecha es inválida' });
+    }
 
     // 1. Identificar socio por QR o DNI
     const { socio, method } = await resolveSocioFromQrTokenOrDni({
@@ -98,7 +82,7 @@ export const checkinEscuelitaHandler = async (req, res) => {
     const frecuenciaSemanal = plan?.atributos?.frecuenciaSemanal ?? 1;
 
     const advertencias = [];
-    const periodo = periodoActual();
+    const periodo = periodoDeFecha(fecha);
 
     // 3a. Verificar cuota social del mes (advertencia, no bloquea)
     const etiquetaSocial = await Etiqueta.findOne({ clubId, uso_sistema: 'cuota_social', active: true }).lean();
@@ -134,8 +118,8 @@ export const checkinEscuelitaHandler = async (req, res) => {
       });
     }
 
-    // 4. Contar clases de esta semana (advertencia, no bloquea)
-    const { start, end } = getWeekBounds();
+    // 4. Contar clases de la semana del check-in (advertencia, no bloquea)
+    const { start, end } = semanaBoundsUTC(fecha);
     const clasesEstaSemana = await Asistencia.countDocuments({
       clubId,
       socioId: socio._id,
@@ -147,21 +131,14 @@ export const checkinEscuelitaHandler = async (req, res) => {
     if (clasesEstaSemana >= frecuenciaSemanal) {
       advertencias.push({
         codigo: ADVERTENCIA.LIMITE_SEMANAL,
-        mensaje: `Ya registró ${clasesEstaSemana} clase${clasesEstaSemana !== 1 ? 's' : ''} esta semana (límite: ${frecuenciaSemanal})`,
+        mensaje: `Ya registró ${clasesEstaSemana} clase${clasesEstaSemana !== 1 ? 's' : ''} esa semana (límite: ${frecuenciaSemanal})`,
       });
     }
 
-    // 5. Verificar que no haya asistencia registrada hoy (bloqueo duro)
-    const OFFSET_MS = -3 * 60 * 60 * 1000;
-    const localNow = new Date(Date.now() + OFFSET_MS);
-    const startOfDayLocal = new Date(localNow);
-    startOfDayLocal.setUTCHours(0, 0, 0, 0);
-    const endOfDayLocal = new Date(localNow);
-    endOfDayLocal.setUTCHours(23, 59, 59, 999);
-    const startUTC = new Date(startOfDayLocal.getTime() - OFFSET_MS);
-    const endUTC = new Date(endOfDayLocal.getTime() - OFFSET_MS);
+    // 5. Verificar que no haya otra asistencia registrada ese mismo día (bloqueo duro)
+    const { start: startUTC, end: endUTC } = diaBoundsUTC(fecha);
 
-    const asistenciaHoy = await Asistencia.findOne({
+    const asistenciaEseDia = await Asistencia.findOne({
       clubId,
       socioId: socio._id,
       tipo: 'escuelita',
@@ -169,9 +146,9 @@ export const checkinEscuelitaHandler = async (req, res) => {
       fecha: { $gte: startUTC, $lte: endUTC },
     }).lean();
 
-    if (asistenciaHoy) {
+    if (asistenciaEseDia) {
       return res.status(409).json({
-        message: `${socio.nombre} ${socio.apellido} ya registró asistencia hoy`,
+        message: `${socio.nombre} ${socio.apellido} ya tiene una asistencia registrada ese día`,
       });
     }
 
@@ -184,7 +161,7 @@ export const checkinEscuelitaHandler = async (req, res) => {
       apellido: socio.apellido,
       dni: socio.dni,
       esSocio: true,
-      fecha: new Date(),
+      fecha,
       categoria: plan?.nombre || '',
       advertencias,
       observaciones: String(observaciones || '').trim(),
