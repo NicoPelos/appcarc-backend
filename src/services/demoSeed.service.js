@@ -194,7 +194,7 @@ const ROLES_DEMO = [
       P.ETIQUETAS_READ, P.PRECIOS_READ,
     ],
   },
-  { nombre: 'socio', permisos: [P.MURO_LIBRE_READ, P.MURO_LIBRE_CHECKIN, P.ASISTENCIAS_READ] },
+  { nombre: 'socio', permisos: [P.MURO_LIBRE_READ, P.ASISTENCIAS_READ] },
 ];
 
 export async function resetDemoClub() {
