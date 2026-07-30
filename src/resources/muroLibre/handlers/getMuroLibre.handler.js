@@ -1,4 +1,6 @@
 import Asistencia from '../../asistencias/models/Asistencia.js';
+import { tienePermiso } from '../../../services/permisosCache.js';
+import { PERMISOS } from '../../../constants/permisos.js';
 
 /**
  * @openapi
@@ -35,8 +37,18 @@ export const getMuroLibreHandler = async (req, res) => {
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 500);
     const filter = { clubId: req.user?.clubId, tipo: 'muro_libre', active: true };
-    const isSocioOnly = req.user?.roles?.length > 0 && req.user.roles.every(r => r === 'socio');
-    if (isSocioOnly && req.user.socioId) filter.socioId = req.user.socioId;
+
+    // roles.every(r => r === 'socio') no alcanza para decidir el auto-scope:
+    // un profesor que también es socio del club (caso real) tiene el rol
+    // 'socio' de más, así que ese chequeo daba isSocioOnly=false y terminaba
+    // viendo el registro de TODO el club en vez de solo el propio. El criterio
+    // correcto es si el usuario tiene manejo de muro libre (staff), no si
+    // "solo" tiene el rol socio — autoridad se suma aparte porque ve todo en
+    // modo lectura sin tener muroLibre:write.
+    const rolesUsuario = req.user?.roles ?? [];
+    const esStaffMuroLibre = rolesUsuario.includes('autoridad')
+      || await tienePermiso(req.user?.clubId, rolesUsuario, PERMISOS.MURO_LIBRE_WRITE);
+    if (!esStaffMuroLibre && req.user?.socioId) filter.socioId = req.user.socioId;
 
     if (from || to) {
       filter.fecha = {};

@@ -7,8 +7,13 @@ vi.mock('../../../asistencias/models/Asistencia.js', () => ({
   },
 }));
 
+vi.mock('../../../../services/permisosCache.js', () => ({
+  tienePermiso: vi.fn(),
+}));
+
 import { getMuroLibreHandler } from '../../handlers/getMuroLibre.handler.js';
 import Asistencia from '../../../asistencias/models/Asistencia.js';
+import { tienePermiso } from '../../../../services/permisosCache.js';
 
 const mockUser = { clubId: 'CARC' };
 
@@ -28,7 +33,10 @@ const mockFind = (results = []) =>
     }),
   });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  tienePermiso.mockResolvedValue(false);
+});
 
 describe('getMuroLibreHandler', () => {
   it('devuelve lista paginada de asistencias', async () => {
@@ -76,5 +84,57 @@ describe('getMuroLibreHandler', () => {
     await getMuroLibreHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  it('un socio puro (sin muroLibre:write) ve solo lo propio', async () => {
+    Asistencia.countDocuments.mockResolvedValue(0);
+    mockFind([]);
+    tienePermiso.mockResolvedValue(false);
+
+    const req = { user: { clubId: 'CARC', roles: ['socio'], socioId: 'socio1' }, query: {} };
+    const res = mockRes();
+    await getMuroLibreHandler(req, res);
+
+    expect(Asistencia.countDocuments).toHaveBeenCalledWith(expect.objectContaining({ socioId: 'socio1' }));
+  });
+
+  it('un profesor que también es socio (rol doble real) NO ve todo el club, solo lo propio', async () => {
+    // Caso real detectado en producción: roles.every(r => r === 'socio') daba
+    // false para este usuario y el auto-scope no se aplicaba.
+    Asistencia.countDocuments.mockResolvedValue(0);
+    mockFind([]);
+    tienePermiso.mockResolvedValue(false); // profesor no tiene muroLibre:write
+
+    const req = { user: { clubId: 'CARC', roles: ['profesor', 'socio'], socioId: 'socio1' }, query: {} };
+    const res = mockRes();
+    await getMuroLibreHandler(req, res);
+
+    expect(Asistencia.countDocuments).toHaveBeenCalledWith(expect.objectContaining({ socioId: 'socio1' }));
+  });
+
+  it('un rol con muroLibre:write (palestrero/secretaria/admin) ve todo el club', async () => {
+    Asistencia.countDocuments.mockResolvedValue(0);
+    mockFind([]);
+    tienePermiso.mockResolvedValue(true);
+
+    const req = { user: { clubId: 'CARC', roles: ['palestrero'], socioId: 'socio1' }, query: {} };
+    const res = mockRes();
+    await getMuroLibreHandler(req, res);
+
+    const callArg = Asistencia.countDocuments.mock.calls[0][0];
+    expect(callArg.socioId).toBeUndefined();
+  });
+
+  it('autoridad ve todo el club aunque no tenga muroLibre:write', async () => {
+    Asistencia.countDocuments.mockResolvedValue(0);
+    mockFind([]);
+    tienePermiso.mockResolvedValue(false);
+
+    const req = { user: { clubId: 'CARC', roles: ['autoridad'], socioId: null }, query: {} };
+    const res = mockRes();
+    await getMuroLibreHandler(req, res);
+
+    const callArg = Asistencia.countDocuments.mock.calls[0][0];
+    expect(callArg.socioId).toBeUndefined();
   });
 });
