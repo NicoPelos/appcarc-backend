@@ -39,6 +39,11 @@ const P = PERMISOS;
 
 const currentPeriodo = (offsetMonths = 0) => {
   const d = new Date();
+  // Fijar el día a 1 antes de mover el mes: si no, un "hoy" con día 29-31 se
+  // desborda al mes siguiente en meses más cortos (ej. día 30 - 5 meses cae
+  // en un 30 de febrero inexistente, que JS corrige rebalsando a marzo) y
+  // termina duplicando/salteando un período.
+  d.setUTCDate(1);
   d.setUTCMonth(d.getUTCMonth() + offsetMonths);
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 };
@@ -231,6 +236,7 @@ export async function resetDemoClub() {
   ]);
 
   const vigenteDesde = new Date();
+  vigenteDesde.setUTCDate(1); // ver comentario en currentPeriodo() — evita el mismo desborde de mes
   vigenteDesde.setUTCMonth(vigenteDesde.getUTCMonth() - 6);
   await Precios.insertMany([
     { clubId: DEMO_CLUB_ID, etiquetaId: etiquetaSocial._id, nombre: 'Cuota Social', unidad: 'mes', monto: 15000, vigenteDesde, active: true, createdBy: BY, updatedBy: BY },

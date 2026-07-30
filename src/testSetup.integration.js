@@ -4,6 +4,7 @@ import { beforeAll, afterEach } from 'vitest';
 process.env.MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/appcarc_test?replicaSet=rs0';
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test_jwt_secret';
 process.env.DEFAULT_CLUB_ID = process.env.DEFAULT_CLUB_ID || 'CARC';
+process.env.FORMS_WEBHOOK_SECRET = process.env.FORMS_WEBHOOK_SECRET || 'test_forms_webhook_secret';
 
 // Bloquear integraciones externas reales durante los tests: varios handlers
 // (ej. createSocioHandler) llaman a Google Sheets con las credenciales de
