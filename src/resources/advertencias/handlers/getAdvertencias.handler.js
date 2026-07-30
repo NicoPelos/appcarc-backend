@@ -1,8 +1,9 @@
 import Asistencia from '../../asistencias/models/Asistencia.js';
+import Advertencia from '../models/Advertencia.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 
 const CODIGOS_VALIDOS = Object.values(ADVERTENCIA);
-const TIPOS_VALIDOS = ['escuelita', 'muro_libre'];
+const TIPOS_VALIDOS = ['escuelita', 'muro_libre', 'morosidad'];
 
 const formatWaPhone = (telefono) => {
   if (!telefono) return null;
@@ -38,10 +39,10 @@ const buildWaLink = (telefono, nombre, advertencias) => {
  *         description: Cantidad de días hacia atrás a consultar (máx 365)
  *       - in: query
  *         name: tipo
- *         schema: { type: string, enum: [escuelita, muro_libre] }
+ *         schema: { type: string, enum: [escuelita, muro_libre, morosidad] }
  *       - in: query
  *         name: codigo
- *         schema: { type: string, enum: [CUOTA_SOCIAL_IMPAGA, CUOTA_IMPAGA, LIMITE_SEMANAL, PASE_MENSUAL_IMPAGO] }
+ *         schema: { type: string, enum: [CUOTA_SOCIAL_IMPAGA, CUOTA_IMPAGA, LIMITE_SEMANAL, PASE_MENSUAL_IMPAGO, MOROSIDAD_CUOTA_SOCIAL] }
  *         description: Filtrar por código de advertencia específico
  *       - in: query
  *         name: page
@@ -67,7 +68,7 @@ export const getAdvertenciasHandler = async (req, res) => {
     const diasNum = Math.min(Math.max(parseInt(dias, 10) || 30, 1), 365);
 
     if (tipo && !TIPOS_VALIDOS.includes(tipo)) {
-      return res.status(400).json({ message: 'El tipo debe ser escuelita o muro_libre' });
+      return res.status(400).json({ message: 'El tipo debe ser escuelita, muro_libre o morosidad' });
     }
     if (codigo && !CODIGOS_VALIDOS.includes(codigo)) {
       return res.status(400).json({ message: `Código inválido. Válidos: ${CODIGOS_VALIDOS.join(', ')}` });
@@ -76,34 +77,60 @@ export const getAdvertenciasHandler = async (req, res) => {
     const desde = new Date();
     desde.setDate(desde.getDate() - diasNum);
 
-    const filter = {
-      clubId,
-      active: true,
-      'advertencias.0': { $exists: true },
-      fecha: { $gte: desde },
-    };
-    if (tipo) filter.tipo = tipo;
-    if (codigo) filter['advertencias.codigo'] = codigo;
-
-    const [total, docs] = await Promise.all([
-      Asistencia.countDocuments(filter),
-      Asistencia.find(filter)
-        .populate('socioId', 'telefono')
-        .sort({ fecha: -1 })
-        .skip((pageNumber - 1) * pageSize)
-        .limit(pageSize)
-        .lean(),
-    ]);
-
-    const items = docs.map((doc) => {
-      const telefono = doc.socioId?.telefono ?? null;
-      return {
-        ...doc,
-        telefono,
-        waLink: buildWaLink(telefono, doc.nombre, doc.advertencias),
-        socioId: doc.socioId?._id ?? doc.socioId,
+    // Advertencias ligadas a un check-in puntual (escuelita/muro_libre), embebidas en Asistencia.
+    let asistenciaItems = [];
+    if (!tipo || tipo === 'escuelita' || tipo === 'muro_libre') {
+      const filter = {
+        clubId,
+        active: true,
+        'advertencias.0': { $exists: true },
+        fecha: { $gte: desde },
       };
-    });
+      if (tipo) filter.tipo = tipo;
+      if (codigo) filter['advertencias.codigo'] = codigo;
+
+      const docs = await Asistencia.find(filter).populate('socioId', 'telefono').sort({ fecha: -1 }).lean();
+      asistenciaItems = docs.map((doc) => {
+        const telefono = doc.socioId?.telefono ?? null;
+        return {
+          ...doc,
+          telefono,
+          waLink: buildWaLink(telefono, doc.nombre, doc.advertencias),
+          socioId: doc.socioId?._id ?? doc.socioId,
+        };
+      });
+    }
+
+    // Advertencias de estado (morosidad), independientes de check-ins: se muestran
+    // mientras sigan abiertas, sin importar cuándo se detectaron (no aplica "dias").
+    let morosidadItems = [];
+    if ((!tipo || tipo === 'morosidad') && (!codigo || codigo === ADVERTENCIA.MOROSIDAD_CUOTA_SOCIAL)) {
+      const docs = await Advertencia.find({ clubId, estado: 'abierta' })
+        .populate('socioId', 'telefono')
+        .sort({ ultimaRevision: -1 })
+        .lean();
+      morosidadItems = docs.map((doc) => {
+        const telefono = doc.socioId?.telefono ?? null;
+        const advertencias = [{ codigo: doc.codigo, mensaje: doc.mensaje }];
+        return {
+          _id: doc._id,
+          tipo: 'morosidad',
+          fecha: doc.ultimaRevision,
+          nombre: doc.nombre,
+          apellido: doc.apellido,
+          telefono,
+          advertencias,
+          waLink: buildWaLink(telefono, doc.nombre, advertencias),
+          socioId: doc.socioId?._id ?? doc.socioId,
+        };
+      });
+    }
+
+    const merged = [...asistenciaItems, ...morosidadItems].sort(
+      (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
+    );
+    const total = merged.length;
+    const items = merged.slice((pageNumber - 1) * pageSize, (pageNumber - 1) * pageSize + pageSize);
 
     return res.status(200).json({
       page: pageNumber,

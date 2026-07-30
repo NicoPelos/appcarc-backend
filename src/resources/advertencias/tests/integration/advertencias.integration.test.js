@@ -3,6 +3,7 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import app from '../../../../index.js';
 import Asistencia from '../../../asistencias/models/Asistencia.js';
+import Advertencia from '../../models/Advertencia.js';
 import User from '../../../usuarios/models/User.js';
 import { CLUB_ID, createAdminUser, createSocio } from '../../../../testUtils/integrationHelpers.js';
 
@@ -133,5 +134,52 @@ describe('GET /api/advertencias (integración)', () => {
     const res = await request(app).get('/api/advertencias').set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body.total).toBe(1);
+  });
+
+  it('incluye advertencias de morosidad abiertas junto con las de check-in', async () => {
+    const { token } = await createAdminUser();
+    const socio = await createSocio();
+    await crearAsistenciaConAdvertencia({ socio });
+    await Advertencia.create({
+      clubId: 'CARC', socioId: socio._id, codigo: 'MOROSIDAD_CUOTA_SOCIAL',
+      mensaje: 'Debe 3 meses de cuota social', nombre: socio.nombre, apellido: socio.apellido,
+      estado: 'abierta', detectadoEn: new Date(), ultimaRevision: new Date(),
+    });
+
+    const res = await request(app).get('/api/advertencias').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.total).toBe(2);
+    expect(res.body.advertencias.some((a) => a.tipo === 'morosidad')).toBe(true);
+  });
+
+  it('filtra solo morosidad con tipo=morosidad, ignorando "dias"', async () => {
+    const { token } = await createAdminUser();
+    const socio = await createSocio();
+    const haceUnAnio = new Date();
+    haceUnAnio.setFullYear(haceUnAnio.getFullYear() - 1);
+    await Advertencia.create({
+      clubId: 'CARC', socioId: socio._id, codigo: 'MOROSIDAD_CUOTA_SOCIAL',
+      mensaje: 'Debe 3 meses de cuota social', nombre: socio.nombre, apellido: socio.apellido,
+      estado: 'abierta', detectadoEn: haceUnAnio, ultimaRevision: haceUnAnio,
+    });
+
+    const res = await request(app).get('/api/advertencias?tipo=morosidad&dias=7').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.total).toBe(1);
+    expect(res.body.advertencias[0].tipo).toBe('morosidad');
+  });
+
+  it('no incluye advertencias de morosidad ya resueltas', async () => {
+    const { token } = await createAdminUser();
+    const socio = await createSocio();
+    await Advertencia.create({
+      clubId: 'CARC', socioId: socio._id, codigo: 'MOROSIDAD_CUOTA_SOCIAL',
+      mensaje: 'Debe 3 meses de cuota social', nombre: socio.nombre, apellido: socio.apellido,
+      estado: 'resuelta', detectadoEn: new Date(), ultimaRevision: new Date(), resueltoEn: new Date(),
+    });
+
+    const res = await request(app).get('/api/advertencias?tipo=morosidad').set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.total).toBe(0);
   });
 });

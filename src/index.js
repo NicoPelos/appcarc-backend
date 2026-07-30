@@ -15,6 +15,7 @@ import { startSyncSheetsJob } from './jobs/syncSheets.job.js';
 import { startFaaSyncJob } from './jobs/syncFaaFeed.job.js';
 import { startResetDemoJob } from './jobs/resetDemo.job.js';
 import { startAlertaPreciosJob } from './jobs/alertaPrecios.job.js';
+import { startAvisoMorosidadJob } from './jobs/avisoMorosidad.job.js';
 
 // Load environment variables
 dotenv.config();
@@ -108,6 +109,7 @@ if (process.env.NODE_ENV !== 'test') {
     startFaaSyncJob();
     startResetDemoJob();
     startAlertaPreciosJob();
+    startAvisoMorosidadJob();
   });
 }
 

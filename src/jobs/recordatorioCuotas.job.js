@@ -31,10 +31,9 @@ export const enviarRecordatorios = async () => {
 
   for (const user of users) {
     try {
-      const [social, escuelita] = await Promise.all([
-        calcularDeuda({ socioId: user.socioId, clubId: user.clubId, tipo: 'social' }),
-        calcularDeuda({ socioId: user.socioId, clubId: user.clubId, tipo: 'escuelita' }),
-      ]);
+      const deuda = await calcularDeuda({ socioId: user.socioId, clubId: user.clubId });
+      const social = deuda.suscripciones.find((s) => s.etiqueta?.uso_sistema === 'cuota_social') ?? null;
+      const escuelita = deuda.suscripciones.find((s) => s.etiqueta?.uso_sistema === 'cuota_escuelita') ?? null;
 
       if (!social?.mesesDeuda && !escuelita?.mesesDeuda) continue;
 
