@@ -31,10 +31,11 @@ describe('GET /api/socios/:id/deuda (integración)', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);
-    expect(res.body).toHaveLength(1);
-    expect(res.body[0].mesesDeuda).toBe(4); // hace 3 meses + el mes actual, inclusive
-    expect(res.body[0].totalDeuda).toBe(4 * 5000);
-    expect(res.body[0].ultimoPeriodoPagado).toBeNull();
+    expect(res.body.suscripciones).toHaveLength(1);
+    expect(res.body.suscripciones[0].mesesDeuda).toBe(4); // hace 3 meses + el mes actual, inclusive
+    expect(res.body.suscripciones[0].totalDeuda).toBe(4 * 5000);
+    expect(res.body.suscripciones[0].ultimoPeriodoPagado).toBeNull();
+    expect(res.body.otrosCargos).toEqual([]);
   });
 
   it('descuenta los períodos ya pagados de la deuda', async () => {
@@ -63,8 +64,8 @@ describe('GET /api/socios/:id/deuda (integración)', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);
-    expect(res.body[0].mesesDeuda).toBe(3);
-    expect(res.body[0].ultimoPeriodoPagado).toBe(periodoHace(3));
+    expect(res.body.suscripciones[0].mesesDeuda).toBe(3);
+    expect(res.body.suscripciones[0].ultimoPeriodoPagado).toBe(periodoHace(3));
   });
 
   it('devuelve 0 meses de deuda si la suscripción todavía no empezó', async () => {
@@ -79,11 +80,11 @@ describe('GET /api/socios/:id/deuda (integración)', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);
-    expect(res.body[0].mesesDeuda).toBe(0);
-    expect(res.body[0].totalDeuda).toBe(0);
+    expect(res.body.suscripciones[0].mesesDeuda).toBe(0);
+    expect(res.body.suscripciones[0].totalDeuda).toBe(0);
   });
 
-  it('devuelve array vacío si el socio no tiene suscripciones activas', async () => {
+  it('devuelve suscripciones vacías si el socio no tiene suscripciones activas', async () => {
     const { token } = await createAdminUser();
     const socio = await createSocio();
 
@@ -92,7 +93,27 @@ describe('GET /api/socios/:id/deuda (integración)', () => {
       .set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body.suscripciones).toEqual([]);
+    expect(res.body.otrosCargos).toEqual([]);
+  });
+
+  it('incluye deuda de muro libre cuando hay check-ins pendientes de pago', async () => {
+    const { token } = await createAdminUser();
+    const socio = await createSocio();
+    const etiquetaMuroLibre = await createEtiqueta({ nombre: 'Muro Libre Diario Socio', uso_sistema: 'muro_libre_diario_socio', unidad: 'dia' });
+    await createPrecio({ etiquetaId: etiquetaMuroLibre._id, monto: 2000, vigenteDesde: new Date('2020-01-01') });
+
+    await request(app)
+      .post('/api/muro-libre')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ socioId: socio._id, tipoPase: 'diario', estadoPago: 'pendiente' });
+
+    const res = await request(app)
+      .get(`/api/socios/${socio._id}/deuda`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.otrosCargos).toEqual([expect.objectContaining({ tipo: 'muro_libre', cantidadPendiente: 1, totalDeuda: 2000 })]);
   });
 
   it('rechaza (403) si un socio intenta ver la deuda de otro socio', async () => {

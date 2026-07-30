@@ -1,6 +1,7 @@
 import Cuota from '../models/Cuota.js';
 import Precios from '../models/Precios.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
+import Asistencia from '../../asistencias/models/Asistencia.js';
 
 const periodoHoy = () => {
   const now = new Date();
@@ -38,10 +39,46 @@ const getPrecioVigente = async ({ clubId, etiquetaId, fecha }) => {
 };
 
 /**
+ * Cargos que no son mensuales/por suscripción (por ejemplo, check-ins de Muro
+ * Libre pagados "pendiente" en el momento). Se acumulan en un array genérico
+ * de "otros cargos" para que a futuro cualquier otro cobro por evento/uso
+ * (salidas, alquileres, etc.) se sume acá con el mismo formato, sin volver a
+ * cambiar el contrato de /api/socios/:id/deuda.
+ */
+const calcularCargoMuroLibre = async ({ socioId, clubId }) => {
+  const pendientes = await Asistencia.find({
+    clubId,
+    socioId,
+    tipo: 'muro_libre',
+    active: true,
+    estadoPago: 'pendiente',
+  }).select('fecha precioSugeridoSnapshot tipoPase').sort({ fecha: 1 }).lean();
+
+  if (!pendientes.length) return null;
+
+  return {
+    tipo: 'muro_libre',
+    nombre: 'Muro Libre',
+    cantidadPendiente: pendientes.length,
+    unidadPendiente: 'visita',
+    fechas: pendientes.map((p) => p.fecha),
+    totalDeuda: pendientes.reduce((sum, p) => sum + (p.precioSugeridoSnapshot ?? 0), 0),
+  };
+};
+
+const calcularOtrosCargos = async ({ socioId, clubId }) => {
+  const cargos = await Promise.all([
+    calcularCargoMuroLibre({ socioId, clubId }),
+  ]);
+
+  return cargos.filter(Boolean);
+};
+
+/**
  * Calcula la deuda de un socio basándose en sus suscripciones activas.
  * Retorna un array de deudas, una por suscripción.
  */
-export const calcularDeuda = async ({ socioId, clubId }) => {
+const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
   const hoy = periodoHoy();
   const ahora = new Date();
 
@@ -140,4 +177,13 @@ export const calcularDeuda = async ({ socioId, clubId }) => {
   );
 
   return resultados;
+};
+
+export const calcularDeuda = async ({ socioId, clubId }) => {
+  const [suscripciones, otrosCargos] = await Promise.all([
+    calcularDeudaSuscripciones({ socioId, clubId }),
+    calcularOtrosCargos({ socioId, clubId }),
+  ]);
+
+  return { suscripciones, otrosCargos };
 };

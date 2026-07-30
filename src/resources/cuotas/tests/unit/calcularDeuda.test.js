@@ -5,6 +5,7 @@ const mockCuotaFindOne = vi.fn();
 const mockCuotaFind = vi.fn();
 const mockPreciosFindOne = vi.fn();
 const mockSuscripcionFind = vi.fn();
+const mockAsistenciaFind = vi.fn();
 
 vi.mock('../../models/Cuota.js', () => ({
   default: {
@@ -24,6 +25,18 @@ vi.mock('../../../suscripciones/models/Suscripcion.js', () => ({
     find: (...args) => mockSuscripcionFind(...args),
   },
 }));
+
+vi.mock('../../../asistencias/models/Asistencia.js', () => ({
+  default: {
+    find: (...args) => mockAsistenciaFind(...args),
+  },
+}));
+
+const chainableAsistencia = (result = []) => ({
+  select: vi.fn().mockReturnThis(),
+  sort: vi.fn().mockReturnThis(),
+  lean: vi.fn().mockResolvedValue(result),
+});
 
 const mockEtiquetaSocial = { _id: 'etq_social_id', nombre: 'Cuota Social', unidad: 'mes', uso_sistema: 'cuota_social' };
 
@@ -53,7 +66,10 @@ const chainableSuscripcion = (result = []) => ({
   lean: vi.fn().mockResolvedValue(result),
 });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockAsistenciaFind.mockReturnValue(chainableAsistencia([]));
+});
 
 describe('calcularDeuda', () => {
   it('retorna array vacío si el socio no tiene suscripciones', async () => {
@@ -61,7 +77,8 @@ describe('calcularDeuda', () => {
 
     const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
-    expect(result).toEqual([]);
+    expect(result.suscripciones).toEqual([]);
+    expect(result.otrosCargos).toEqual([]);
   });
 
   it('solo trae suscripciones vigentes (fechaHasta null o >= hoy)', async () => {
@@ -86,9 +103,9 @@ describe('calcularDeuda', () => {
 
     const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
-    expect(result[0].suscripcionId).toBe('sus_001');
-    expect(result[0].etiqueta).toEqual(mockEtiquetaSocial);
-    expect(result[0].precioUnitario).toBe(15000);
+    expect(result.suscripciones[0].suscripcionId).toBe('sus_001');
+    expect(result.suscripciones[0].etiqueta).toEqual(mockEtiquetaSocial);
+    expect(result.suscripciones[0].precioUnitario).toBe(15000);
   });
 
   it('deuda 0 si fechaDesde es futura', async () => {
@@ -98,8 +115,8 @@ describe('calcularDeuda', () => {
 
     const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
-    expect(result[0].mesesDeuda).toBe(0);
-    expect(result[0].totalDeuda).toBe(0);
+    expect(result.suscripciones[0].mesesDeuda).toBe(0);
+    expect(result.suscripciones[0].totalDeuda).toBe(0);
   });
 
   it('totalDeuda es null cuando no hay precio configurado', async () => {
@@ -111,8 +128,8 @@ describe('calcularDeuda', () => {
 
     const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
-    expect(result[0].precioUnitario).toBeNull();
-    expect(result[0].totalDeuda).toBeNull();
+    expect(result.suscripciones[0].precioUnitario).toBeNull();
+    expect(result.suscripciones[0].totalDeuda).toBeNull();
   });
 
   it('descuenta períodos ya pagados', async () => {
@@ -125,9 +142,9 @@ describe('calcularDeuda', () => {
     const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
     // de 2026-04 a hoy (2026-06): 3 períodos, 2 pagados → 1 pendiente
-    expect(result[0].mesesDeuda).toBeGreaterThanOrEqual(0);
-    expect(result[0].periodos).not.toContain('2026-04');
-    expect(result[0].periodos).not.toContain('2026-05');
+    expect(result.suscripciones[0].mesesDeuda).toBeGreaterThanOrEqual(0);
+    expect(result.suscripciones[0].periodos).not.toContain('2026-04');
+    expect(result.suscripciones[0].periodos).not.toContain('2026-05');
   });
 
   it('procesa múltiples suscripciones independientemente', async () => {
@@ -140,9 +157,9 @@ describe('calcularDeuda', () => {
 
     const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
-    expect(result).toHaveLength(2);
-    expect(result[0].suscripcionId).toBe('sus_001');
-    expect(result[1].suscripcionId).toBe('sus_002');
+    expect(result.suscripciones).toHaveLength(2);
+    expect(result.suscripciones[0].suscripcionId).toBe('sus_001');
+    expect(result.suscripciones[1].suscripcionId).toBe('sus_002');
   });
 
   it('exento: mesesDeuda y totalDeuda en 0 sin consultar Cuota', async () => {
@@ -152,10 +169,10 @@ describe('calcularDeuda', () => {
 
     const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
-    expect(result[0].mesesDeuda).toBe(0);
-    expect(result[0].totalDeuda).toBe(0);
-    expect(result[0].periodos).toEqual([]);
-    expect(result[0].exento).toBe(true);
+    expect(result.suscripciones[0].mesesDeuda).toBe(0);
+    expect(result.suscripciones[0].totalDeuda).toBe(0);
+    expect(result.suscripciones[0].periodos).toEqual([]);
+    expect(result.suscripciones[0].exento).toBe(true);
     expect(mockCuotaFind).not.toHaveBeenCalled();
     expect(mockCuotaFindOne).not.toHaveBeenCalled();
   });
@@ -170,6 +187,55 @@ describe('calcularDeuda', () => {
     const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
     // Solo genera deuda de 2026-01 a 2026-03 (3 períodos)
-    expect(result[0].periodos.every((p) => p <= '2026-03')).toBe(true);
+    expect(result.suscripciones[0].periodos.every((p) => p <= '2026-03')).toBe(true);
+  });
+
+  it('otrosCargos es un array vacío si no hay visitas pendientes', async () => {
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
+    mockAsistenciaFind.mockReturnValue(chainableAsistencia([]));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result.otrosCargos).toEqual([]);
+  });
+
+  it('otrosCargos suma las visitas pendientes de check-in de muro libre', async () => {
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
+    mockAsistenciaFind.mockReturnValue(chainableAsistencia([
+      { fecha: '2026-06-01T12:00:00Z', precioSugeridoSnapshot: 2000 },
+      { fecha: '2026-06-08T12:00:00Z', precioSugeridoSnapshot: 2500 },
+    ]));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result.otrosCargos).toEqual([{
+      tipo: 'muro_libre',
+      nombre: 'Muro Libre',
+      cantidadPendiente: 2,
+      unidadPendiente: 'visita',
+      fechas: ['2026-06-01T12:00:00Z', '2026-06-08T12:00:00Z'],
+      totalDeuda: 4500,
+    }]);
+    expect(mockAsistenciaFind).toHaveBeenCalledWith(expect.objectContaining({
+      clubId: 'CARC',
+      socioId: 'socio_001',
+      tipo: 'muro_libre',
+      active: true,
+      estadoPago: 'pendiente',
+    }));
+  });
+
+  it('el cargo de muro libre trata precioSugeridoSnapshot null como 0', async () => {
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
+    mockAsistenciaFind.mockReturnValue(chainableAsistencia([
+      { fecha: '2026-06-01T12:00:00Z', precioSugeridoSnapshot: null },
+    ]));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result.otrosCargos[0]).toEqual(expect.objectContaining({
+      cantidadPendiente: 1,
+      totalDeuda: 0,
+    }));
   });
 });

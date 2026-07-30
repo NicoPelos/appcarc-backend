@@ -17,29 +17,39 @@ import { calcularDeuda } from '../../cuotas/services/calcularDeuda.service.js';
  *           type: string
  *     responses:
  *       200:
- *         description: Array de deudas por suscripción
+ *         description: Deuda por suscripciones (mensual) y deuda por visitas pendientes de Muro Libre
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   suscripcionId: { type: string }
- *                   etiqueta:
+ *               type: object
+ *               properties:
+ *                 suscripciones:
+ *                   type: array
+ *                   items:
  *                     type: object
  *                     properties:
- *                       nombre: { type: string }
- *                       unidad: { type: string }
- *                       uso_sistema: { type: string, nullable: true }
- *                   fechaDesde: { type: string }
- *                   fechaHasta: { type: string, nullable: true }
- *                   ultimoPeriodoPagado: { type: string, nullable: true }
- *                   periodoActual: { type: string }
- *                   mesesDeuda: { type: integer }
- *                   periodos: { type: array, items: { type: string } }
- *                   precioUnitario: { type: number, nullable: true }
- *                   totalDeuda: { type: number, nullable: true }
+ *                       suscripcionId: { type: string }
+ *                       etiqueta:
+ *                         type: object
+ *                         properties:
+ *                           nombre: { type: string }
+ *                           unidad: { type: string }
+ *                           uso_sistema: { type: string, nullable: true }
+ *                       fechaDesde: { type: string }
+ *                       fechaHasta: { type: string, nullable: true }
+ *                       ultimoPeriodoPagado: { type: string, nullable: true }
+ *                       periodoActual: { type: string }
+ *                       mesesDeuda: { type: integer }
+ *                       periodos: { type: array, items: { type: string } }
+ *                       precioUnitario: { type: number, nullable: true }
+ *                       totalDeuda: { type: number, nullable: true }
+ *                 muroLibre:
+ *                   type: object
+ *                   nullable: true
+ *                   properties:
+ *                     visitasPendientes: { type: integer }
+ *                     fechas: { type: array, items: { type: string, format: date-time } }
+ *                     totalDeuda: { type: number }
  *       403:
  *         description: Sin permiso para ver la deuda de este socio
  *       404:
