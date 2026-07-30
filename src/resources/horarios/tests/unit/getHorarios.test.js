@@ -9,7 +9,7 @@ const mockRes = () => {
   return res;
 };
 
-const USER = { id: 'user1', email: 'admin@carc.test', clubId: 'club1' };
+const USER = { id: 'user1', email: 'admin@carc.test', clubId: 'club1', roles: ['admin'] };
 
 const makeQuery = (data) => ({
   populate: vi.fn().mockReturnThis(),
@@ -86,5 +86,41 @@ describe('getHorariosHandler', () => {
     const res = mockRes();
     await getHorariosHandler({ query: {}, user: USER }, res);
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  it('should scope to own socioId for roles without full visibility (ej. limpieza, arreglos)', async () => {
+    vi.spyOn(Horarios, 'countDocuments').mockResolvedValue(0);
+    vi.spyOn(Horarios, 'find').mockReturnValue(makeQuery([]));
+
+    const res = mockRes();
+    const user = { id: 'user2', clubId: 'club1', roles: ['limpieza'], socioId: 'socio-propio' };
+    await getHorariosHandler({ query: { socioId: 'otro-socio' }, user }, res);
+
+    // El socioId propio manda, ignorando cualquier socioId que venga por query.
+    expect(Horarios.find).toHaveBeenCalledWith(expect.objectContaining({ socioId: 'socio-propio' }));
+  });
+
+  it('should return an empty list for roles without full visibility and sin socioId propio', async () => {
+    const findSpy = vi.spyOn(Horarios, 'find');
+    const res = mockRes();
+    const user = { id: 'user3', clubId: 'club1', roles: ['limpieza'] };
+    await getHorariosHandler({ query: {}, user }, res);
+
+    expect(findSpy).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+    const body = res.json.mock.calls[0][0];
+    expect(body.horarios).toEqual([]);
+    expect(body.total).toBe(0);
+  });
+
+  it('autoridad ve todo (rol de solo lectura, no en ROLES_EDIT_ALL)', async () => {
+    vi.spyOn(Horarios, 'countDocuments').mockResolvedValue(1);
+    vi.spyOn(Horarios, 'find').mockReturnValue(makeQuery([{ _id: 'h1' }]));
+
+    const res = mockRes();
+    const user = { id: 'user4', clubId: 'club1', roles: ['autoridad'] };
+    await getHorariosHandler({ query: {}, user }, res);
+
+    expect(Horarios.find).toHaveBeenCalledWith(expect.not.objectContaining({ socioId: expect.anything() }));
   });
 });

@@ -1,5 +1,12 @@
 import Horarios from '../models/Horarios.js';
 
+// Mismo criterio que create/update/deleteHorario.handler.js: solo
+// admin/secretaria administran horarios de cualquiera, autoridad los ve
+// todos en modo lectura, y el resto (profesor, palestrero, limpieza,
+// arreglos) solo puede crear/editar los propios — por eso acá también
+// deben ver solo los propios, no la planilla de horas del resto del staff.
+const ROLES_VER_TODO = ['admin', 'secretaria', 'autoridad', 'superadmin'];
+
 /**
  * @openapi
  * /api/horarios:
@@ -44,7 +51,13 @@ export const getHorariosHandler = async (req, res) => {
 
     const filter = { clubId: req.user?.clubId, active: trash === 'true' ? false : true };
 
-    if (socioId) filter.socioId = socioId;
+    const puedeVerTodo = req.user?.roles?.some(r => ROLES_VER_TODO.includes(r));
+    if (!puedeVerTodo) {
+      if (!req.user?.socioId) return res.status(200).json({ page: pageNumber, limit: pageSize, total: 0, totalPages: 0, horarios: [] });
+      filter.socioId = req.user.socioId;
+    } else if (socioId) {
+      filter.socioId = socioId;
+    }
     if (etiquetaId) filter.etiquetaId = etiquetaId;
     if (desde || hasta) {
       filter.fecha = {};
