@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import Socio from '../models/Socio.js';
 import Cuota from '../../cuotas/models/Cuota.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
+import Etiqueta from '../../etiquetas/models/Etiqueta.js';
+import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 
 const QR_TYPE = 'socio_qr';
 
@@ -134,15 +136,33 @@ const periodoActual = () => {
 
 export const getPaseMuroLibreVigente = async (socioId, clubId) => {
   const periodo = periodoActual();
-  const cuota = await Cuota.findOne({
-    socioId,
+
+  const etiquetaMensual = await Etiqueta.findOne({
     clubId,
-    tipo: 'muro_libre',
+    uso_sistema: 'muro_libre_mensual_socio',
+    active: true,
+  }).lean();
+
+  const suscripcion = etiquetaMensual && await Suscripcion.findOne({
+    clubId,
+    socioId,
+    etiquetaId: etiquetaMensual._id,
+    active: true,
+  }).lean();
+
+  if (!suscripcion) {
+    return { suscripto: false, vigente: null, periodo };
+  }
+
+  const cuota = await Cuota.findOne({
+    clubId,
+    socioId,
+    etiquetaId: etiquetaMensual._id,
     periodo,
     estado: 'pagada',
   }).lean();
 
-  return { vigente: Boolean(cuota), periodo };
+  return { suscripto: true, vigente: Boolean(cuota), periodo };
 };
 
 export const buildSocioVerificationPayload = async (socio) => {

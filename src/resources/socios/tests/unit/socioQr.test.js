@@ -8,8 +8,11 @@ import {
   findActiveSocioByDni,
   resolveSocioFromQrTokenOrDni,
   getSocioDebtSummary,
+  getPaseMuroLibreVigente,
 } from '../../services/socioQr.service.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
+import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
+import Suscripcion from '../../../suscripciones/models/Suscripcion.js';
 
 const mockSocio = { _id: '507f1f77bcf86cd799439011', clubId: 'club1', active: true, nombre: 'Juan', apellido: 'Perez', dni: '123' };
 
@@ -26,6 +29,9 @@ describe('Socio QR service', () => {
 
     Socio.findOne = vi.fn();
     Cuota.aggregate = vi.fn();
+    Cuota.findOne = vi.fn();
+    Etiqueta.findOne = vi.fn();
+    Suscripcion.findOne = vi.fn();
   });
 
   afterEach(() => {
@@ -78,5 +84,49 @@ describe('Socio QR service', () => {
     Cuota.aggregate.mockResolvedValue([{ count: 2, totalAmount: 5000 }]);
     const summary = await getSocioDebtSummary('507f1f77bcf86cd799439011', 'club1');
     expect(summary).toEqual({ pendingCount: 2, pendingAmount: 5000 });
+  });
+
+  describe('getPaseMuroLibreVigente', () => {
+    it('should not report vencido when the etiqueta mensual does not exist', async () => {
+      Etiqueta.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
+
+      const result = await getPaseMuroLibreVigente('507f1f77bcf86cd799439011', 'club1');
+
+      expect(result.suscripto).toBe(false);
+      expect(result.vigente).toBeNull();
+      expect(Suscripcion.findOne).not.toHaveBeenCalled();
+    });
+
+    it('should not report vencido when socio has no active suscripcion', async () => {
+      Etiqueta.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'etq1' }) });
+      Suscripcion.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
+
+      const result = await getPaseMuroLibreVigente('507f1f77bcf86cd799439011', 'club1');
+
+      expect(result).toEqual({ suscripto: false, vigente: null, periodo: expect.any(String) });
+      expect(Cuota.findOne).not.toHaveBeenCalled();
+    });
+
+    it('should report vencido when suscripto but sin cuota pagada del período', async () => {
+      Etiqueta.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'etq1' }) });
+      Suscripcion.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'susc1' }) });
+      Cuota.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
+
+      const result = await getPaseMuroLibreVigente('507f1f77bcf86cd799439011', 'club1');
+
+      expect(result.suscripto).toBe(true);
+      expect(result.vigente).toBe(false);
+    });
+
+    it('should report vigente when suscripto y cuota pagada del período', async () => {
+      Etiqueta.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'etq1' }) });
+      Suscripcion.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'susc1' }) });
+      Cuota.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'cuota1' }) });
+
+      const result = await getPaseMuroLibreVigente('507f1f77bcf86cd799439011', 'club1');
+
+      expect(result.suscripto).toBe(true);
+      expect(result.vigente).toBe(true);
+    });
   });
 });
