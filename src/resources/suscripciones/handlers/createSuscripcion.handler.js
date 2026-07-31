@@ -13,18 +13,24 @@ const periodoAnterior = (periodo) => {
   return `${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, '0')}`;
 };
 
-// Un socio solo puede tener una suscripción activa por vez para el mismo
-// tipo de plan (social / escuelita / muro_libre) — o, si se asigna sin plan
-// (etiquetaId suelto), para la misma etiqueta. Antes de crear la nueva, cierra
-// cualquier otra que siga vigente para que no queden dos activas en simultáneo
-// (pasó con Kurti, Viola y otros socios al reasignar un plan sin cerrar el anterior).
+// Un socio solo puede tener una suscripción activa por vez para la misma
+// etiqueta, o — si se asigna con Plan — para el mismo tipo de plan (social /
+// escuelita / muro_libre), aunque sea a otra etiqueta (ej. pasar de
+// Escuelita x1 a Escuelita x2). Antes de crear la nueva, cierra cualquier
+// otra que siga vigente para que no queden dos activas en simultáneo (pasó
+// con Kurti, Viola y otros socios al reasignar un plan sin cerrar el
+// anterior). La comparación por etiquetaId es la que de verdad importa —
+// evaluarla siempre (no solo cuando no hay Plan) es necesario porque casi
+// ninguna suscripción vieja tiene planId seteado (se crearon por script o
+// por asignación suelta), así que comparar únicamente por tipo de Plan
+// nunca las encontraba y quedaban duplicadas (appcarc-backend#31).
 const cerrarSuscripcionesPrevias = async ({ clubId, socioId, tipo, etiquetaId, fechaDesde, req, session }) => {
   const activas = await Suscripcion.find({ clubId, socioId, active: true, fechaHasta: null })
     .populate('planId', 'tipo')
     .session(session);
 
   const aCerrar = activas.filter((s) => (
-    tipo ? s.planId?.tipo === tipo : String(s.etiquetaId) === String(etiquetaId)
+    String(s.etiquetaId) === String(etiquetaId) || (tipo && s.planId?.tipo === tipo)
   ));
 
   for (const s of aCerrar) {

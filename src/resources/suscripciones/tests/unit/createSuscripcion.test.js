@@ -223,6 +223,49 @@ describe('createSuscripcionHandler', () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
+  it('cierra la suscripción activa anterior a la MISMA etiqueta aunque no tenga planId (appcarc-backend#31)', async () => {
+    // Reproduce el caso Carreras: la suscripción vieja se creó por script,
+    // sin Plan asociado, y la nueva se asigna con un Plan (planId presente).
+    const suscripcionViejaSinPlan = {
+      _id: 'sus-vieja-sin-plan',
+      planId: null,
+      etiquetaId: ETIQUETA_ID,
+      fechaHasta: null,
+      save: vi.fn().mockResolvedValue(undefined),
+      toObject: vi.fn().mockReturnValue({}),
+    };
+    mockFind.mockReturnValue({ populate: () => ({ session: () => Promise.resolve([suscripcionViejaSinPlan]) }) });
+
+    const req = { user: mockUser, body: { socioId: 'socio123', planId: PLAN_ID, fechaDesde: '2026-07' } };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    expect(suscripcionViejaSinPlan.save).toHaveBeenCalled();
+    expect(suscripcionViejaSinPlan.fechaHasta).toBe('2026-06');
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it('no cierra una suscripción activa de otra etiqueta y otro tipo de plan', async () => {
+    const suscripcionNoRelacionada = {
+      _id: 'sus-otra',
+      planId: { tipo: 'escuelita' },
+      etiquetaId: 'otra-etiqueta',
+      fechaHasta: null,
+      save: vi.fn().mockResolvedValue(undefined),
+      toObject: vi.fn().mockReturnValue({}),
+    };
+    mockFind.mockReturnValue({ populate: () => ({ session: () => Promise.resolve([suscripcionNoRelacionada]) }) });
+
+    const req = { user: mockUser, body: { socioId: 'socio123', planId: PLAN_ID, fechaDesde: '2026-03' } };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    expect(suscripcionNoRelacionada.save).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
   it('deriva exento de plan.noGeneraDeuda, ignorando lo que mande el body', async () => {
     Plan.findOne.mockResolvedValue({ _id: PLAN_ID, etiquetaId: ETIQUETA_ID, tipo: 'social', noGeneraDeuda: true });
     const req = { user: mockUser, body: { socioId: 'socio123', planId: PLAN_ID, fechaDesde: '2026-01', exento: false } };
