@@ -18,13 +18,11 @@ import { resolverVigenciaPrecio, BusinessError, RequiereConfirmacionError } from
  *         application/json:
  *           schema:
  *             type: object
- *             required: [etiquetaId, nombre, unidad, monto]
+ *             required: [etiquetaId, unidad, monto]
  *             properties:
  *               etiquetaId:
  *                 type: string
  *                 description: ID de la etiqueta a la que pertenece este precio
- *               nombre:
- *                 type: string
  *               unidad:
  *                 type: string
  *                 enum: [mes, hora, dia, pase, unico]
@@ -55,13 +53,10 @@ const VALID_UNIDADES = ['mes', 'hora', 'dia', 'pase', 'unico'];
 
 export const createPrecioHandler = async (req, res) => {
   try {
-    const { etiquetaId, nombre, unidad, monto, vigenteDesde, vigenteHasta, confirmarCierre } = req.body;
+    const { etiquetaId, unidad, monto, vigenteDesde, vigenteHasta, confirmarCierre } = req.body;
 
     if (!etiquetaId) {
       return res.status(400).json({ message: 'etiquetaId es requerido' });
-    }
-    if (!nombre) {
-      return res.status(400).json({ message: 'nombre es requerido' });
     }
     if (!unidad || !VALID_UNIDADES.includes(unidad)) {
       return res.status(400).json({ message: `unidad debe ser: ${VALID_UNIDADES.join(', ')}` });
@@ -87,7 +82,6 @@ export const createPrecioHandler = async (req, res) => {
         precio = new Precios({
           clubId: req.user.clubId,
           etiquetaId,
-          nombre,
           unidad,
           monto: Number(monto),
           vigenteDesde: desde,

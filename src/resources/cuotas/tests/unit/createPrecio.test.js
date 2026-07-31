@@ -7,7 +7,7 @@ vi.mock('../../models/Precios.js', () => ({
   default: vi.fn(),
 }));
 vi.mock('../../../etiquetas/models/Etiqueta.js', () => ({
-  default: { findOne: vi.fn() },
+  default: { findOne: vi.fn(), findById: vi.fn() },
 }));
 
 import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
@@ -24,7 +24,6 @@ const mockRes = () => {
 
 const validBody = {
   etiquetaId: '6650000000000000000000aa',
-  nombre: 'Cuota Social Enero 2025',
   unidad: 'mes',
   monto: 15000,
 };
@@ -32,6 +31,7 @@ const validBody = {
 beforeEach(() => {
   vi.clearAllMocks();
   Etiqueta.findOne.mockResolvedValue({ _id: validBody.etiquetaId, nombre: 'Cuota Social' });
+  Etiqueta.findById.mockReturnValue({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ nombre: 'Cuota Social' }) }) });
   Precios.mockImplementation((data) => ({ ...data, save: mockSave, toObject: vi.fn().mockReturnValue(data) }));
   Precios.find = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue([]) }); // sin otros precios de la etiqueta por default
   vi.spyOn(mongoose, 'startSession').mockResolvedValue({
@@ -54,15 +54,6 @@ describe('createPrecioHandler', () => {
 
   it('retorna 400 si falta etiquetaId', async () => {
     const req = { user: mockUser, body: { ...validBody, etiquetaId: undefined } };
-    const res = mockRes();
-
-    await createPrecioHandler(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(400);
-  });
-
-  it('retorna 400 si falta nombre', async () => {
-    const req = { user: mockUser, body: { ...validBody, nombre: undefined } };
     const res = mockRes();
 
     await createPrecioHandler(req, res);

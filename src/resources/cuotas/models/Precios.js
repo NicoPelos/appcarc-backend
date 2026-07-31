@@ -13,10 +13,6 @@ const preciosSchema = new mongoose.Schema({
     default: null,
     index: true,
   },
-  nombre: {
-    type: String,
-    required: true,
-  },
   unidad: {
     type: String,
     enum: ['mes', 'hora', 'dia', 'pase', 'unico'],

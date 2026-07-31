@@ -3,9 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 vi.mock('../../models/Precios.js', () => ({
   default: { find: vi.fn() },
 }));
+vi.mock('../../../etiquetas/models/Etiqueta.js', () => ({
+  default: { findById: vi.fn() },
+}));
 
 import { resolverVigenciaPrecio, BusinessError, RequiereConfirmacionError } from '../../services/resolverVigenciaPrecio.service.js';
 import Precios from '../../models/Precios.js';
+import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 
 const CLUB_ID = 'CARC';
 const ETIQUETA_ID = 'etq1';
@@ -22,7 +26,10 @@ const fakePrecio = ({ id, nombre, desde, hasta = null }) => ({
   save: vi.fn().mockResolvedValue(undefined),
 });
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  Etiqueta.findById.mockReturnValue({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ nombre: 'Cuota Social' }) }) });
+});
 
 describe('resolverVigenciaPrecio', () => {
   it('no hace nada si no hay otros precios de la etiqueta', async () => {
@@ -70,7 +77,7 @@ describe('resolverVigenciaPrecio', () => {
     }).catch((e) => e);
 
     expect(err).toBeInstanceOf(RequiereConfirmacionError);
-    expect(err.precios).toEqual([expect.objectContaining({ id: 'p1', nombre: 'Cuota Social' })]);
+    expect(err.precios).toEqual([expect.objectContaining({ id: 'p1' })]);
   });
 
   it('con confirmado:true, cierra el precio anterior el día antes de que arranque el nuevo', async () => {

@@ -1,4 +1,5 @@
 import Precios from '../models/Precios.js';
+import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 
 class BusinessError extends Error {
   constructor(message, status = 409) {
@@ -45,17 +46,21 @@ const diaAnterior = (fecha) => new Date(fecha.getTime() - 24 * 60 * 60 * 1000);
  * confirmados participan de la misma transacción que el save() del llamador.
  */
 export const resolverVigenciaPrecio = async ({ clubId, etiquetaId, desde, hasta, excludeId, confirmado, session }) => {
-  const otros = await Precios.find({
-    clubId,
-    etiquetaId,
-    active: true,
-    ...(excludeId ? { _id: { $ne: excludeId } } : {}),
-  }).session(session ?? null);
+  const [otros, etiqueta] = await Promise.all([
+    Precios.find({
+      clubId,
+      etiquetaId,
+      active: true,
+      ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+    }).session(session ?? null),
+    Etiqueta.findById(etiquetaId).session(session ?? null).lean(),
+  ]);
+  const nombreEtiqueta = etiqueta?.nombre ?? 'esta etiqueta';
 
   const empate = otros.find((p) => p.vigenteDesde.getTime() === desde.getTime());
   if (empate) {
     throw new BusinessError(
-      `Ya existe un precio de esta etiqueta que también arranca el ${formatFechaAR(desde)} ("${empate.nombre}"). Elegí otra fecha de inicio.`,
+      `Ya existe un precio de "${nombreEtiqueta}" que también arranca el ${formatFechaAR(desde)}. Elegí otra fecha de inicio.`,
     );
   }
 
@@ -65,7 +70,7 @@ export const resolverVigenciaPrecio = async ({ clubId, etiquetaId, desde, hasta,
   });
   if (posterior) {
     throw new BusinessError(
-      `Ya existe un precio de esta etiqueta programado para empezar el ${formatFechaAR(posterior.vigenteDesde)} ("${posterior.nombre}"), antes de que termine el que estás por guardar. Ajustá las fechas para que no se superpongan.`,
+      `Ya existe un precio de "${nombreEtiqueta}" programado para empezar el ${formatFechaAR(posterior.vigenteDesde)}, antes de que termine el que estás por guardar. Ajustá las fechas para que no se superpongan.`,
     );
   }
 
@@ -77,10 +82,9 @@ export const resolverVigenciaPrecio = async ({ clubId, etiquetaId, desde, hasta,
   if (aCerrar.length === 0) return;
 
   if (!confirmado) {
-    const nombres = aCerrar.map((p) => `"${p.nombre}"`).join(', ');
     throw new RequiereConfirmacionError(
-      `Ya hay un precio vigente (${nombres}) que no termina antes del ${formatFechaAR(desde)}. ¿Lo cerramos el ${formatFechaAR(diaAnterior(desde))} para que arranque este?`,
-      aCerrar.map((p) => ({ id: String(p._id), nombre: p.nombre, cierrePropuesto: diaAnterior(desde) })),
+      `Ya hay un precio vigente de "${nombreEtiqueta}" que no termina antes del ${formatFechaAR(desde)}. ¿Lo cerramos el ${formatFechaAR(diaAnterior(desde))} para que arranque este?`,
+      aCerrar.map((p) => ({ id: String(p._id), cierrePropuesto: diaAnterior(desde) })),
     );
   }
 

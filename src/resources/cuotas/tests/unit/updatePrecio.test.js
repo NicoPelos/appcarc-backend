@@ -5,8 +5,12 @@ import { updatePrecioHandler } from '../../handlers/updatePrecio.handler.js';
 vi.mock('../../models/Precios.js', () => ({
   default: { findOne: vi.fn(), find: vi.fn() },
 }));
+vi.mock('../../../etiquetas/models/Etiqueta.js', () => ({
+  default: { findById: vi.fn() },
+}));
 
 import Precios from '../../models/Precios.js';
+import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 
 const mockUser = { clubId: 'CARC', email: 'admin@carc.com' };
 
@@ -20,6 +24,7 @@ const mockRes = () => {
 beforeEach(() => {
   vi.clearAllMocks();
   Precios.find.mockReturnValue({ session: vi.fn().mockResolvedValue([]) }); // sin otros precios de la etiqueta por default
+  Etiqueta.findById.mockReturnValue({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ nombre: 'Cuota Social' }) }) });
   vi.spyOn(mongoose, 'startSession').mockResolvedValue({
     withTransaction: vi.fn(async (callback) => callback()),
     endSession: vi.fn(),

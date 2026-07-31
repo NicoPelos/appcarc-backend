@@ -22,7 +22,6 @@ import { resolverVigenciaPrecio, BusinessError, RequiereConfirmacionError } from
  *           schema:
  *             type: object
  *             properties:
- *               nombre: { type: string }
  *               monto: { type: number }
  *               vigenteDesde: { type: string, format: date }
  *               vigenteHasta: { type: string, format: date }
@@ -44,7 +43,7 @@ import { resolverVigenciaPrecio, BusinessError, RequiereConfirmacionError } from
 export const updatePrecioHandler = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, monto, vigenteDesde, vigenteHasta, confirmarCierre } = req.body;
+    const { monto, vigenteDesde, vigenteHasta, confirmarCierre } = req.body;
 
     const precioOriginal = await Precios.findOne({ _id: id, clubId: req.user.clubId, active: true });
     if (!precioOriginal) return res.status(404).json({ message: 'Precio no encontrado' });
@@ -80,7 +79,6 @@ export const updatePrecioHandler = async (req, res) => {
         }
 
         precio = precioOriginal;
-        if (nombre !== undefined) precio.nombre = nombre;
         if (monto !== undefined) precio.monto = Number(monto);
         precio.vigenteDesde = nuevaDesde;
         precio.vigenteHasta = nuevaHasta;
