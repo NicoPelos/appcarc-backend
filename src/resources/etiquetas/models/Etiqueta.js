@@ -12,7 +12,7 @@ const etiquetaSchema = new mongoose.Schema({
   },
   unidad: {
     type: String,
-    enum: ['mes', 'hora', 'dia', 'unico'],
+    enum: ['mes', 'hora', 'dia', 'pase', 'unico'],
     required: true,
   },
   uso_sistema: {
