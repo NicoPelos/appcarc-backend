@@ -6,6 +6,7 @@ const mockCuotaFind = vi.fn();
 const mockPreciosFindOne = vi.fn();
 const mockSuscripcionFind = vi.fn();
 const mockAsistenciaFind = vi.fn();
+const mockCargoPuntualFind = vi.fn();
 
 vi.mock('../../models/Cuota.js', () => ({
   default: {
@@ -32,8 +33,20 @@ vi.mock('../../../asistencias/models/Asistencia.js', () => ({
   },
 }));
 
+vi.mock('../../../cargosPuntuales/models/CargoPuntual.js', () => ({
+  default: {
+    find: (...args) => mockCargoPuntualFind(...args),
+  },
+}));
+
 const chainableAsistencia = (result = []) => ({
   select: vi.fn().mockReturnThis(),
+  sort: vi.fn().mockReturnThis(),
+  lean: vi.fn().mockResolvedValue(result),
+});
+
+const chainableCargoPuntual = (result = []) => ({
+  populate: vi.fn().mockReturnThis(),
   sort: vi.fn().mockReturnThis(),
   lean: vi.fn().mockResolvedValue(result),
 });
@@ -69,6 +82,7 @@ const chainableSuscripcion = (result = []) => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mockAsistenciaFind.mockReturnValue(chainableAsistencia([]));
+  mockCargoPuntualFind.mockReturnValue(chainableCargoPuntual([]));
 });
 
 describe('calcularDeuda', () => {
@@ -238,5 +252,46 @@ describe('calcularDeuda', () => {
       cantidadPendiente: 1,
       totalDeuda: 0,
     }));
+  });
+
+  it('otrosCargos incluye un cargo puntual pendiente por socio', async () => {
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
+    mockCargoPuntualFind.mockReturnValue(chainableCargoPuntual([{
+      _id: 'cargo_001',
+      etiquetaId: { nombre: 'Trekking a Cerro Negro' },
+      description: 'Viaje del 15/8',
+      montoEsperadoSnapshot: 200000,
+    }]));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result.otrosCargos).toEqual([{
+      tipo: 'cargo_puntual',
+      cargoPuntualId: 'cargo_001',
+      nombre: 'Trekking a Cerro Negro',
+      descripcion: 'Viaje del 15/8',
+      totalDeuda: 200000,
+    }]);
+    expect(mockCargoPuntualFind).toHaveBeenCalledWith(expect.objectContaining({
+      clubId: 'CARC', socioId: 'socio_001', estado: 'pendiente', active: true,
+    }));
+  });
+
+  it('otrosCargos combina muro libre pendiente y varios cargos puntuales', async () => {
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
+    mockAsistenciaFind.mockReturnValue(chainableAsistencia([
+      { fecha: '2026-06-01T12:00:00Z', precioSugeridoSnapshot: 2000 },
+    ]));
+    mockCargoPuntualFind.mockReturnValue(chainableCargoPuntual([
+      { _id: 'cargo_001', etiquetaId: { nombre: 'Inscripción' }, description: 'Inscripción 2026', montoEsperadoSnapshot: 5000 },
+      { _id: 'cargo_002', etiquetaId: null, description: 'Cargo sin etiqueta', montoEsperadoSnapshot: 1000 },
+    ]));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result.otrosCargos).toHaveLength(3);
+    expect(result.otrosCargos[0].tipo).toBe('muro_libre');
+    expect(result.otrosCargos[1]).toMatchObject({ tipo: 'cargo_puntual', cargoPuntualId: 'cargo_001', nombre: 'Inscripción' });
+    expect(result.otrosCargos[2]).toMatchObject({ tipo: 'cargo_puntual', cargoPuntualId: 'cargo_002', nombre: 'Cargo puntual' });
   });
 });

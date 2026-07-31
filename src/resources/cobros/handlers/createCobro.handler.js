@@ -21,6 +21,14 @@ const buildCuotaBody = (cuotas, etiquetaNombreById) => {
   return `Se registraron ${cuotas.length} pagos: ${lista}`;
 };
 
+const buildCargoPuntualBody = (cargos) => {
+  if (cargos.length === 1) {
+    return `Se registró el pago de "${cargos[0].description}"`;
+  }
+  const lista = cargos.map((c) => `"${c.description}"`).join(', ');
+  return `Se registraron ${cargos.length} pagos puntuales: ${lista}`;
+};
+
 /**
  * @openapi
  * components:
@@ -54,14 +62,16 @@ const buildCuotaBody = (cuotas, etiquetaNombreById) => {
  *       type: object
  *       required:
  *         - socioId
- *         - suscripcionId
  *       properties:
  *         socioId:
  *           type: string
  *           description: ID del socio al que corresponde la cuota.
  *         suscripcionId:
  *           type: string
- *           description: ID de la suscripción del socio (determina la etiqueta/precio).
+ *           description: ID de la suscripción del socio (determina la etiqueta/precio). Requerido salvo que se envíe cargoPuntualId.
+ *         cargoPuntualId:
+ *           type: string
+ *           description: Alternativa a suscripcionId para saldar un cargo puntual previamente atribuido en /api/cargos-puntuales.
  *         periodo:
  *           type: string
  *           pattern: '^\d{4}-(0[1-9]|1[0-2])$'
@@ -99,22 +109,28 @@ export const createCobroHandler = async (req, res) => {
 
     res.status(201).json(result);
 
-    logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Cobro', resourceId: result.cobro._id, before: null, after: { cobro: result.cobro, cuotas: result.cuotas } });
+    logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Cobro', resourceId: result.cobro._id, before: null, after: { cobro: result.cobro, cuotas: result.cuotas, cargosPuntuales: result.cargosPuntuales } });
 
-    const cuotasBySocioId = result.cuotas.reduce((acc, cuota) => {
-      const key = cuota.socioId.toString();
+    const groupBySocioId = (docs) => docs.reduce((acc, doc) => {
+      const key = doc.socioId.toString();
       if (!acc[key]) acc[key] = [];
-      acc[key].push(cuota);
+      acc[key].push(doc);
       return acc;
     }, {});
 
-    const etiquetaIds = [...new Set(result.cuotas.map((c) => c.etiquetaId).filter(Boolean).map(String))];
+    const cuotasBySocioId = groupBySocioId(result.cuotas);
+    const cargosPuntualesBySocioId = groupBySocioId(result.cargosPuntuales ?? []);
+
+    const etiquetaIds = [...new Set([
+      ...result.cuotas.map((c) => c.etiquetaId),
+      ...(result.cargosPuntuales ?? []).map((c) => c.etiquetaId),
+    ].filter(Boolean).map(String))];
     const etiquetas = etiquetaIds.length
       ? await Etiqueta.find({ _id: { $in: etiquetaIds } }, 'nombre').lean()
       : [];
     const etiquetaNombreById = new Map(etiquetas.map((e) => [String(e._id), e.nombre]));
 
-    const socioIds = Object.keys(cuotasBySocioId);
+    const socioIds = [...new Set([...Object.keys(cuotasBySocioId), ...Object.keys(cargosPuntualesBySocioId)])];
     const users = await User.find({
       socioId: { $in: socioIds },
       clubId: req.user?.clubId,
@@ -122,11 +138,18 @@ export const createCobroHandler = async (req, res) => {
     }).select('socioId clubId expoPushToken').lean();
 
     for (const user of users) {
-      const cuotas = cuotasBySocioId[user.socioId];
-      if (!cuotas?.length) continue;
+      const cuotas = cuotasBySocioId[user.socioId] ?? [];
+      const cargosPuntuales = cargosPuntualesBySocioId[user.socioId] ?? [];
+      if (!cuotas.length && !cargosPuntuales.length) continue;
+
+      const body = [
+        cuotas.length ? buildCuotaBody(cuotas, etiquetaNombreById) : null,
+        cargosPuntuales.length ? buildCargoPuntualBody(cargosPuntuales) : null,
+      ].filter(Boolean).join('. ');
+
       sendPushNotification([{ userId: user._id, clubId: user.clubId, token: user.expoPushToken }], {
         title: 'Pago registrado',
-        body: buildCuotaBody(cuotas, etiquetaNombreById),
+        body,
         data: { tipo: 'cobro_registrado', cobroId: result.cobro._id.toString() },
       }).catch((err) => console.error('Error enviando push de cobro:', err));
     }

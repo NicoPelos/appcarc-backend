@@ -9,7 +9,12 @@ const cobroItemSchema = new mongoose.Schema({
   suscripcionId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Suscripcion',
-    required: true,
+    default: null,
+  },
+  cargoPuntualId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CargoPuntual',
+    default: null,
   },
   etiquetaId: {
     type: mongoose.Schema.Types.ObjectId,

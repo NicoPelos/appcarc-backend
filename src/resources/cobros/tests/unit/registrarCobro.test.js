@@ -8,17 +8,23 @@ import Precios from '../../../cuotas/models/Precios.js';
 import Suscripcion from '../../../suscripciones/models/Suscripcion.js';
 import Cobro from '../../models/Cobro.js';
 import Movimiento from '../../../movimientos/models/Movimiento.js';
+import CargoPuntual from '../../../cargosPuntuales/models/CargoPuntual.js';
 
 const CLUB_ID = 'club1';
 const SOCIO_ID = '507f1f77bcf86cd799439011';
 const SUSCRIPCION_ID = '507f1f77bcf86cd799439099';
 const ETIQUETA_ID = '507f1f77bcf86cd799439088';
+const CARGO_PUNTUAL_ID = '507f1f77bcf86cd799439077';
 const USER = { id: '507f1f77bcf86cd799439012', email: 'secretaria@carc.test' };
 
 const buildSessionQuery = (result) => ({ session: vi.fn().mockResolvedValue(result) });
 
 const mockSuscripcionVigente = (result) => {
   Suscripcion.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(result) });
+};
+
+const mockCargoPuntualVigente = (result) => {
+  CargoPuntual.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(result) });
 };
 
 const mockPrecioVigente = (result) => {
@@ -65,6 +71,8 @@ describe('registrarCobro service (unit)', () => {
     Cuota.find = vi.fn();
     Precios.findOne = vi.fn();
     Suscripcion.findOne = vi.fn();
+    CargoPuntual.findOne = vi.fn();
+    CargoPuntual.find = vi.fn();
 
     cobroSaveSpy = vi.spyOn(Cobro.prototype, 'save').mockImplementation(async function () {
       if (!this._id) this._id = new mongoose.Types.ObjectId();
@@ -108,7 +116,7 @@ describe('registrarCobro service (unit)', () => {
       clubId: CLUB_ID, user: USER,
       body: { paymentMethod: 'Efectivo', items: [] },
     })).rejects.toEqual(expect.objectContaining({
-      message: 'El cobro debe incluir al menos una cuota',
+      message: 'El cobro debe incluir al menos un ítem',
     }));
 
     expect(sessionMock.endSession).toHaveBeenCalledTimes(1);
@@ -123,12 +131,12 @@ describe('registrarCobro service (unit)', () => {
     }));
   });
 
-  it('should fail when item is missing suscripcionId', async () => {
+  it('should fail when item is missing suscripcionId and cargoPuntualId', async () => {
     await expect(registrarCobro({
       clubId: CLUB_ID, user: USER,
       body: { paymentMethod: 'Efectivo', items: [{ ...validItem, suscripcionId: '' }] },
     })).rejects.toEqual(expect.objectContaining({
-      message: 'El item 1 debe indicar suscripcionId',
+      message: 'El item 1 debe indicar suscripcionId o cargoPuntualId',
     }));
   });
 
@@ -274,5 +282,87 @@ describe('registrarCobro service (unit)', () => {
     expect(cuotaSaveSpy).not.toHaveBeenCalled();
     expect(existingCuota.estado).toBe('pagada');
     expect(result.cuotas[0]).toBe(existingCuota);
+  });
+
+  describe('cargo puntual (item sin suscripcionId)', () => {
+    const cargoPuntualItem = { socioId: SOCIO_ID, cargoPuntualId: CARGO_PUNTUAL_ID };
+
+    it('should fail with 404 when cargo puntual not found', async () => {
+      mockCargoPuntualVigente(null);
+
+      await expect(registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [cargoPuntualItem] },
+      })).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('should fail with 409 when cargo puntual is not pendiente', async () => {
+      mockCargoPuntualVigente({
+        _id: CARGO_PUNTUAL_ID, etiquetaId: ETIQUETA_ID, periodo: '2026-07',
+        description: 'Viaje a Cerro Negro', estado: 'pagada', montoEsperadoSnapshot: 200000,
+      });
+
+      await expect(registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [cargoPuntualItem] },
+      })).rejects.toMatchObject({ status: 409 });
+
+      expect(Socio.find).not.toHaveBeenCalled();
+    });
+
+    it('should pay a cargo puntual without creating a Cuota', async () => {
+      mockCargoPuntualVigente({
+        _id: CARGO_PUNTUAL_ID, etiquetaId: ETIQUETA_ID, periodo: '2026-07',
+        description: 'Viaje a Cerro Negro', estado: 'pendiente', montoEsperadoSnapshot: 200000,
+        precioSugeridoSnapshot: 200000,
+      });
+      Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+
+      const cargoDoc = {
+        _id: CARGO_PUNTUAL_ID, estado: 'pendiente',
+        save: vi.fn(async function () { return this; }),
+      };
+      CargoPuntual.find.mockReturnValue(buildSessionQuery([cargoDoc]));
+
+      const result = await registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [cargoPuntualItem] },
+      });
+
+      expect(Cuota.find).not.toHaveBeenCalled();
+      expect(cuotaSaveSpy).not.toHaveBeenCalled();
+      expect(cargoDoc.save).toHaveBeenCalledTimes(1);
+      expect(cargoDoc.estado).toBe('pagada');
+      expect(cargoDoc.montoPagadoSnapshot).toBe(200000);
+      expect(cargoDoc.paymentMethod).toBe('Efectivo');
+      expect(result.cuotas).toHaveLength(0);
+      expect(result.cargosPuntuales).toEqual([cargoDoc]);
+      expect(savedMovimientos[0]).toMatchObject({ type: 'Ingreso', amount: 200000 });
+    });
+
+    it('should mix a cuota item and a cargo puntual item in the same cobro', async () => {
+      mockSuscripcionVigente({ _id: SUSCRIPCION_ID, etiquetaId: ETIQUETA_ID });
+      mockCargoPuntualVigente({
+        _id: CARGO_PUNTUAL_ID, etiquetaId: ETIQUETA_ID, periodo: '2026-07',
+        description: 'Viaje a Cerro Negro', estado: 'pendiente', montoEsperadoSnapshot: 200000,
+      });
+      Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+      Cuota.find.mockReturnValue(buildSessionQuery([]));
+
+      const cargoDoc = {
+        _id: CARGO_PUNTUAL_ID, estado: 'pendiente',
+        save: vi.fn(async function () { return this; }),
+      };
+      CargoPuntual.find.mockReturnValue(buildSessionQuery([cargoDoc]));
+
+      const result = await registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [validItem, cargoPuntualItem] },
+      });
+
+      expect(result.cuotas).toHaveLength(1);
+      expect(result.cargosPuntuales).toHaveLength(1);
+      expect(savedMovimientos[0].amount).toBe(15000 + 200000);
+    });
   });
 });

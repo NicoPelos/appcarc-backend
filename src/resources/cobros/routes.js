@@ -62,12 +62,15 @@ router.get('/', protect, authorize(PERMISOS.COBROS_READ), getCobrosHandler);
  *                   type: object
  *                   required:
  *                     - socioId
- *                     - suscripcionId
  *                   properties:
  *                     socioId:
  *                       type: string
  *                     suscripcionId:
  *                       type: string
+ *                       description: Requerido junto con periodo/periodos, salvo que se envíe cargoPuntualId
+ *                     cargoPuntualId:
+ *                       type: string
+ *                       description: Alternativa a suscripcionId para saldar un cargo puntual (ej. viaje, inscripción) previamente atribuido en /api/cargos-puntuales
  *                     periodo:
  *                       type: string
  *                       example: "2026-06"

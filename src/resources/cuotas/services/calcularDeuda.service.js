@@ -2,6 +2,7 @@ import Cuota from '../models/Cuota.js';
 import Precios from '../models/Precios.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
+import CargoPuntual from '../../cargosPuntuales/models/CargoPuntual.js';
 
 const periodoHoy = () => {
   const now = new Date();
@@ -70,12 +71,39 @@ const calcularCargoMuroLibre = async ({ socioId, clubId }) => {
   };
 };
 
+/**
+ * Cargos puntuales atribuidos manualmente desde secretaría (viajes, inscripciones,
+ * etc. — ver src/resources/cargosPuntuales). A diferencia de calcularCargoMuroLibre,
+ * cada uno se muestra como una entrada individual (no agregada) porque cada cargo
+ * puntual es un concepto distinto con su propio importe.
+ */
+const calcularCargosPuntuales = async ({ socioId, clubId }) => {
+  const pendientes = await CargoPuntual.find({
+    clubId,
+    socioId,
+    estado: 'pendiente',
+    active: true,
+  })
+    .populate('etiquetaId', 'nombre')
+    .sort({ createdAt: 1 })
+    .lean();
+
+  return pendientes.map((c) => ({
+    tipo: 'cargo_puntual',
+    cargoPuntualId: c._id,
+    nombre: c.etiquetaId?.nombre ?? 'Cargo puntual',
+    descripcion: c.description,
+    totalDeuda: c.montoEsperadoSnapshot,
+  }));
+};
+
 const calcularOtrosCargos = async ({ socioId, clubId }) => {
-  const cargos = await Promise.all([
+  const [muroLibre, cargosPuntuales] = await Promise.all([
     calcularCargoMuroLibre({ socioId, clubId }),
+    calcularCargosPuntuales({ socioId, clubId }),
   ]);
 
-  return cargos.filter(Boolean);
+  return [muroLibre, ...cargosPuntuales].filter(Boolean);
 };
 
 /**

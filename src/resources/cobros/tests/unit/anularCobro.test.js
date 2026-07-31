@@ -5,6 +5,7 @@ import { anularCobroHandler } from '../../handlers/anularCobro.handler.js';
 import Cobro from '../../models/Cobro.js';
 import Movimiento from '../../../movimientos/models/Movimiento.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
+import CargoPuntual from '../../../cargosPuntuales/models/CargoPuntual.js';
 
 const CLUB_ID = 'club1';
 const COBRO_ID = '507f1f77bcf86cd799439011';
@@ -52,6 +53,7 @@ describe('anularCobro handler (unit)', () => {
     Cobro.findOne = vi.fn();
     Movimiento.findByIdAndUpdate = vi.fn().mockResolvedValue(null);
     Cuota.updateMany = vi.fn().mockResolvedValue(null);
+    CargoPuntual.updateMany = vi.fn().mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -124,6 +126,20 @@ describe('anularCobro handler (unit)', () => {
     expect(Cuota.updateMany).toHaveBeenCalledWith(
       { cobroId: cobro._id, clubId: CLUB_ID },
       { estado: 'anulada', updatedBy: USER.email },
+      { session: sessionMock },
+    );
+
+    expect(CargoPuntual.updateMany).toHaveBeenCalledWith(
+      { cobroId: cobro._id, clubId: CLUB_ID },
+      {
+        estado: 'pendiente',
+        montoPagadoSnapshot: 0,
+        paymentMethod: null,
+        fechaPago: null,
+        cobroId: null,
+        movimientoId: null,
+        updatedBy: USER.email,
+      },
       { session: sessionMock },
     );
 

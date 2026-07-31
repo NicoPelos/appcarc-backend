@@ -27,7 +27,7 @@ import { resolverVigenciaPrecio, BusinessError, RequiereConfirmacionError } from
  *                 type: string
  *               unidad:
  *                 type: string
- *                 enum: [mes, hora, dia, pase]
+ *                 enum: [mes, hora, dia, pase, unico]
  *               monto:
  *                 type: number
  *               vigenteDesde:
@@ -51,7 +51,7 @@ import { resolverVigenciaPrecio, BusinessError, RequiereConfirmacionError } from
  *       500:
  *         description: Error al crear precio
  */
-const VALID_UNIDADES = ['mes', 'hora', 'dia', 'pase'];
+const VALID_UNIDADES = ['mes', 'hora', 'dia', 'pase', 'unico'];
 
 export const createPrecioHandler = async (req, res) => {
   try {

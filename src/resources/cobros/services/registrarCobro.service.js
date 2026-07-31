@@ -3,6 +3,7 @@ import Socio from '../../socios/models/Socio.js';
 import Cuota from '../../cuotas/models/Cuota.js';
 import Precios from '../../cuotas/models/Precios.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
+import CargoPuntual from '../../cargosPuntuales/models/CargoPuntual.js';
 import Cobro from '../models/Cobro.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 
@@ -59,14 +60,16 @@ const findPrecioVigente = async ({ clubId, etiquetaId, date, session = null }) =
 const normalizeItem = async ({ item, index, clubId, date, precioCache, session = null }) => {
   const socioId = String(item?.socioId || '').trim();
   const suscripcionId = String(item?.suscripcionId || '').trim();
-  const periodos = getPeriodosFromItem(item, index);
+  const cargoPuntualId = String(item?.cargoPuntualId || '').trim();
   const amount = item?.amount == null ? null : Number(item.amount);
   let precioSugeridoSnapshot = item?.precioSugeridoSnapshot == null
     ? null
     : Number(item.precioSugeridoSnapshot);
 
   if (!socioId) throw new BusinessError(`El item ${index + 1} debe indicar socioId`);
-  if (!suscripcionId) throw new BusinessError(`El item ${index + 1} debe indicar suscripcionId`);
+  if (!suscripcionId && !cargoPuntualId) {
+    throw new BusinessError(`El item ${index + 1} debe indicar suscripcionId o cargoPuntualId`);
+  }
 
   if (amount !== null && (!Number.isFinite(amount) || amount <= 0)) {
     throw new BusinessError(`El item ${index + 1} debe tener un importe mayor que cero`);
@@ -75,6 +78,34 @@ const normalizeItem = async ({ item, index, clubId, date, precioCache, session =
   if (precioSugeridoSnapshot !== null && (!Number.isFinite(precioSugeridoSnapshot) || precioSugeridoSnapshot < 0)) {
     throw new BusinessError(`El item ${index + 1} tiene un precio sugerido inválido`);
   }
+
+  if (cargoPuntualId) {
+    const cargo = await CargoPuntual.findOne({ _id: cargoPuntualId, socioId, clubId, active: true }).lean();
+    if (!cargo) {
+      throw new BusinessError(`Cargo puntual ${cargoPuntualId} no encontrado para el socio ${socioId}`, 404);
+    }
+    if (cargo.estado !== 'pendiente') {
+      throw new BusinessError(`El cargo puntual "${cargo.description}" del socio ${socioId} ya está ${cargo.estado}`, 409);
+    }
+
+    const unitAmount = amount ?? cargo.montoEsperadoSnapshot;
+    if (!Number.isFinite(unitAmount) || unitAmount < 0) {
+      throw new BusinessError(`El item ${index + 1} necesita un importe válido`);
+    }
+
+    return [{
+      socioId,
+      suscripcionId: null,
+      cargoPuntualId,
+      etiquetaId: String(cargo.etiquetaId),
+      periodo: cargo.periodo,
+      amount: unitAmount,
+      precioSugeridoSnapshot: precioSugeridoSnapshot ?? cargo.precioSugeridoSnapshot,
+      description: String(item?.description || '').trim() || cargo.description,
+    }];
+  }
+
+  const periodos = getPeriodosFromItem(item, index);
 
   // Buscar suscripcion para obtener etiquetaId
   const suscripcion = await Suscripcion.findOne({
@@ -108,6 +139,7 @@ const normalizeItem = async ({ item, index, clubId, date, precioCache, session =
   return periodos.map((periodo) => ({
     socioId,
     suscripcionId,
+    cargoPuntualId: null,
     etiquetaId,
     periodo,
     amount: unitAmount,
@@ -116,7 +148,11 @@ const normalizeItem = async ({ item, index, clubId, date, precioCache, session =
   }));
 };
 
-const buildItemKey = (item) => `${item.socioId}:${item.suscripcionId}:${item.periodo}`;
+const buildItemKey = (item) => (
+  item.cargoPuntualId
+    ? `cargo:${item.cargoPuntualId}`
+    : `${item.socioId}:${item.suscripcionId}:${item.periodo}`
+);
 
 export const registrarCobro = async ({ clubId, user, body }) => {
   if (!clubId) throw new BusinessError('No se pudo determinar el club del usuario', 401);
@@ -136,13 +172,15 @@ export const registrarCobro = async ({ clubId, user, body }) => {
         })))).flat()
         : [];
 
-      if (!items.length) throw new BusinessError('El cobro debe incluir al menos una cuota');
+      if (!items.length) throw new BusinessError('El cobro debe incluir al menos un ítem');
 
       const duplicated = items.find((item, index) => (
         items.findIndex((c) => buildItemKey(c) === buildItemKey(item)) !== index
       ));
       if (duplicated) {
-        throw new BusinessError(`El cobro incluye una cuota duplicada para socio ${duplicated.socioId}, suscripción ${duplicated.suscripcionId}, ${duplicated.periodo}`);
+        throw new BusinessError(duplicated.cargoPuntualId
+          ? `El cobro incluye el cargo puntual ${duplicated.cargoPuntualId} duplicado`
+          : `El cobro incluye una cuota duplicada para socio ${duplicated.socioId}, suscripción ${duplicated.suscripcionId}, ${duplicated.periodo}`);
       }
 
       const responsable = String(user?.email || user?.id || '').trim();
@@ -163,7 +201,10 @@ export const registrarCobro = async ({ clubId, user, body }) => {
         throw new BusinessError(`El socio ${socioFaltante} no existe, está inactivo o pertenece a otro club`, 404);
       }
 
-      const cuotaFilters = items.map((item) => ({
+      const itemsSuscripcion = items.filter((item) => item.suscripcionId);
+      const itemsCargoPuntual = items.filter((item) => item.cargoPuntualId);
+
+      const cuotaFilters = itemsSuscripcion.map((item) => ({
         clubId,
         socioId: item.socioId,
         suscripcionId: item.suscripcionId,
@@ -171,10 +212,24 @@ export const registrarCobro = async ({ clubId, user, body }) => {
         active: true,
       }));
 
-      const existingCuotas = await Cuota.find({ $or: cuotaFilters }).session(session);
+      const existingCuotas = cuotaFilters.length
+        ? await Cuota.find({ $or: cuotaFilters }).session(session)
+        : [];
       const cuotaPagada = existingCuotas.find((c) => c.estado === 'pagada');
       if (cuotaPagada) {
         throw new BusinessError(`La cuota ${cuotaPagada.periodo} de la suscripción ${cuotaPagada.suscripcionId} del socio ${cuotaPagada.socioId} ya está pagada`, 409);
+      }
+
+      const cargosPuntualesDb = itemsCargoPuntual.length
+        ? await CargoPuntual.find({
+          _id: { $in: itemsCargoPuntual.map((item) => item.cargoPuntualId) },
+          clubId,
+          active: true,
+        }).session(session)
+        : [];
+      const cargoYaResuelto = cargosPuntualesDb.find((c) => c.estado !== 'pendiente');
+      if (cargoYaResuelto) {
+        throw new BusinessError(`El cargo puntual "${cargoYaResuelto.description}" ya está ${cargoYaResuelto.estado}`, 409);
       }
 
       const totalAmount = items.reduce((total, item) => total + item.amount, 0);
@@ -207,7 +262,7 @@ export const registrarCobro = async ({ clubId, user, body }) => {
         amount: totalAmount,
         concept: 'Cobro de cuotas',
         paymentMethod,
-        description: description || `Cobro con ${items.length} cuota${items.length === 1 ? '' : 's'}`,
+        description: description || `Cobro con ${items.length} ítem${items.length === 1 ? '' : 's'}`,
         date,
         sourceType: 'cobro',
         sourceId: cobro._id,
@@ -218,7 +273,7 @@ export const registrarCobro = async ({ clubId, user, body }) => {
       await movimiento.save({ session });
 
       const cuotas = [];
-      for (const item of items) {
+      for (const item of itemsSuscripcion) {
         const existing = existingCuotas.find((c) => (
           String(c.socioId) === item.socioId
           && String(c.suscripcionId) === item.suscripcionId
@@ -255,11 +310,25 @@ export const registrarCobro = async ({ clubId, user, body }) => {
         }
       }
 
+      const cargosPuntuales = [];
+      for (const item of itemsCargoPuntual) {
+        const cargo = cargosPuntualesDb.find((c) => String(c._id) === item.cargoPuntualId);
+        cargo.estado = 'pagada';
+        cargo.montoPagadoSnapshot = item.amount;
+        cargo.paymentMethod = paymentMethod;
+        cargo.fechaPago = date;
+        cargo.cobroId = cobro._id;
+        cargo.movimientoId = movimiento._id;
+        cargo.updatedBy = actor;
+        await cargo.save({ session });
+        cargosPuntuales.push(cargo);
+      }
+
       cobro.movimientoId = movimiento._id;
       cobro.updatedBy = actor;
       await cobro.save({ session });
 
-      result = { cobro, movimiento, cuotas };
+      result = { cobro, movimiento, cuotas, cargosPuntuales };
     });
 
     return result;
