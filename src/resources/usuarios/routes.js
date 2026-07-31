@@ -1,6 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { googleLogin, googleCallback, register, login, selectProfile, logout, changePassword, registerPushToken } from './handlers/auth.handler.js';
+import { googleLogin, googleCallback, register, login, selectProfile, getProfiles, switchProfile, logout, changePassword, registerPushToken } from './handlers/auth.handler.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { PERMISOS } from '../../constants/permisos.js';
 
@@ -147,6 +147,43 @@ router.post('/login', loginLimiter, login);
  *       403: { description: No tenés acceso a ese perfil }
  */
 router.post('/select-profile', loginLimiter, selectProfile);
+
+/**
+ * @openapi
+ * /api/auth/profiles:
+ *   get:
+ *     summary: Listar los perfiles disponibles del usuario logueado (el propio + hijos vinculados)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200: { description: Lista de perfiles }
+ */
+router.get('/profiles', protect, getProfiles);
+
+/**
+ * @openapi
+ * /api/auth/switch-profile:
+ *   post:
+ *     summary: Cambiar el perfil activo de la sesión (sin volver a pedir contraseña)
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - socioId
+ *             properties:
+ *               socioId: { type: string }
+ *     responses:
+ *       200: { description: Login exitoso, token final scoped al perfil elegido }
+ *       403: { description: No tenés acceso a ese perfil }
+ */
+router.post('/switch-profile', protect, switchProfile);
 
 /**
  * @openapi

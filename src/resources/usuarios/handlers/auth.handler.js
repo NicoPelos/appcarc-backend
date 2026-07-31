@@ -335,6 +335,18 @@ export const login = async (req, res) => {
   }
 };
 
+/** Valida que `socioId` sea un perfil accesible para `user` (el propio o un
+ * hijo vinculado) y resuelve con qué roles debe entrar. `null` si no tiene
+ * acceso a ese perfil. */
+const resolverPerfilElegido = async (user, socioId) => {
+  const esPropio = user.socioId && String(user.socioId) === String(socioId);
+  if (esPropio) return { rolesSlugs: null };
+
+  const vinculo = await VinculoFamiliar.findOne({ clubId: user.clubId, padreUserId: user._id, hijoSocioId: socioId, active: true });
+  if (!vinculo) return null;
+  return { rolesSlugs: ['socio'] };
+};
+
 export const selectProfile = async (req, res) => {
   const { selectToken, socioId } = req.body;
   if (!selectToken || !socioId) {
@@ -355,20 +367,52 @@ export const selectProfile = async (req, res) => {
     const user = await User.findById(decoded.id);
     if (!user || !user.active) return res.status(401).json({ message: 'Usuario no encontrado o desactivado' });
 
-    const esPropio = user.socioId && String(user.socioId) === String(socioId);
-    let rolesSlugs = null;
+    const perfil = await resolverPerfilElegido(user, socioId);
+    if (!perfil) return res.status(403).json({ message: 'No tenés acceso a ese perfil.' });
 
-    if (!esPropio) {
-      const vinculo = await VinculoFamiliar.findOne({ clubId: user.clubId, padreUserId: user._id, hijoSocioId: socioId, active: true });
-      if (!vinculo) return res.status(403).json({ message: 'No tenés acceso a ese perfil.' });
-      rolesSlugs = ['socio'];
-    }
-
-    const response = await buildAuthResponse(user, { socioId, rolesSlugs });
+    const response = await buildAuthResponse(user, { socioId, rolesSlugs: perfil.rolesSlugs });
     res.status(200).json(response);
   } catch (error) {
     console.error('Error seleccionando perfil:', error);
     res.status(500).json({ message: 'Error en el servidor al seleccionar perfil.' });
+  }
+};
+
+/** Lista los perfiles disponibles del usuario logueado (el propio + hijos
+ * vinculados), sin importar cuál esté activo en la sesión actual — para armar
+ * un menú de "cambiar de perfil" en cualquier momento, no solo al loguearse. */
+export const getProfiles = async (req, res) => {
+  try {
+    const user = await User.findById(req.user?.id);
+    if (!user || !user.active) return res.status(401).json({ message: 'Usuario no encontrado o desactivado' });
+
+    const perfiles = await obtenerPerfilesDisponibles(user);
+    res.status(200).json({ perfiles });
+  } catch (error) {
+    console.error('Error obteniendo perfiles:', error);
+    res.status(500).json({ message: 'Error al obtener perfiles' });
+  }
+};
+
+/** Cambia el perfil activo de una sesión ya logueada, sin pedir contraseña de
+ * nuevo — a diferencia de selectProfile (que usa un selectToken de corta
+ * duración emitido en el login), acá se usa el token normal ya válido. */
+export const switchProfile = async (req, res) => {
+  const { socioId } = req.body;
+  if (!socioId) return res.status(400).json({ message: 'socioId es requerido.' });
+
+  try {
+    const user = await User.findById(req.user?.id);
+    if (!user || !user.active) return res.status(401).json({ message: 'Usuario no encontrado o desactivado' });
+
+    const perfil = await resolverPerfilElegido(user, socioId);
+    if (!perfil) return res.status(403).json({ message: 'No tenés acceso a ese perfil.' });
+
+    const response = await buildAuthResponse(user, { socioId, rolesSlugs: perfil.rolesSlugs });
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Error cambiando de perfil:', error);
+    res.status(500).json({ message: 'Error en el servidor al cambiar de perfil.' });
   }
 };
 
@@ -465,4 +509,4 @@ export const changePassword = async (req, res) => {
   }
 };
 
-export default { register, login, selectProfile, googleLogin, logout, changePassword };
+export default { register, login, selectProfile, getProfiles, switchProfile, googleLogin, logout, changePassword };

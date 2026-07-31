@@ -200,6 +200,59 @@ describe('Usuarios auth handlers (unit)', () => {
     }));
   });
 
+  it('getProfiles should list perfiles of the logged in user', async () => {
+    User.findById.mockResolvedValue({ _id: 'u1', clubId: 'c1', active: true, socioId: 'socio-propio' });
+    Socio.findById.mockReturnValue({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'socio-propio', nombre: 'Juan', apellido: 'Pérez', fotoPerfil: null }) }) });
+
+    const req = { user: { id: 'u1' } };
+    const res = mockRes();
+    await authHandlers.getProfiles(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ perfiles: [expect.objectContaining({ socioId: 'socio-propio', tipo: 'propio' })] });
+  });
+
+  it('getProfiles should return 401 when the user is missing or inactive', async () => {
+    User.findById.mockResolvedValue(null);
+    const req = { user: { id: 'u1' } };
+    const res = mockRes();
+    await authHandlers.getProfiles(req, res);
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  it('switchProfile should return 400 without socioId', async () => {
+    const req = { body: {}, user: { id: 'u1' } };
+    const res = mockRes();
+    await authHandlers.switchProfile(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('switchProfile should return 403 when the socioId has no active vínculo', async () => {
+    User.findById.mockResolvedValue({ _id: 'u1', clubId: 'c1', active: true, socioId: null });
+    VinculoFamiliar.findOne.mockResolvedValue(null);
+
+    const req = { body: { socioId: 'socio-ajeno' }, user: { id: 'u1' } };
+    const res = mockRes();
+    await authHandlers.switchProfile(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it('switchProfile should issue a new token for a vinculado profile without touching selectToken', async () => {
+    User.findById.mockResolvedValue({ _id: 'u1', clubId: 'c1', active: true, socioId: 'socio-papa' });
+    VinculoFamiliar.findOne.mockResolvedValue({ _id: 'vinc1', padreUserId: 'u1', hijoSocioId: 'socio-hijo', active: true });
+    Socio.findById.mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'socio-hijo', nombre: 'Hijo' }) });
+
+    const req = { body: { socioId: 'socio-hijo' }, user: { id: 'u1' } };
+    const res = mockRes();
+    await authHandlers.switchProfile(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      user: expect.objectContaining({ socioId: 'socio-hijo', roles: ['socio'] }),
+    }));
+  });
+
   it('logout should add token to blacklist', async () => {
     const req = { headers: { authorization: 'Bearer sometoken' } };
     const res = mockRes();
