@@ -15,10 +15,15 @@ const session = {};
 
 // findOne(...).session(...)
 const chainableFindOne = (result) => ({ session: vi.fn().mockResolvedValue(result) });
+// find(...).select(...).session(...).lean()
+const chainablePlanFind = (result = []) => ({
+  select: vi.fn().mockReturnValue({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(result) }) }),
+});
 
 describe('sincronizarSuscripcionEscuelita', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Plan.find = vi.fn().mockReturnValue(chainablePlanFind([]));
   });
   afterEach(() => vi.restoreAllMocks());
 
@@ -120,6 +125,26 @@ describe('sincronizarSuscripcionEscuelita', () => {
     expect(elegidaPorError.fechaHasta).toBeNull(); // nunca se toca fechaHasta, evitando el rango invertido
     expect(elegidaPorError.save).toHaveBeenCalledWith({ session });
     expect(saveSpy).toHaveBeenCalledWith({ session }); // la nueva Suscripcion (planX2) se crea normalmente
+  });
+
+  it('cierra la suscripción vieja de escuelita aunque no tenga planId, si su etiqueta es de un Plan de escuelita vigente (appcarc-backend#31)', async () => {
+    // Reproduce el mismo patrón que Carreras en Cuota Social: la suscripción
+    // vieja se migró/creó por script, sin Plan asociado.
+    const viejaSinPlan = {
+      _id: 's-vieja-sin-plan', etiquetaId: 'etq-x1', planId: null, fechaHasta: null,
+      toObject: () => ({}), save: vi.fn().mockResolvedValue(undefined),
+    };
+    Plan.findOne = vi.fn().mockReturnValue(chainableFindOne({ _id: 'planX2', etiquetaId: 'etq-x2', tipo: 'escuelita' }));
+    Plan.find = vi.fn().mockReturnValue(chainablePlanFind([{ etiquetaId: 'etq-x1' }, { etiquetaId: 'etq-x2' }]));
+    Suscripcion.find = vi.fn().mockReturnValue({ populate: vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue([viejaSinPlan]) }) });
+    Suscripcion.findOne = vi.fn().mockReturnValue(chainableFindOne(null));
+    const saveSpy = vi.spyOn(Suscripcion.prototype, 'save').mockResolvedValue(undefined);
+
+    await sincronizarSuscripcionEscuelita({ clubId: CLUB_ID, socioId: SOCIO_ID, planId: 'planX2', req, session });
+
+    expect(viejaSinPlan.fechaHasta).toMatch(/^\d{4}-\d{2}$/);
+    expect(viejaSinPlan.save).toHaveBeenCalledWith({ session });
+    expect(saveSpy).toHaveBeenCalledWith({ session });
   });
 
   it('reactiva una Suscripcion inactiva existente en vez de chocar contra el índice único', async () => {

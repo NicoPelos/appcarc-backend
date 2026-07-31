@@ -48,8 +48,22 @@ export async function sincronizarSuscripcionEscuelita({ clubId, socioId, planId,
     .populate('planId', 'tipo')
     .session(session);
 
+  // No alcanza con mirar planId?.tipo: casi ninguna suscripción vieja/migrada
+  // tiene un Plan asociado (se crearon por script o por asignación suelta de
+  // etiquetaId), así que ese chequeo solo nunca las encontraba y quedaban
+  // duplicadas al reasignar plan — mismo bug que appcarc-backend#31, acá en
+  // Escuelita. Se complementa comparando contra el conjunto de etiquetas que
+  // usa cualquier Plan de escuelita vigente, para detectar la suscripción
+  // vieja tenga o no un Plan asociado.
+  const etiquetasEscuelita = await Plan.find({ clubId, tipo: 'escuelita', active: true })
+    .select('etiquetaId')
+    .session(session)
+    .lean();
+  const etiquetaIdsEscuelita = new Set(etiquetasEscuelita.map((p) => String(p.etiquetaId)));
+
   const escuelitaActivas = activas.filter(
-    (s) => s.planId?.tipo === 'escuelita' && vigenteEsteMes(s, periodoActual),
+    (s) => (s.planId?.tipo === 'escuelita' || etiquetaIdsEscuelita.has(String(s.etiquetaId)))
+      && vigenteEsteMes(s, periodoActual),
   );
 
   const yaCorrecta = plan
