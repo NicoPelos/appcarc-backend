@@ -22,7 +22,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *                 example: Cuota Social
  *               unidad:
  *                 type: string
- *                 enum: [mes, hora, dia]
+ *                 enum: [mes, hora, dia, pase, unico]
  *               uso_sistema:
  *                 type: string
  *                 example: cuota_social
@@ -34,7 +34,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *       500:
  *         description: Error al crear etiqueta
  */
-const VALID_UNIDADES = ['mes', 'hora', 'dia'];
+const VALID_UNIDADES = ['mes', 'hora', 'dia', 'pase', 'unico'];
 
 export const createEtiquetaHandler = async (req, res) => {
   try {

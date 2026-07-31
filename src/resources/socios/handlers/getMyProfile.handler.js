@@ -33,9 +33,12 @@ export const getMyProfileHandler = async (req, res) => {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
+    // req.user.socioId es el perfil ACTIVO de la sesión, que puede ser distinto
+    // del socio propio del usuario si está "entrando como" un hijo vinculado
+    // (ver VinculoFamiliar / issue #28).
     let socio = null;
-    if (user.socioId) {
-      socio = await Socio.findOne({ _id: user.socioId, clubId: req.user?.clubId });
+    if (req.user?.socioId) {
+      socio = await Socio.findOne({ _id: req.user.socioId, clubId: req.user?.clubId });
     }
 
     res.status(200).json({

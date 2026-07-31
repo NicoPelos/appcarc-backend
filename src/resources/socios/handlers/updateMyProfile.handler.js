@@ -73,9 +73,13 @@ export const updateMyProfileHandler = async (req, res) => {
       return res.status(404).json({ message: 'Usuario no encontrado' });
     }
 
-    if (!user.socioId) {
+    // req.user.socioId es el perfil ACTIVO de la sesión (el propio o un hijo
+    // vinculado — ver VinculoFamiliar / issue #28), no necesariamente user.socioId.
+    const socioIdActivo = req.user?.socioId;
+    if (!socioIdActivo) {
       return res.status(400).json({ message: 'Usuario no tiene socio vinculado' });
     }
+    const esPerfilPropio = String(user.socioId) === String(socioIdActivo);
 
     // Campos permitidos para actualizar (seguridad - no permitir cambiar dni, estado, etc)
     const allowedFields = [
@@ -94,16 +98,18 @@ export const updateMyProfileHandler = async (req, res) => {
       }
     });
 
-    const socioAntes = await Socio.findOne({ _id: user.socioId, clubId: req.user?.clubId });
+    const socioAntes = await Socio.findOne({ _id: socioIdActivo, clubId: req.user?.clubId });
     if (!socioAntes) {
       return res.status(404).json({ message: 'Socio no encontrado' });
     }
 
     // Si cambia el email de contacto, sincronizarlo también como email de login
     // (User.email) — antes quedaban desincronizados y el usuario seguía teniendo
-    // que loguearse con el email viejo.
+    // que loguearse con el email viejo. Solo aplica al perfil propio: si el
+    // usuario está editando un hijo vinculado, ese cambio es solo del contacto
+    // del hijo, no toca las credenciales de quien está logueado.
     const nuevoEmail = updateData.correoElectronico;
-    const emailChanged = nuevoEmail !== undefined && nuevoEmail !== socioAntes.correoElectronico;
+    const emailChanged = esPerfilPropio && nuevoEmail !== undefined && nuevoEmail !== socioAntes.correoElectronico;
 
     if (emailChanged) {
       const existe = await User.findOne({ email: nuevoEmail, clubId: user.clubId, _id: { $ne: user._id } });
@@ -113,7 +119,7 @@ export const updateMyProfileHandler = async (req, res) => {
     }
 
     const socio = await Socio.findOneAndUpdate(
-      { _id: user.socioId, clubId: req.user?.clubId },
+      { _id: socioIdActivo, clubId: req.user?.clubId },
       updateData,
       { returnDocument: 'after', runValidators: true }
     );
@@ -122,9 +128,11 @@ export const updateMyProfileHandler = async (req, res) => {
       return res.status(404).json({ message: 'Socio no encontrado' });
     }
 
-    if (updateData.nombre) user.nombre = updateData.nombre;
-    if (emailChanged) user.email = nuevoEmail;
-    if (updateData.nombre || emailChanged) await user.save();
+    if (esPerfilPropio) {
+      if (updateData.nombre) user.nombre = updateData.nombre;
+      if (emailChanged) user.email = nuevoEmail;
+      if (updateData.nombre || emailChanged) await user.save();
+    }
 
     // Sincronizar con Google Sheets
     await syncSocioToSheet(socio);

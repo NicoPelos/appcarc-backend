@@ -38,7 +38,7 @@ describe('updateMyProfileHandler', () => {
 
   it('devuelve 400 si el usuario no tiene socio vinculado', async () => {
     User.findById.mockResolvedValue(buildUser({ socioId: null }));
-    const req = { body: {}, user: { id: 'u1', clubId: 'CARC' } };
+    const req = { body: {}, user: { id: 'u1', clubId: 'CARC', socioId: null } };
     const res = mockRes();
     await updateMyProfileHandler(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
@@ -49,7 +49,7 @@ describe('updateMyProfileHandler', () => {
     Socio.findOne.mockResolvedValue({ _id: 'socio1', correoElectronico: 'contacto@test.com' });
     Socio.findOneAndUpdate.mockResolvedValue({ _id: 'socio1', telefono: '123' });
 
-    const req = { body: { telefono: '123' }, user: { id: 'u1', clubId: 'CARC' } };
+    const req = { body: { telefono: '123' }, user: { id: 'u1', clubId: 'CARC', socioId: 'socio1' } };
     const res = mockRes();
     await updateMyProfileHandler(req, res);
 
@@ -64,7 +64,7 @@ describe('updateMyProfileHandler', () => {
     Socio.findOne.mockResolvedValue({ _id: 'socio1', correoElectronico: 'viejo-contacto@test.com' });
     Socio.findOneAndUpdate.mockResolvedValue({ _id: 'socio1', correoElectronico: 'nuevo@test.com' });
 
-    const req = { body: { correoElectronico: 'nuevo@test.com' }, user: { id: 'u1', clubId: 'CARC' } };
+    const req = { body: { correoElectronico: 'nuevo@test.com' }, user: { id: 'u1', clubId: 'CARC', socioId: 'socio1' } };
     const res = mockRes();
     await updateMyProfileHandler(req, res);
 
@@ -79,7 +79,7 @@ describe('updateMyProfileHandler', () => {
     User.findOne.mockResolvedValue({ _id: 'otro' });
     Socio.findOne.mockResolvedValue({ _id: 'socio1', correoElectronico: 'viejo-contacto@test.com' });
 
-    const req = { body: { correoElectronico: 'nuevo@test.com' }, user: { id: 'u1', clubId: 'CARC' } };
+    const req = { body: { correoElectronico: 'nuevo@test.com' }, user: { id: 'u1', clubId: 'CARC', socioId: 'socio1' } };
     const res = mockRes();
     await updateMyProfileHandler(req, res);
 
@@ -93,11 +93,36 @@ describe('updateMyProfileHandler', () => {
     Socio.findOne.mockResolvedValue({ _id: 'socio1', correoElectronico: 'mismo@test.com' });
     Socio.findOneAndUpdate.mockResolvedValue({ _id: 'socio1', correoElectronico: 'mismo@test.com' });
 
-    const req = { body: { correoElectronico: 'mismo@test.com' }, user: { id: 'u1', clubId: 'CARC' } };
+    const req = { body: { correoElectronico: 'mismo@test.com' }, user: { id: 'u1', clubId: 'CARC', socioId: 'socio1' } };
     const res = mockRes();
     await updateMyProfileHandler(req, res);
 
     expect(user.save).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ emailChanged: false }));
+  });
+
+  it('al editar un hijo vinculado (socioId activo distinto del propio) actualiza el Socio del hijo sin tocar las credenciales del padre', async () => {
+    const user = buildUser({ socioId: 'socio-papa', email: 'papa@test.com' });
+    User.findById.mockResolvedValue(user);
+    Socio.findOne.mockResolvedValue({ _id: 'socio-hijo', correoElectronico: 'hijo-viejo@test.com' });
+    Socio.findOneAndUpdate.mockResolvedValue({ _id: 'socio-hijo', correoElectronico: 'hijo-nuevo@test.com' });
+
+    const req = {
+      body: { correoElectronico: 'hijo-nuevo@test.com', nombre: 'Hijo' },
+      user: { id: 'u1', clubId: 'CARC', socioId: 'socio-hijo' },
+    };
+    const res = mockRes();
+    await updateMyProfileHandler(req, res);
+
+    expect(Socio.findOne).toHaveBeenCalledWith(expect.objectContaining({ _id: 'socio-hijo' }));
+    expect(Socio.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: 'socio-hijo' }),
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(user.save).not.toHaveBeenCalled();
+    expect(user.email).toBe('papa@test.com');
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ emailChanged: false }));
   });
 });

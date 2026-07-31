@@ -2,6 +2,7 @@ import { OAuth2Client } from 'google-auth-library';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Socio from '../../socios/models/Socio.js';
+import VinculoFamiliar from '../../vinculos/models/VinculoFamiliar.js';
 import bcrypt from 'bcryptjs';
 import tokenService from '../../../services/tokenBlacklistService.js';
 import { getPermisosUsuario } from '../../../services/permisosCache.js';
@@ -10,6 +11,73 @@ import {
   obtenerRolIdsPorSlugs,
   obtenerSlugsPorRolIds,
 } from '../../roles/services/resolverRoles.service.js';
+
+/** Arma la respuesta final de auth (token + user + permisos + socio) para un
+ * `User` ya autenticado, con el `socioId` del perfil activo (el propio o uno
+ * vinculado — ver VinculoFamiliar). El token siempre tiene la misma forma que
+ * hoy ({id, email, roles, clubId, socioId}), así el resto del backend (protect,
+ * authorize, etc.) no necesita saber nada sobre perfiles vinculados. */
+const buildAuthResponse = async (user, { socioId = user.socioId || null, rolesSlugs = null } = {}) => {
+  const finalRolesSlugs = rolesSlugs ?? await obtenerSlugsPorRolIds(user.roles);
+  const token = jwt.sign(
+    { id: user._id, email: user.email, roles: finalRolesSlugs, clubId: user.clubId, socioId },
+    process.env.JWT_SECRET,
+    { expiresIn: '8h' },
+  );
+  const socio = socioId ? await Socio.findById(socioId).lean() : null;
+  const permisos = await getPermisosUsuario(user.clubId, finalRolesSlugs);
+
+  return {
+    token,
+    user: {
+      id: user._id,
+      email: user.email,
+      nombre: socio?.nombre || user.nombre,
+      roles: finalRolesSlugs,
+      clubId: user.clubId,
+      socioId: socioId || null,
+      mustChangePassword: !!user.mustChangePassword,
+    },
+    permisos,
+    socio: socio ? {
+      id: socio._id,
+      nombre: socio.nombre,
+      apellido: socio.apellido,
+      fotoPerfil: socio.fotoPerfil,
+      redesSociales: socio.redesSociales,
+    } : null,
+  };
+};
+
+/** Perfiles a los que puede entrar un User: el propio (si es socio) más los
+ * hijos vinculados (ver issue #28 — vinculación padre-hijo). */
+const obtenerPerfilesDisponibles = async (user) => {
+  const perfiles = [];
+
+  if (user.socioId) {
+    const socio = await Socio.findById(user.socioId).select('nombre apellido fotoPerfil').lean();
+    if (socio) {
+      perfiles.push({ socioId: String(socio._id), tipo: 'propio', nombre: socio.nombre, apellido: socio.apellido, fotoPerfil: socio.fotoPerfil });
+    }
+  }
+
+  const vinculos = await VinculoFamiliar.find({ clubId: user.clubId, padreUserId: user._id, active: true })
+    .populate('hijoSocioId', 'nombre apellido fotoPerfil')
+    .lean();
+
+  for (const v of vinculos) {
+    if (!v.hijoSocioId) continue;
+    perfiles.push({
+      socioId: String(v.hijoSocioId._id),
+      tipo: 'vinculado',
+      nombre: v.hijoSocioId.nombre,
+      apellido: v.hijoSocioId.apellido,
+      fotoPerfil: v.hijoSocioId.fotoPerfil,
+    });
+  }
+
+  return perfiles;
+};
 
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
@@ -239,39 +307,68 @@ export const login = async (req, res) => {
     if (!isMatch) return res.status(400).json({ message: 'Credenciales inválidas.' });
     if (!user.active) return res.status(403).json({ message: 'Usuario desactivado' });
 
-    const rolesSlugs = await obtenerSlugsPorRolIds(user.roles);
-    const token = jwt.sign(
-      { id: user._id, email: user.email, roles: rolesSlugs, clubId: user.clubId, socioId: user.socioId || null },
-      process.env.JWT_SECRET,
-      { expiresIn: '8h' },
-    );
+    const perfiles = await obtenerPerfilesDisponibles(user);
 
-    const socio = user.socioId ? await Socio.findById(user.socioId).lean() : null;
-    const permisos = await getPermisosUsuario(user.clubId, rolesSlugs);
+    // Más de un perfil accesible (el propio + hijos vinculados): no se emite
+    // token final todavía, hay que elegir con quién entrar primero.
+    if (perfiles.length > 1) {
+      const selectToken = jwt.sign(
+        { id: user._id, clubId: user.clubId, type: 'profile-select' },
+        process.env.JWT_SECRET,
+        { expiresIn: '10m' },
+      );
+      return res.status(200).json({ requiresProfileSelection: true, selectToken, perfiles });
+    }
 
-    res.status(200).json({
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        nombre: user.nombre,
-        roles: rolesSlugs,
-        clubId: user.clubId,
-        socioId: user.socioId || null,
-        mustChangePassword: !!user.mustChangePassword,
-      },
-      permisos,
-      socio: socio ? {
-        id: socio._id,
-        nombre: socio.nombre,
-        apellido: socio.apellido,
-        fotoPerfil: socio.fotoPerfil,
-        redesSociales: socio.redesSociales,
-      } : null,
-    });
+    // 0 o 1 perfil: comportamiento igual que siempre (compatibilidad total),
+    // salvo que ese único perfil puede ser un hijo vinculado (tutor sin socio
+    // propio con un solo hijo en el club) en vez del socio propio.
+    const unico = perfiles[0];
+    const response = await buildAuthResponse(user, unico
+      ? { socioId: unico.socioId, rolesSlugs: unico.tipo === 'vinculado' ? ['socio'] : null }
+      : { socioId: null });
+
+    res.status(200).json(response);
   } catch (error) {
     console.error('Error en el login de usuario:', error);
     res.status(500).json({ message: 'Error en el servidor al iniciar sesión.' });
+  }
+};
+
+export const selectProfile = async (req, res) => {
+  const { selectToken, socioId } = req.body;
+  if (!selectToken || !socioId) {
+    return res.status(400).json({ message: 'selectToken y socioId son requeridos.' });
+  }
+
+  try {
+    let decoded;
+    try {
+      decoded = jwt.verify(selectToken, process.env.JWT_SECRET);
+    } catch {
+      return res.status(401).json({ message: 'selectToken inválido o expirado.' });
+    }
+    if (decoded.type !== 'profile-select') {
+      return res.status(401).json({ message: 'selectToken inválido.' });
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user || !user.active) return res.status(401).json({ message: 'Usuario no encontrado o desactivado' });
+
+    const esPropio = user.socioId && String(user.socioId) === String(socioId);
+    let rolesSlugs = null;
+
+    if (!esPropio) {
+      const vinculo = await VinculoFamiliar.findOne({ clubId: user.clubId, padreUserId: user._id, hijoSocioId: socioId, active: true });
+      if (!vinculo) return res.status(403).json({ message: 'No tenés acceso a ese perfil.' });
+      rolesSlugs = ['socio'];
+    }
+
+    const response = await buildAuthResponse(user, { socioId, rolesSlugs });
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Error seleccionando perfil:', error);
+    res.status(500).json({ message: 'Error en el servidor al seleccionar perfil.' });
   }
 };
 
@@ -368,4 +465,4 @@ export const changePassword = async (req, res) => {
   }
 };
 
-export default { register, login, googleLogin, logout, changePassword };
+export default { register, login, selectProfile, googleLogin, logout, changePassword };

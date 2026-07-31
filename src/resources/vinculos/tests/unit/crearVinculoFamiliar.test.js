@@ -1,0 +1,165 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import mongoose from 'mongoose';
+
+import { BusinessError, crearVinculoFamiliar } from '../../services/crearVinculoFamiliar.service.js';
+import User from '../../../usuarios/models/User.js';
+import Socio from '../../../socios/models/Socio.js';
+import VinculoFamiliar from '../../models/VinculoFamiliar.js';
+import { syncSocioUserFromSocio } from '../../../usuarios/services/userSync.js';
+import { obtenerRolIdsPorSlugs } from '../../../roles/services/resolverRoles.service.js';
+
+vi.mock('../../../usuarios/services/userSync.js', () => ({
+  syncSocioUserFromSocio: vi.fn(),
+}));
+
+vi.mock('../../../roles/services/resolverRoles.service.js', () => ({
+  obtenerRolIdsPorSlugs: vi.fn().mockResolvedValue(['rol-socio-id']),
+}));
+
+const CLUB_ID = 'club1';
+const HIJO_ID = '507f1f77bcf86cd799439011';
+const PADRE_ID = '507f1f77bcf86cd799439013';
+const SOCIO_PAPA_ID = '507f1f77bcf86cd799439014';
+const USER_PAPA_NUEVO_ID = '507f1f77bcf86cd799439015';
+const USER_TUTOR_ID = '507f1f77bcf86cd799439016';
+const VINCULO_EXISTENTE_ID = '507f1f77bcf86cd799439017';
+const USER = { id: '507f1f77bcf86cd799439012', email: 'secretaria@carc.test' };
+
+const chainableFindOne = (result) => ({ lean: vi.fn().mockResolvedValue(result) });
+
+describe('crearVinculoFamiliar service (unit)', () => {
+  let saveSpy;
+
+  beforeEach(() => {
+    Socio.findOne = vi.fn().mockReturnValue(chainableFindOne({ _id: HIJO_ID, clubId: CLUB_ID }));
+    User.findOne = vi.fn().mockResolvedValue(null);
+    VinculoFamiliar.findOne = vi.fn().mockResolvedValue(null);
+
+    saveSpy = vi.spyOn(VinculoFamiliar.prototype, 'save').mockImplementation(async function () {
+      if (!this._id) this._id = new mongoose.Types.ObjectId();
+      return this;
+    });
+    vi.spyOn(User.prototype, 'save').mockImplementation(async function () {
+      if (!this._id) this._id = new mongoose.Types.ObjectId();
+      return this;
+    });
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('should fail with 404 when hijoSocioId does not exist', async () => {
+    Socio.findOne.mockReturnValue(chainableFindOne(null));
+
+    await expect(crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: { padreUserId: PADRE_ID } }))
+      .rejects.toMatchObject({ status: 404 });
+  });
+
+  it('should link to an existing padreUserId directly', async () => {
+    User.findOne.mockResolvedValue({ _id: PADRE_ID, clubId: CLUB_ID, active: true, socioId: null });
+
+    const { vinculo } = await crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: { padreUserId: PADRE_ID } });
+
+    expect(saveSpy).toHaveBeenCalledTimes(1);
+    expect(String(vinculo.padreUserId)).toBe(PADRE_ID);
+    expect(String(vinculo.hijoSocioId)).toBe(HIJO_ID);
+  });
+
+  it('should fail with 404 when padreUserId does not exist', async () => {
+    User.findOne.mockResolvedValue(null);
+
+    await expect(crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: { padreUserId: PADRE_ID } }))
+      .rejects.toMatchObject({ status: 404 });
+  });
+
+  it('should reuse the padreSocioId User if it already exists', async () => {
+    Socio.findOne
+      .mockReturnValueOnce(chainableFindOne({ _id: HIJO_ID, clubId: CLUB_ID })) // hijo
+      .mockReturnValueOnce(chainableFindOne({ _id: SOCIO_PAPA_ID, clubId: CLUB_ID })); // padre socio
+    User.findOne.mockResolvedValue({ _id: PADRE_ID, clubId: CLUB_ID, socioId: SOCIO_PAPA_ID });
+
+    const { vinculo } = await crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: { padreSocioId: SOCIO_PAPA_ID } });
+
+    expect(syncSocioUserFromSocio).not.toHaveBeenCalled();
+    expect(String(vinculo.padreUserId)).toBe(PADRE_ID);
+  });
+
+  it('should create the padre User via syncSocioUserFromSocio when padreSocioId has no User yet', async () => {
+    Socio.findOne
+      .mockReturnValueOnce(chainableFindOne({ _id: HIJO_ID, clubId: CLUB_ID }))
+      .mockReturnValueOnce(chainableFindOne({ _id: SOCIO_PAPA_ID, clubId: CLUB_ID, correoElectronico: 'papa@test.com', dni: '12345678' }));
+    User.findOne.mockResolvedValue(null);
+    syncSocioUserFromSocio.mockResolvedValue({ _id: USER_PAPA_NUEVO_ID, socioId: SOCIO_PAPA_ID });
+
+    const { vinculo } = await crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: { padreSocioId: SOCIO_PAPA_ID } });
+
+    expect(syncSocioUserFromSocio).toHaveBeenCalledTimes(1);
+    expect(String(vinculo.padreUserId)).toBe(USER_PAPA_NUEVO_ID);
+  });
+
+  it('should fail when padreSocioId has no email/dni to create a User', async () => {
+    Socio.findOne
+      .mockReturnValueOnce(chainableFindOne({ _id: HIJO_ID, clubId: CLUB_ID }))
+      .mockReturnValueOnce(chainableFindOne({ _id: SOCIO_PAPA_ID, clubId: CLUB_ID }));
+    User.findOne.mockResolvedValue(null);
+    syncSocioUserFromSocio.mockResolvedValue(null);
+
+    await expect(crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: { padreSocioId: SOCIO_PAPA_ID } }))
+      .rejects.toMatchObject({ status: 400 });
+  });
+
+  it('should reuse an existing User found by padreEmail', async () => {
+    User.findOne.mockResolvedValue({ _id: USER_TUTOR_ID, clubId: CLUB_ID, socioId: null });
+
+    const { vinculo } = await crearVinculoFamiliar({
+      clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID,
+      body: { padreEmail: 'tutor@test.com' },
+    });
+
+    expect(User.prototype.save).not.toHaveBeenCalled();
+    expect(String(vinculo.padreUserId)).toBe(USER_TUTOR_ID);
+  });
+
+  it('should create a brand-new tutor-only User when padreEmail has no match and padreNombre is given', async () => {
+    User.findOne.mockResolvedValue(null);
+
+    const { vinculo, padre } = await crearVinculoFamiliar({
+      clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID,
+      body: { padreEmail: 'tutor-nuevo@test.com', padreNombre: 'Tutor Nuevo' },
+    });
+
+    expect(User.prototype.save).toHaveBeenCalledTimes(1);
+    expect(padre.socioId).toBeNull();
+    expect(padre.email).toBe('tutor-nuevo@test.com');
+    expect(String(vinculo.padreUserId)).toBe(String(padre._id));
+    expect(obtenerRolIdsPorSlugs).toHaveBeenCalledWith({ clubId: CLUB_ID, slugs: ['socio'] });
+  });
+
+  it('should fail when creating a new tutor without padreNombre', async () => {
+    User.findOne.mockResolvedValue(null);
+
+    await expect(crearVinculoFamiliar({
+      clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID,
+      body: { padreEmail: 'tutor-nuevo@test.com' },
+    })).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('should fail when none of padreUserId/padreSocioId/padreEmail is given', async () => {
+    await expect(crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: {} }))
+      .rejects.toBeInstanceOf(BusinessError);
+  });
+
+  it('should fail when the padre is the same socio as the hijo', async () => {
+    User.findOne.mockResolvedValue({ _id: PADRE_ID, clubId: CLUB_ID, socioId: HIJO_ID });
+
+    await expect(crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: { padreUserId: PADRE_ID } }))
+      .rejects.toMatchObject({ message: 'Un socio no puede ser su propio tutor' });
+  });
+
+  it('should fail with 409 when the vínculo already exists', async () => {
+    User.findOne.mockResolvedValue({ _id: PADRE_ID, clubId: CLUB_ID, socioId: null });
+    VinculoFamiliar.findOne.mockResolvedValue({ _id: VINCULO_EXISTENTE_ID });
+
+    await expect(crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: { padreUserId: PADRE_ID } }))
+      .rejects.toMatchObject({ status: 409 });
+  });
+});

@@ -1,6 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { googleLogin, googleCallback, register, login, logout, changePassword, registerPushToken } from './handlers/auth.handler.js';
+import { googleLogin, googleCallback, register, login, selectProfile, logout, changePassword, registerPushToken } from './handlers/auth.handler.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { PERMISOS } from '../../constants/permisos.js';
 
@@ -122,6 +122,31 @@ router.post('/register', protect, authorize(PERMISOS.USUARIOS_WRITE), register);
  *       400: { description: Credenciales inválidas }
  */
 router.post('/login', loginLimiter, login);
+
+/**
+ * @openapi
+ * /api/auth/select-profile:
+ *   post:
+ *     summary: Elegir con qué perfil entrar (el propio o un hijo vinculado) tras un login con múltiples perfiles
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - selectToken
+ *               - socioId
+ *             properties:
+ *               selectToken: { type: string }
+ *               socioId: { type: string }
+ *     responses:
+ *       200: { description: Login exitoso, token final scoped al perfil elegido }
+ *       401: { description: selectToken inválido o expirado }
+ *       403: { description: No tenés acceso a ese perfil }
+ */
+router.post('/select-profile', loginLimiter, selectProfile);
 
 /**
  * @openapi
