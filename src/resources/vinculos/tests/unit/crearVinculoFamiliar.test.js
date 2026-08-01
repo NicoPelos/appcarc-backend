@@ -131,7 +131,7 @@ describe('crearVinculoFamiliar service (unit)', () => {
     });
 
     expect(User.prototype.save).toHaveBeenCalledTimes(1);
-    expect(padre.socioId).toBeNull();
+    expect(padre.socioId).toBeUndefined();
     expect(padre.email).toBe('tutor-nuevo@test.com');
     expect(String(vinculo.padreUserId)).toBe(String(padre._id));
     expect(passwordTemporal).toEqual(expect.any(String));

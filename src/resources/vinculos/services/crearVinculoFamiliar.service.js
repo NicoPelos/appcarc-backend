@@ -60,7 +60,6 @@ const resolverPadre = async ({ clubId, padreUserId, padreSocioId, padreEmail, pa
     nombre,
     roles: rolesSocio,
     clubId,
-    socioId: null,
     active: true,
     mustChangePassword: true,
     createdBy: actor,
