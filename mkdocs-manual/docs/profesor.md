@@ -33,7 +33,7 @@ Cada clase dictada se registra como una asistencia. La solapa `Asistencia` muest
 
 ## 3. Cargar tus horas trabajadas
 
-Cada hora que cargás queda asociada a tu nombre y a una etiqueta de pago ("Hora Profesor"). Con eso, el admin puede ver cuánto corresponde pagarte cada mes (ver su manual, sección [Horas del staff](admin.md#6-horas-del-staff-deuda-a-pagar)).
+Cada hora que cargás queda asociada a tu nombre y a una etiqueta de pago ("Hora Profesor"). Con eso, el admin puede ver cuánto corresponde pagarte cada mes (ver su manual, sección [Horas del staff](admin.md#8-horas-del-staff-deuda-a-pagar)).
 
 <figure markdown>
   ![Tus horas cargadas](assets/screenshots/profesor-horarios-lista.png){ width="260" }

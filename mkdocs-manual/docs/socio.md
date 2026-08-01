@@ -47,7 +47,35 @@ Anuncios, salidas y avisos del club, en la solapa `Comunidad`. Algunas se public
   <figcaption>Comunidad</figcaption>
 </figure>
 
-## 5. Notificaciones
+## 5. Entrar como un hijo vinculado (para tutores)
+
+Si sos tutor de uno o más socios (por ejemplo, tus hijos), no necesitás una cuenta separada para cada uno. Secretaría o admin te vincula desde la ficha de cada socio (ver el [manual de Admin](admin.md#2-vincular-a-un-tutor-padremadre-de-un-socio)), y desde ahí podés entrar como cualquiera de ellos con tu mismo usuario.
+
+<figure markdown>
+  ![Elegir con qué perfil entrar](assets/screenshots/socio-elegir-perfil.png){ width="260" }
+  <figcaption>Si tenés más de un perfil, la app te pregunta al entrar</figcaption>
+</figure>
+
+Si tenés un solo perfil (el tuyo, sin ningún hijo vinculado), entrás directo — este paso solo aparece cuando hay más de uno para elegir.
+
+**Cambiar de perfil sin volver a loguearte**
+
+<figure markdown>
+  ![Cambiar de perfil desde Configuración](assets/screenshots/socio-configuracion-cambiar-perfil.png){ width="260" }
+  <figcaption>Cambiar de perfil desde Configuración</figcaption>
+</figure>
+
+1. Andá a `Perfil` → `Configuración` → `Cambiar de perfil`.
+2. Elegí el perfil con el que querés entrar — el que está marcado es el activo en este momento.
+
+<figure markdown>
+  ![Lista de perfiles disponibles](assets/screenshots/socio-cambiar-perfil-modal.png){ width="260" }
+  <figcaption>Lista de perfiles disponibles</figcaption>
+</figure>
+
+Todo lo que veas mientras actuás "como" un hijo vinculado (cuotas, credencial, notificaciones) es de ese socio, no tuyo — y solo con permisos de socio, aunque esa persona tenga otro rol en el club con su propia cuenta.
+
+## 6. Notificaciones
 
 Avisos personales: que se registró un pago tuyo, recordatorios de cuota, novedades nuevas del club, o cambios en tu ficha. Tocando el ícono de campana desde Inicio.
 

@@ -28,7 +28,7 @@ Cuando un socio paga (cuota social, escuelita o muro libre mensual), se registra
 
 ## 2. Inscribir un alumno a la escuelita
 
-Al inscribir a alguien en un plan de escuelita, appClub crea automáticamente su suscripción — es el único caso hoy en que esto pasa solo (para otros planes, ver el [manual de Admin](admin.md#4-suscribir-un-socio-a-un-plan)).
+Al inscribir a alguien en un plan de escuelita, appClub crea automáticamente su suscripción — es el único caso hoy en que esto pasa solo (para otros planes, ver el [manual de Admin](admin.md#6-suscribir-un-socio-a-un-plan)).
 
 <figure markdown>
   ![Elegir plan y buscar al socio](assets/screenshots/secretaria-escuelita-inscribir-buscar.png){ width="260" }
@@ -85,9 +85,13 @@ Registra cada visita al muro de escalada, sea de un socio o de alguien externo, 
 
 ## 5. Movimientos de caja
 
-Para ingresos o egresos que no vienen de un cobro (compras, gastos varios). Los pasos son idénticos a los del [manual de Admin](admin.md#5-movimientos-caja-del-club).
+Para ingresos o egresos que no vienen de un cobro (compras, gastos varios). Los pasos son idénticos a los del [manual de Admin](admin.md#7-movimientos-caja-del-club).
 
-## 6. Novedades del club
+## 6. Vincular un tutor y atribuir cargos puntuales
+
+Dos acciones que se hacen desde la ficha del socio, con los mismos pasos que en el [manual de Admin](admin.md): [vincular a un tutor](admin.md#2-vincular-a-un-tutor-padremadre-de-un-socio) (para que alguien pueda entrar a la app "como" ese socio) y [atribuir un cargo puntual](admin.md#5-atribuir-un-cargo-puntual) (para cobros que no son una cuota ni un pase, como una salida o un arreglo).
+
+## 7. Novedades del club
 
 Son los anuncios que ven los socios en su pantalla de inicio y en "Comunidad" (salidas, eventos, avisos). Hoy se completan de dos formas: sincronización automática (Instagram del club, o RSS de una federación) y carga manual.
 

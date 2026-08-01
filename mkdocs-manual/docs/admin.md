@@ -22,7 +22,7 @@ La ficha de cada persona del club: datos personales, estado (Activo / Adherente 
 
 1. Andá a `Socios` y tocá el botón de agregar (+).
 2. Completá nombre, apellido, DNI y los datos de contacto que tengas.
-3. Guardá — el socio queda creado, pero sin ninguna cuota asociada todavía (ver [Suscribir un socio a un plan](#4-suscribir-un-socio-a-un-plan)).
+3. Guardá — el socio queda creado, pero sin ninguna cuota asociada todavía (ver [Suscribir un socio a un plan](#6-suscribir-un-socio-a-un-plan)).
 
 **Dar de baja / reactivar**
 
@@ -30,7 +30,40 @@ La ficha de cada persona del club: datos personales, estado (Activo / Adherente 
 2. Cambiá el estado a `Baja` (o de nuevo a `Activo` si vuelve).
 3. Un socio de baja deja de generar deuda nueva, pero conserva su historial.
 
-## 2. Planes — crear planes nuevos
+## 2. Vincular a un tutor (padre/madre de un socio)
+
+Un socio (por lo general, menor de edad) puede tener uno o más tutores vinculados — un usuario que, al loguearse, puede elegir entrar "como" ese socio: ver su estado de cuenta, pagar sus cuotas, mostrar su credencial, etc. El tutor no necesita ser socio del club.
+
+<figure markdown>
+  ![Vincular a un tutor desde la ficha del socio](assets/screenshots/admin-socio-vincular-tutor-boton.png){ width="260" }
+  <figcaption>Vincular a un tutor desde la ficha del socio</figcaption>
+</figure>
+
+**Vincular un tutor**
+
+1. Abrí la ficha del socio (el "hijo") y tocá `Vincular a un tutor`.
+2. Cargá el email del tutor y, si todavía no tiene cuenta en el club, su nombre.
+
+<figure markdown>
+  ![Formulario para vincular un tutor](assets/screenshots/admin-socio-vincular-tutor-form.png){ width="260" }
+  <figcaption>Formulario para vincular un tutor</figcaption>
+</figure>
+
+3. Guardá.
+    - Si el email ya pertenece a una cuenta existente (sea socio o no), se usa esa cuenta.
+    - Si es un email nuevo, se crea una cuenta de tutor y la app te muestra una contraseña temporal — comunicásela a mano, es la única vez que se muestra.
+
+<figure markdown>
+  ![Contraseña temporal al crear una cuenta de tutor nueva](assets/screenshots/admin-socio-vincular-tutor-password.png){ width="260" }
+  <figcaption>Contraseña temporal al crear una cuenta de tutor nueva</figcaption>
+</figure>
+
+Los tutores vinculados quedan listados en la ficha del socio, con un botón para quitar el vínculo en cualquier momento.
+
+!!! info "Qué puede hacer un tutor al entrar como el hijo"
+    Siempre entra con permisos de socio nomás, sin importar qué rol tenga esa persona en su propia cuenta (por ejemplo, si el hijo es a la vez profesor/a o staff). El vínculo familiar es para gestionar la cuenta de un socio, no para heredar permisos de otra cuenta.
+
+## 3. Planes — crear planes nuevos
 
 Un **Plan** es lo que se le ofrece a un socio: "Cuota Social", "Escuelita Principiantes X2", "Muro Libre Diario", etc. Cada plan tiene un tipo (social / escuelita / muro_libre), una etiqueta de cobro asociada, y una descripción que sirve para que todo el equipo entienda para qué es.
 
@@ -44,26 +77,64 @@ Un **Plan** es lo que se le ofrece a un socio: "Cuota Social", "Escuelita Princi
 1. Andá a `Planes` y tocá el botón de agregar (+).
 2. Elegí el tipo de plan (social, escuelita o muro libre).
 3. Ponele un nombre claro y una descripción — se usa en toda la app para que el resto del equipo sepa qué incluye.
-4. Asociale la etiqueta de cobro correspondiente (ver [Precios y etiquetas](#3-precios-y-etiquetas)) — de ahí sale el precio.
+4. Asociale la etiqueta de cobro correspondiente (ver [Precios y etiquetas](#4-precios-y-etiquetas)) — de ahí sale el precio.
 5. Si es de escuelita, definí cuántas clases por semana incluye — eso es lo que controla el límite al tomar asistencia.
 6. Si el plan no debe generar deuda (por ejemplo "Socio Honorario" o un canje), activá `No genera deuda` — cualquier suscripción que se asigne con ese plan queda exenta automáticamente, sin tener que marcarlo caso por caso.
-7. Guardá. El plan ya queda disponible para inscribir socios (escuelita) o para asignar directamente ([Suscribir un socio a un plan](#4-suscribir-un-socio-a-un-plan)).
+7. Guardá. El plan ya queda disponible para inscribir socios (escuelita) o para asignar directamente ([Suscribir un socio a un plan](#6-suscribir-un-socio-a-un-plan)).
 
-## 3. Precios y etiquetas
+## 4. Precios y etiquetas
 
-Una **Etiqueta** es un concepto de cobro (ej. "Cuota Escuelita X2", "Hora Profesor") con una unidad (mes, día, hora). El **Precio** vigente de esa etiqueta es lo que se usa como monto sugerido al registrar un cobro. Separar etiqueta de precio permite ir actualizando montos (por ejemplo, por inflación) sin perder el histórico de qué se cobró en cada mes.
+Un **Precio** siempre es un concepto de cobro con su monto vigente (ej. "Cuota Escuelita X2 — $30.000/mes", "Hora Profesor — $4.000/hora"). Por dentro son dos cosas — una Etiqueta (el concepto) y sus distintos montos vigentes a lo largo del tiempo — pero en la app se maneja como una sola pantalla: no hace falta pensar en "etiqueta" y "precio" por separado.
 
 <figure markdown>
-  ![Precios por etiqueta](assets/screenshots/admin-precios-lista.png){ width="260" }
-  <figcaption>Precios por etiqueta</figcaption>
+  ![Lista de precios](assets/screenshots/admin-precios-lista.png){ width="260" }
+  <figcaption>Lista de precios — el monto vigente de cada concepto</figcaption>
 </figure>
 
-**Actualizar un precio**
+Tocando el nombre de un concepto se despliega su histórico (precios anteriores) o los que ya están cargados a futuro. El lápiz de al lado abre directamente la edición del precio vigente.
 
-1. Andá a `Precios`, buscá la etiqueta que querés actualizar.
-2. Cargá el nuevo monto — queda vigente desde ese momento, sin pisar los cobros ya registrados con el precio anterior.
+**Crear un concepto nuevo (precio nuevo)**
 
-## 4. Suscribir un socio a un plan
+1. Andá a `Precios` y tocá el botón de agregar (+).
+2. Elegí `Precio nuevo (concepto nuevo)`.
+
+<figure markdown>
+  ![Elegir entre precio nuevo o actualizar uno existente](assets/screenshots/admin-precios-actionsheet.png){ width="260" }
+  <figcaption>Elegir entre precio nuevo o actualizar uno existente</figcaption>
+</figure>
+
+3. Ponele un nombre claro (por ejemplo "Salida Cerro Negro") y elegí la unidad de cobro: `Por mes`, `Por hora`, `Por día`, `Por pase` o `Cargo único` — esta última es para cobros puntuales que no se repiten (ver [Atribuir un cargo puntual](#5-atribuir-un-cargo-puntual)).
+
+<figure markdown>
+  ![Formulario de precio nuevo](assets/screenshots/admin-precios-nuevo-concepto.png){ width="260" }
+  <figcaption>Formulario de precio nuevo</figcaption>
+</figure>
+
+4. Cargá el monto y la fecha desde la que rige. Guardá — queda creado el concepto con su primer precio vigente.
+
+**Actualizar un precio existente**
+
+1. Andá a `Precios`, tocá el botón de agregar (+) y elegí `Actualizar un precio existente`.
+2. Elegí la etiqueta y cargá el nuevo monto — queda vigente desde ese momento, sin pisar los cobros ya registrados con el precio anterior.
+
+## 5. Atribuir un cargo puntual
+
+Para cobros que no son una cuota recurrente ni un pase — una salida, una multa, un arreglo — se le atribuye directamente al socio un cargo único, usando alguno de los conceptos con unidad `Cargo único` (ver [Precios y etiquetas](#4-precios-y-etiquetas)).
+
+<figure markdown>
+  ![Atribuir cargo puntual](assets/screenshots/admin-cargo-puntual-modal.png){ width="260" }
+  <figcaption>Atribuir cargo puntual desde la ficha del socio</figcaption>
+</figure>
+
+1. Abrí la ficha del socio y tocá `Atribuir cargo puntual`.
+2. Elegí el concepto (solo aparecen los de unidad "único").
+3. Si el monto de esta vez es distinto al precio vigente del concepto, cargalo a mano — si lo dejás vacío, usa el precio vigente.
+4. Agregá una descripción corta (por ejemplo "Salida Cerro Negro del 15/8") para identificarlo después.
+5. Guardá — el cargo queda sumado a la deuda del socio.
+
+Si se cargó por error, se puede anular desde la misma ficha (queda registrado como anulado, no desaparece del historial).
+
+## 6. Suscribir un socio a un plan
 
 Una **Suscripción** es el vínculo entre un socio y un plan — es lo que determina qué le corresponde pagar cada mes. Para **escuelita** se crea sola al inscribir al alumno (ver el manual de [Secretaría](secretaria.md)/[Profesor](profesor.md)); para el resto de los planes (Cuota Social, Muro Libre mensual, etc.) se asigna desde la ficha del socio.
 
@@ -77,7 +148,7 @@ Una **Suscripción** es el vínculo entre un socio y un plan — es lo que deter
 1. Abrí la ficha del socio y tocá `Asignar plan`.
 2. Elegí el plan de la lista (solo se muestran planes que no son de escuelita).
 3. Confirmá el período de inicio (por defecto, el mes actual).
-4. Si el plan elegido está marcado como `No genera deuda` (ver [Planes](#2-planes-crear-planes-nuevos)), se muestra un aviso — esa suscripción no va a generar cuotas.
+4. Si el plan elegido está marcado como `No genera deuda` (ver [Planes](#3-planes-crear-planes-nuevos)), se muestra un aviso — esa suscripción no va a generar cuotas.
 5. Guardá. Si el socio ya tenía una suscripción activa del mismo tipo de plan, se cierra automáticamente para que no queden dos activas en simultáneo.
 
 **Dar de baja un plan**
@@ -85,7 +156,7 @@ Una **Suscripción** es el vínculo entre un socio y un plan — es lo que deter
 1. En la ficha del socio, dentro del detalle de deuda, tocá `Dar de baja` sobre la suscripción que quieras cerrar.
 2. Confirmá el período hasta el cual estuvo vigente — a partir de ahí deja de generar deuda nueva.
 
-## 5. Movimientos — caja del club
+## 7. Movimientos — caja del club
 
 Es el registro de caja del club: ingresos y egresos que **no** vienen de un cobro de cuota (por ejemplo, una compra de materiales, un gasto de mantenimiento, una donación). Los cobros de cuota generan su propio movimiento automáticamente — acá se cargan los manuales.
 
@@ -114,7 +185,7 @@ Es el registro de caja del club: ingresos y egresos que **no** vienen de un cobr
 
 Con el buscador podés filtrar por concepto o responsable, y con los chips de período acotar a `Este mes`, `Mes anterior` o `Todo`. La lista carga de a tandas: al llegar al final se trae más automáticamente.
 
-## 6. Horas del staff — deuda a pagar
+## 8. Horas del staff — deuda a pagar
 
 Profesores y palestreros cargan sus propias horas trabajadas (ver sus manuales). Cada hora se paga según una etiqueta ("Hora Profesor", "Hora Palestrero") con un precio propio — esto es, en la práctica, cómo se calcula qué hay que pagarle al staff cada mes.
 
@@ -129,7 +200,7 @@ Profesores y palestreros cargan sus propias horas trabajadas (ver sus manuales).
 2. Elegí el período (mes/año).
 3. Vas a ver, por cada persona de staff, el total de horas cargadas y el monto que corresponde pagarle (horas × precio de su etiqueta).
 
-## 7. Auditoría — historial revertible
+## 9. Auditoría — historial revertible
 
 Cada cambio importante (crear, editar o borrar un cobro, movimiento, socio, etc.) queda registrado con quién lo hizo y cuándo. Esto es exclusivo del panel de administración web (superadmin), no de la app del celular.
 
