@@ -16,7 +16,8 @@
     "seed-superadmin": "node scripts/seed-superadmin.js",
     "seed-clubs": "node scripts/seed-clubs.js",
     "import-horarios": "node scripts/import-horarios-from-sheet.js",
-    "import-movimientos": "node scripts/import-movimientos-from-sheet.js"
+    "import-movimientos": "node scripts/import-movimientos-from-sheet.js",
+    "load-test": "node scripts/load-test.js"
   },
   "keywords": [],
   "author": "",
@@ -40,6 +41,7 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "autocannon": "^8.0.0",
     "nodemon": "^3.0.1",
     "supertest": "^7.2.2",
     "vitest": "^1.0.0"
