@@ -79,6 +79,29 @@ const obtenerPerfilesDisponibles = async (user) => {
   return perfiles;
 };
 
+/** Punto único de salida para cualquier login ya autenticado (email/password
+ * o Google): si hay más de un perfil accesible, pide elegir en vez de emitir
+ * el token final directo — usado tanto por `login` como por
+ * `buildGoogleLoginResponse`, que antes armaba su propio token a mano y por
+ * eso nunca ofrecía el selector de perfiles a quienes entran con Google. */
+const resolveLoginResponse = async (user) => {
+  const perfiles = await obtenerPerfilesDisponibles(user);
+
+  if (perfiles.length > 1) {
+    const selectToken = jwt.sign(
+      { id: user._id, clubId: user.clubId, type: 'profile-select' },
+      process.env.JWT_SECRET,
+      { expiresIn: '10m' },
+    );
+    return { requiresProfileSelection: true, selectToken, perfiles };
+  }
+
+  const unico = perfiles[0];
+  return buildAuthResponse(user, unico
+    ? { socioId: unico.socioId, rolesSlugs: unico.tipo === 'vinculado' ? ['socio'] : null }
+    : { socioId: null });
+};
+
 const client = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
@@ -86,7 +109,7 @@ const client = new OAuth2Client(
 );
 
 const buildGoogleLoginResponse = async (payload, clubId) => {
-  const { email, name, picture, sub: googleId, email_verified } = payload;
+  const { email, picture, sub: googleId, email_verified } = payload;
 
   if (email_verified === false) {
     const error = new Error('Email de Google no verificado.');
@@ -149,31 +172,7 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
     await socio.save();
   }
 
-  const rolesSlugs = await obtenerSlugsPorRolIds(user.roles);
-  const token = jwt.sign({ id: user._id, email: user.email, roles: rolesSlugs, clubId: user.clubId, socioId: user.socioId || null }, process.env.JWT_SECRET, { expiresIn: '8h' });
-  const permisos = await getPermisosUsuario(user.clubId, rolesSlugs);
-
-  return {
-    token,
-    user: {
-      id: user._id,
-      nombre: user.nombre || name,
-      email,
-      roles: rolesSlugs,
-      clubId: user.clubId,
-      socioId: user.socioId || null,
-      picture,
-      mustChangePassword: !!user.mustChangePassword,
-    },
-    permisos,
-    socio: socio ? {
-      id: socio._id,
-      nombre: socio.nombre,
-      apellido: socio.apellido,
-      fotoPerfil: socio.fotoPerfil,
-      redesSociales: socio.redesSociales,
-    } : null,
-  };
+  return resolveLoginResponse(user);
 };
 
 const VALID_ROLES = ['admin', 'autoridad', 'secretaria', 'profesor', 'palestrero', 'limpieza', 'arreglos', 'colaborador', 'socio'];
@@ -307,27 +306,7 @@ export const login = async (req, res) => {
     if (!isMatch) return res.status(400).json({ message: 'Credenciales inválidas.' });
     if (!user.active) return res.status(403).json({ message: 'Usuario desactivado' });
 
-    const perfiles = await obtenerPerfilesDisponibles(user);
-
-    // Más de un perfil accesible (el propio + hijos vinculados): no se emite
-    // token final todavía, hay que elegir con quién entrar primero.
-    if (perfiles.length > 1) {
-      const selectToken = jwt.sign(
-        { id: user._id, clubId: user.clubId, type: 'profile-select' },
-        process.env.JWT_SECRET,
-        { expiresIn: '10m' },
-      );
-      return res.status(200).json({ requiresProfileSelection: true, selectToken, perfiles });
-    }
-
-    // 0 o 1 perfil: comportamiento igual que siempre (compatibilidad total),
-    // salvo que ese único perfil puede ser un hijo vinculado (tutor sin socio
-    // propio con un solo hijo en el club) en vez del socio propio.
-    const unico = perfiles[0];
-    const response = await buildAuthResponse(user, unico
-      ? { socioId: unico.socioId, rolesSlugs: unico.tipo === 'vinculado' ? ['socio'] : null }
-      : { socioId: null });
-
+    const response = await resolveLoginResponse(user);
     res.status(200).json(response);
   } catch (error) {
     console.error('Error en el login de usuario:', error);

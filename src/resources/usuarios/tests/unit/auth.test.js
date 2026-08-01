@@ -18,6 +18,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import tokenService from '../../../../services/tokenBlacklistService.js';
 import mongoose from 'mongoose';
+import { OAuth2Client } from 'google-auth-library';
 import { obtenerRolIdsPorNombres, obtenerSlugsPorRolIds } from '../../../roles/services/resolverRoles.service.js';
 
 function mockRes() {
@@ -251,6 +252,60 @@ describe('Usuarios auth handlers (unit)', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       user: expect.objectContaining({ socioId: 'socio-hijo', roles: ['socio'] }),
     }));
+  });
+
+  // Socio.findById se usa con 3 formas de encadenar distintas en este archivo
+  // (await directo, .lean(), .select().lean()) — este mock soporta las tres.
+  const makeSocioFindByIdMock = (socio) => ({
+    then: (resolve) => Promise.resolve(socio).then(resolve),
+    lean: vi.fn().mockResolvedValue(socio),
+    select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(socio) }),
+  });
+
+  it('googleLogin should return requiresProfileSelection when the user has a socio propio and a vínculo', async () => {
+    vi.spyOn(OAuth2Client.prototype, 'verifyIdToken').mockResolvedValue({
+      getPayload: () => ({ email: 'papa@b.com', email_verified: true, sub: 'google-sub-1' }),
+    });
+    User.findOne.mockResolvedValue({ _id: 'u1', email: 'papa@b.com', clubId: 'CARC', active: true, socioId: 'socio-propio', roles: [], googleId: 'google-sub-1' });
+    Socio.findById.mockReturnValue(makeSocioFindByIdMock({ _id: 'socio-propio', nombre: 'Papá', apellido: 'Pérez', fotoPerfil: 'foto' }));
+    VinculoFamiliar.find.mockReturnValue({
+      populate: vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue([{ hijoSocioId: { _id: 'socio-hijo', nombre: 'Hijo', apellido: 'Pérez', fotoPerfil: null } }]),
+      }),
+    });
+
+    const req = { body: { idToken: 'fake-id-token', clubId: 'CARC' } };
+    const res = mockRes();
+    await authHandlers.googleLogin(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      requiresProfileSelection: true,
+      selectToken: 'mock-token',
+      perfiles: [
+        expect.objectContaining({ socioId: 'socio-propio', tipo: 'propio' }),
+        expect.objectContaining({ socioId: 'socio-hijo', tipo: 'vinculado' }),
+      ],
+    }));
+  });
+
+  it('googleLogin should log in directly when the user only has their own perfil (no vínculos)', async () => {
+    vi.spyOn(OAuth2Client.prototype, 'verifyIdToken').mockResolvedValue({
+      getPayload: () => ({ email: 'socio@b.com', email_verified: true, sub: 'google-sub-2' }),
+    });
+    User.findOne.mockResolvedValue({ _id: 'u2', email: 'socio@b.com', clubId: 'CARC', active: true, socioId: 'socio-1', roles: [], googleId: 'google-sub-2' });
+    Socio.findById.mockReturnValue(makeSocioFindByIdMock({ _id: 'socio-1', nombre: 'Juan', apellido: 'Pérez', fotoPerfil: null }));
+
+    const req = { body: { idToken: 'fake-id-token', clubId: 'CARC' } };
+    const res = mockRes();
+    await authHandlers.googleLogin(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      token: 'mock-token',
+      user: expect.objectContaining({ socioId: 'socio-1' }),
+    }));
+    expect(res.json).not.toHaveBeenCalledWith(expect.objectContaining({ requiresProfileSelection: true }));
   });
 
   it('logout should add token to blacklist', async () => {
