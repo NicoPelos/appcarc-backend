@@ -46,15 +46,16 @@ const diaAnterior = (fecha) => new Date(fecha.getTime() - 24 * 60 * 60 * 1000);
  * confirmados participan de la misma transacción que el save() del llamador.
  */
 export const resolverVigenciaPrecio = async ({ clubId, etiquetaId, desde, hasta, excludeId, confirmado, session }) => {
-  const [otros, etiqueta] = await Promise.all([
-    Precios.find({
-      clubId,
-      etiquetaId,
-      active: true,
-      ...(excludeId ? { _id: { $ne: excludeId } } : {}),
-    }).session(session ?? null),
-    Etiqueta.findById(etiquetaId).session(session ?? null).lean(),
-  ]);
+  // Secuencial, no Promise.all: dos operaciones en simultáneo sobre la misma
+  // sesión de transacción rompen con "ConflictingOperationInProgress" — Mongo
+  // no permite más de una operación en vuelo a la vez por sesión.
+  const otros = await Precios.find({
+    clubId,
+    etiquetaId,
+    active: true,
+    ...(excludeId ? { _id: { $ne: excludeId } } : {}),
+  }).session(session ?? null);
+  const etiqueta = await Etiqueta.findById(etiquetaId).session(session ?? null).lean();
   const nombreEtiqueta = etiqueta?.nombre ?? 'esta etiqueta';
 
   const empate = otros.find((p) => p.vigenteDesde.getTime() === desde.getTime());
