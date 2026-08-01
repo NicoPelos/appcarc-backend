@@ -77,23 +77,25 @@ describe('crearVinculoFamiliar service (unit)', () => {
       .mockReturnValueOnce(chainableFindOne({ _id: SOCIO_PAPA_ID, clubId: CLUB_ID })); // padre socio
     User.findOne.mockResolvedValue({ _id: PADRE_ID, clubId: CLUB_ID, socioId: SOCIO_PAPA_ID });
 
-    const { vinculo } = await crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: { padreSocioId: SOCIO_PAPA_ID } });
+    const { vinculo, passwordTemporal } = await crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: { padreSocioId: SOCIO_PAPA_ID } });
 
     expect(syncSocioUserFromSocio).not.toHaveBeenCalled();
     expect(String(vinculo.padreUserId)).toBe(PADRE_ID);
+    expect(passwordTemporal).toBeNull();
   });
 
-  it('should create the padre User via syncSocioUserFromSocio when padreSocioId has no User yet', async () => {
+  it('should create the padre User via syncSocioUserFromSocio when padreSocioId has no User yet, and return the DNI as passwordTemporal', async () => {
     Socio.findOne
       .mockReturnValueOnce(chainableFindOne({ _id: HIJO_ID, clubId: CLUB_ID }))
       .mockReturnValueOnce(chainableFindOne({ _id: SOCIO_PAPA_ID, clubId: CLUB_ID, correoElectronico: 'papa@test.com', dni: '12345678' }));
     User.findOne.mockResolvedValue(null);
     syncSocioUserFromSocio.mockResolvedValue({ _id: USER_PAPA_NUEVO_ID, socioId: SOCIO_PAPA_ID });
 
-    const { vinculo } = await crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: { padreSocioId: SOCIO_PAPA_ID } });
+    const { vinculo, passwordTemporal } = await crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: { padreSocioId: SOCIO_PAPA_ID } });
 
     expect(syncSocioUserFromSocio).toHaveBeenCalledTimes(1);
     expect(String(vinculo.padreUserId)).toBe(USER_PAPA_NUEVO_ID);
+    expect(passwordTemporal).toBe('12345678');
   });
 
   it('should fail when padreSocioId has no email/dni to create a User', async () => {
@@ -110,19 +112,20 @@ describe('crearVinculoFamiliar service (unit)', () => {
   it('should reuse an existing User found by padreEmail', async () => {
     User.findOne.mockResolvedValue({ _id: USER_TUTOR_ID, clubId: CLUB_ID, socioId: null });
 
-    const { vinculo } = await crearVinculoFamiliar({
+    const { vinculo, passwordTemporal } = await crearVinculoFamiliar({
       clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID,
       body: { padreEmail: 'tutor@test.com' },
     });
 
     expect(User.prototype.save).not.toHaveBeenCalled();
     expect(String(vinculo.padreUserId)).toBe(USER_TUTOR_ID);
+    expect(passwordTemporal).toBeNull();
   });
 
-  it('should create a brand-new tutor-only User when padreEmail has no match and padreNombre is given', async () => {
+  it('should create a brand-new tutor-only User when padreEmail has no match and padreNombre is given, and return a passwordTemporal', async () => {
     User.findOne.mockResolvedValue(null);
 
-    const { vinculo, padre } = await crearVinculoFamiliar({
+    const { vinculo, padre, passwordTemporal } = await crearVinculoFamiliar({
       clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID,
       body: { padreEmail: 'tutor-nuevo@test.com', padreNombre: 'Tutor Nuevo' },
     });
@@ -131,6 +134,8 @@ describe('crearVinculoFamiliar service (unit)', () => {
     expect(padre.socioId).toBeNull();
     expect(padre.email).toBe('tutor-nuevo@test.com');
     expect(String(vinculo.padreUserId)).toBe(String(padre._id));
+    expect(passwordTemporal).toEqual(expect.any(String));
+    expect(passwordTemporal.length).toBeGreaterThan(0);
     expect(obtenerRolIdsPorSlugs).toHaveBeenCalledWith({ clubId: CLUB_ID, slugs: ['socio'] });
   });
 

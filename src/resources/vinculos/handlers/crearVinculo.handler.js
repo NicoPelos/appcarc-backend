@@ -33,7 +33,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *                 description: Requerido junto con padreEmail si la cuenta del tutor todavía no existe
  *     responses:
  *       201:
- *         description: Vínculo creado
+ *         description: Vínculo creado. Si se creó una cuenta de tutor nueva, la respuesta incluye passwordTemporal — comunicársela al tutor, no hay otro canal.
  *       400:
  *         description: Datos inválidos
  *       404:
@@ -46,7 +46,7 @@ export const crearVinculoHandler = async (req, res) => {
     const { hijoSocioId } = req.body;
     if (!hijoSocioId) return res.status(400).json({ message: 'hijoSocioId es requerido' });
 
-    const { vinculo, padre } = await crearVinculoFamiliar({
+    const { vinculo, padre, passwordTemporal } = await crearVinculoFamiliar({
       clubId: req.user?.clubId,
       user: req.user,
       hijoSocioId,
@@ -54,7 +54,14 @@ export const crearVinculoHandler = async (req, res) => {
     });
 
     logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'VinculoFamiliar', resourceId: vinculo._id, before: null, after: vinculo.toObject() });
-    return res.status(201).json({ vinculo, padre: { id: padre._id, email: padre.email, nombre: padre.nombre } });
+    return res.status(201).json({
+      vinculo,
+      padre: { id: padre._id, email: padre.email, nombre: padre.nombre },
+      // Solo viene si se creó una cuenta nueva en este llamado — hay que
+      // comunicársela al tutor a mano, no existe otro canal (no es socio,
+      // sin DNI conocido, sin email de bienvenida).
+      passwordTemporal: passwordTemporal || null,
+    });
   } catch (error) {
     if (error instanceof BusinessError) {
       return res.status(error.status).json({ message: error.message });
