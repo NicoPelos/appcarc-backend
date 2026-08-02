@@ -75,3 +75,15 @@ export const authorizeSelfSocioOr = (permiso) => {
     return authorize(permiso)(req, res, next);
   };
 };
+
+// authorizeSelfSocioQueryOr('escuelita:read') — igual que authorizeSelfSocioOr,
+// pero para rutas de listado donde el id del socio viene por query (?socioId=)
+// en vez de por :id. Solo deja pasar sin el permiso cuando el query trae
+// exactamente el propio socioId — así un socio puede consultar su propio
+// estado sin heredar el permiso de listar a todos los socios.
+export const authorizeSelfSocioQueryOr = (permiso) => {
+  return async (req, res, next) => {
+    if (req.user?.socioId && req.query?.socioId && req.user.socioId === req.query.socioId) return next();
+    return authorize(permiso)(req, res, next);
+  };
+};

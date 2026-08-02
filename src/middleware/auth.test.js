@@ -4,7 +4,7 @@ vi.mock('../services/permisosCache.js', () => ({
   tienePermiso: vi.fn(),
 }));
 
-import { authorizeSelfSocioOr } from './auth.js';
+import { authorizeSelfSocioOr, authorizeSelfSocioQueryOr } from './auth.js';
 import { tienePermiso } from '../services/permisosCache.js';
 
 const mockRes = () => {
@@ -60,5 +60,55 @@ describe('authorizeSelfSocioOr', () => {
 
     expect(next).toHaveBeenCalled();
     expect(tienePermiso).not.toHaveBeenCalled();
+  });
+});
+
+describe('authorizeSelfSocioQueryOr', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('deja pasar a un socio consultando su propio socioId por query, sin chequear permisos', async () => {
+    const req = { user: { roles: ['socio'], socioId: 'socio1', clubId: 'CARC' }, query: { socioId: 'socio1' } };
+    const res = mockRes();
+    const next = vi.fn();
+
+    await authorizeSelfSocioQueryOr('escuelita:read')(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(tienePermiso).not.toHaveBeenCalled();
+  });
+
+  it('rechaza a un socio consultando el socioId de otro, sin el permiso', async () => {
+    tienePermiso.mockResolvedValue(false);
+    const req = { user: { roles: ['socio'], socioId: 'socio1', clubId: 'CARC' }, query: { socioId: 'otroSocio' } };
+    const res = mockRes();
+    const next = vi.fn();
+
+    await authorizeSelfSocioQueryOr('escuelita:read')(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it('rechaza a un socio sin query.socioId (listado completo), sin el permiso', async () => {
+    tienePermiso.mockResolvedValue(false);
+    const req = { user: { roles: ['socio'], socioId: 'socio1', clubId: 'CARC' }, query: {} };
+    const res = mockRes();
+    const next = vi.fn();
+
+    await authorizeSelfSocioQueryOr('escuelita:read')(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it('deja pasar a staff con el permiso, sin importar el query', async () => {
+    tienePermiso.mockResolvedValue(true);
+    const req = { user: { roles: ['admin'], socioId: null, clubId: 'CARC' }, query: {} };
+    const res = mockRes();
+    const next = vi.fn();
+
+    await authorizeSelfSocioQueryOr('escuelita:read')(req, res, next);
+
+    expect(next).toHaveBeenCalled();
   });
 });
