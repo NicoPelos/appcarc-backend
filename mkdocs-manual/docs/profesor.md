@@ -18,6 +18,8 @@ La pantalla de **Escuelita** muestra a todos los alumnos inscriptos, con el plan
   <figcaption>Alumnos inscriptos</figcaption>
 </figure>
 
+Tocando a un alumno se abre su ficha completa: estado, plan, deuda de cuota de escuelita y asistencias recientes — ver el [manual de Secretaría](secretaria.md#2-inscribir-un-alumno-a-la-escuelita) para el detalle.
+
 ## 2. Tomar asistencia
 
 Cada clase dictada se registra como una asistencia. La solapa `Asistencia` muestra el historial reciente; el ícono de buscar (arriba a la derecha) abre el buscador para registrar una nueva.
@@ -33,7 +35,7 @@ Cada clase dictada se registra como una asistencia. La solapa `Asistencia` muest
 
 ## 3. Cargar tus horas trabajadas
 
-Cada hora que cargás queda asociada a tu nombre y a una etiqueta de pago ("Hora Profesor"). Con eso, el admin puede ver cuánto corresponde pagarte cada mes (ver su manual, sección [Horas del staff](admin.md#8-horas-del-staff-deuda-a-pagar)).
+Cada hora que cargás queda asociada a tu nombre y a una etiqueta de pago ("Hora Profesor"). Con eso, el admin puede ver cuánto corresponde pagarte cada mes (ver su manual, sección [Horas del staff](admin.md#9-horas-del-staff-deuda-a-pagar)).
 
 <figure markdown>
   ![Tus horas cargadas](assets/screenshots/profesor-horarios-lista.png){ width="260" }
@@ -50,3 +52,7 @@ Cada hora que cargás queda asociada a tu nombre y a una etiqueta de pago ("Hora
 3. Cargá la hora de entrada y de salida — la app calcula las horas totales.
 4. Elegí el tipo de tarea (por ejemplo, "clases de escuelita").
 5. Agregá una observación si hace falta, y confirmá.
+
+## 4. Notificaciones
+
+Tocando el ícono de campana desde Inicio se ven tus notificaciones personales. Hoy los avisos proactivos del club (alta de socio, check-in con advertencias) están dirigidos a secretaría — ver el [manual de Admin](admin.md#12-notificaciones).

@@ -96,6 +96,18 @@ Esto es igual para cualquier rol — se accede desde la solapa `Perfil`, abajo a
   <figcaption>Apariencia — 6 temas a elegir</figcaption>
 </figure>
 
+### Cambiar contraseña
+
+<figure markdown>
+  ![Cambiar contraseña](assets/screenshots/perfil-cambiar-contrasena.png){ width="260" }
+  <figcaption>Cambiar contraseña, desde Perfil</figcaption>
+</figure>
+
+Se pide la contraseña actual y la nueva (dos veces, para confirmarla). Es el mismo formulario en dos situaciones distintas:
+
+- **Voluntario:** desde `Perfil` → `Cambiar contraseña`, cuando quieras.
+- **Obligatorio:** en el primer login con una contraseña inicial (el DNI, para un socio; o la temporal que se genera al crear una cuenta de tutor — ver [vínculo padre-hijo](admin.md#2-vincular-a-un-tutor-padremadre-de-un-socio)), la app te lo pide antes de dejarte usar el resto de las pantallas.
+
 !!! tip "¿Ya sos del Club Andino Río Cuarto?"
     No hace falta usar las credenciales de prueba: entrá con tu usuario real y vas a encontrar las mismas pantallas que se explican en cada manual, con los datos reales del club.
 

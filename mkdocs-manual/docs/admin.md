@@ -22,7 +22,7 @@ La ficha de cada persona del club: datos personales, estado (Activo / Adherente 
 
 1. Andá a `Socios` y tocá el botón de agregar (+).
 2. Completá nombre, apellido, DNI y los datos de contacto que tengas.
-3. Guardá — el socio queda creado, pero sin ninguna cuota asociada todavía (ver [Suscribir un socio a un plan](#6-suscribir-un-socio-a-un-plan)).
+3. Guardá — el socio queda creado, pero sin ninguna cuota asociada todavía (ver [Suscribir un socio a un plan](#7-suscribir-un-socio-a-un-plan)).
 
 **Dar de baja / reactivar**
 
@@ -80,7 +80,7 @@ Un **Plan** es lo que se le ofrece a un socio: "Cuota Social", "Escuelita Princi
 4. Asociale la etiqueta de cobro correspondiente (ver [Precios y etiquetas](#4-precios-y-etiquetas)) — de ahí sale el precio.
 5. Si es de escuelita, definí cuántas clases por semana incluye — eso es lo que controla el límite al tomar asistencia.
 6. Si el plan no debe generar deuda (por ejemplo "Socio Honorario" o un canje), activá `No genera deuda` — cualquier suscripción que se asigne con ese plan queda exenta automáticamente, sin tener que marcarlo caso por caso.
-7. Guardá. El plan ya queda disponible para inscribir socios (escuelita) o para asignar directamente ([Suscribir un socio a un plan](#6-suscribir-un-socio-a-un-plan)).
+7. Guardá. El plan ya queda disponible para inscribir socios (escuelita) o para asignar directamente ([Suscribir un socio a un plan](#7-suscribir-un-socio-a-un-plan)).
 
 ## 4. Precios y etiquetas
 
@@ -134,7 +134,21 @@ Para cobros que no son una cuota recurrente ni un pase — una salida, una multa
 
 Si se cargó por error, se puede anular desde la misma ficha (queda registrado como anulado, no desaparece del historial).
 
-## 6. Suscribir un socio a un plan
+## 6. Advertencias
+
+Un panel único con todos los socios que tienen algo para revisar: cuota social vencida, límite de clases de escuelita superado, o alguna advertencia que saltó en un check-in de muro libre. Se accede desde el ícono de acceso rápido en Inicio.
+
+<figure markdown>
+  ![Panel de Advertencias](assets/screenshots/admin-advertencias-lista.png){ width="260" }
+  <figcaption>Panel de Advertencias, filtrado por período y tipo</figcaption>
+</figure>
+
+1. Andá a `Advertencias` desde el grid de Inicio.
+2. Filtrá por período (`7 días` / `30 días` / `90 días`) y por tipo (`Escuelita` / `Muro` / `Morosidad`), o dejalo en `Todos`.
+3. Cada tarjeta muestra el socio, dónde saltó la advertencia y de qué se trata.
+4. Si el socio tiene teléfono cargado, aparece un ícono de WhatsApp para escribirle directo desde ahí.
+
+## 7. Suscribir un socio a un plan
 
 Una **Suscripción** es el vínculo entre un socio y un plan — es lo que determina qué le corresponde pagar cada mes. Para **escuelita** se crea sola al inscribir al alumno (ver el manual de [Secretaría](secretaria.md)/[Profesor](profesor.md)); para el resto de los planes (Cuota Social, Muro Libre mensual, etc.) se asigna desde la ficha del socio.
 
@@ -156,7 +170,7 @@ Una **Suscripción** es el vínculo entre un socio y un plan — es lo que deter
 1. En la ficha del socio, dentro del detalle de deuda, tocá `Dar de baja` sobre la suscripción que quieras cerrar.
 2. Confirmá el período hasta el cual estuvo vigente — a partir de ahí deja de generar deuda nueva.
 
-## 7. Movimientos — caja del club
+## 8. Movimientos — caja del club
 
 Es el registro de caja del club: ingresos y egresos que **no** vienen de un cobro de cuota (por ejemplo, una compra de materiales, un gasto de mantenimiento, una donación). Los cobros de cuota generan su propio movimiento automáticamente — acá se cargan los manuales.
 
@@ -185,7 +199,7 @@ Es el registro de caja del club: ingresos y egresos que **no** vienen de un cobr
 
 Con el buscador podés filtrar por concepto o responsable, y con los chips de período acotar a `Este mes`, `Mes anterior` o `Todo`. La lista carga de a tandas: al llegar al final se trae más automáticamente.
 
-## 8. Horas del staff — deuda a pagar
+## 9. Horas del staff — deuda a pagar
 
 Profesores y palestreros cargan sus propias horas trabajadas (ver sus manuales). Cada hora se paga según una etiqueta ("Hora Profesor", "Hora Palestrero") con un precio propio — esto es, en la práctica, cómo se calcula qué hay que pagarle al staff cada mes.
 
@@ -200,7 +214,16 @@ Profesores y palestreros cargan sus propias horas trabajadas (ver sus manuales).
 2. Elegí el período (mes/año).
 3. Vas a ver, por cada persona de staff, el total de horas cargadas y el monto que corresponde pagarle (horas × precio de su etiqueta).
 
-## 9. Auditoría — historial revertible
+**Ver el total de horas trabajadas (sin el monto)**
+
+<figure markdown>
+  ![Resumen de horas por persona](assets/screenshots/admin-horarios-resumen.png){ width="260" }
+  <figcaption>Resumen de horas por persona y mes</figcaption>
+</figure>
+
+La solapa `Resumen` muestra lo mismo agrupado por mes calendario, con la cantidad de horas y de registros de cada persona — sin el cálculo de a cuánto equivale en pesos. Se puede filtrar por persona con los chips de arriba (`Todos` o una persona puntual).
+
+## 10. Auditoría — historial revertible
 
 Cada cambio importante (crear, editar o borrar un cobro, movimiento, socio, etc.) queda registrado con quién lo hizo y cuándo. Esto es exclusivo del panel de administración web (superadmin), no de la app del celular.
 
@@ -209,3 +232,30 @@ Cada cambio importante (crear, editar o borrar un cobro, movimiento, socio, etc.
 1. En el panel web, andá a `Auditoría`.
 2. Tocá "Ver detalle" en cualquier fila para ver qué cambió, campo por campo (antes / después).
 3. Si algo se cargó mal, hay una acción para revertirlo — deshace en cascada lo que corresponda (por ejemplo, revertir un cobro también revierte el movimiento y la cuota que generó).
+
+## 11. Exportar a Google Sheets
+
+Actualiza un Google Sheet con los datos del club (socios, cuotas sociales y de escuelita, cobros, escuelita, movimientos, asistencias, muro libre y horarios) — es lo que alimenta el panel que usa la comisión directiva para mirar los números sin entrar a la app.
+
+<figure markdown>
+  ![Exportar a Google Sheets](assets/screenshots/admin-configuracion-google-sheets.png){ width="260" }
+  <figcaption>Exportar a Google Sheets desde Configuración</figcaption>
+</figure>
+
+1. Andá a `Perfil` → `Configuración` → `Exportar a Google Sheets` (dentro de "Administración").
+2. Esperá — actualiza cada pestaña del Sheet con los datos actuales del club. La primera vez que se usa, crea la planilla; las siguientes, actualiza la misma.
+3. Al terminar muestra "Listo".
+
+!!! warning "Modifica una planilla real y compartida"
+    No es una exportación descartable: pisa el contenido de las pestañas del Google Sheet del club cada vez que se corre. Es seguro correrlo cuando haga falta actualizar el panel, pero no es algo para probar "a ver qué hace" sin querer usarlo.
+
+## 12. Notificaciones
+
+Además de las notificaciones personales (ver el [manual de Socio](socio.md#8-notificaciones)), admin y secretaría reciben avisos proactivos del club: alta de un socio nuevo, una solicitud completada por formulario, o un check-in (escuelita/muro libre) con advertencias.
+
+<figure markdown>
+  ![Notificaciones](assets/screenshots/socio-notificaciones.png){ width="260" }
+  <figcaption>Notificaciones — mismo ícono de campana en Inicio para todos los roles</figcaption>
+</figure>
+
+Se accede tocando el ícono de campana desde Inicio, igual que para un socio.

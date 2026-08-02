@@ -18,6 +18,15 @@ De un vistazo: tu estado de cuota, accesos rápidos (Advertencias, Muro Libre, C
   <figcaption>Inicio</figcaption>
 </figure>
 
+**Reordenar los accesos rápidos**
+
+<figure markdown>
+  ![Modo edición del grid de accesos](assets/screenshots/inicio-reordenar-accesos.png){ width="260" }
+  <figcaption>Mantené presionado un acceso para reordenar el grid</figcaption>
+</figure>
+
+Mantené presionado cualquier ícono del grid para entrar en modo edición, arrastrá para reordenarlos como prefieras, y tocá `Listo` para confirmar. El orden queda guardado en el celular (no es algo que vea el resto del equipo). Esto es igual para cualquier rol, no solo para socios.
+
 ## 2. Ver y pagar tus cuotas
 
 Muestra tu estado actual, el total adeudado si tenés cuotas vencidas, y los períodos pendientes. Si el club tiene Mercado Pago configurado, podés pagar directo desde ahí.
@@ -75,7 +84,27 @@ Si tenés un solo perfil (el tuyo, sin ningún hijo vinculado), entrás directo 
 
 Todo lo que veas mientras actuás "como" un hijo vinculado (cuotas, credencial, notificaciones) es de ese socio, no tuyo — y solo con permisos de socio, aunque esa persona tenga otro rol en el club con su propia cuenta.
 
-## 6. Notificaciones
+## 6. Mis clases (si estás inscripto en escuelita)
+
+Si tenés una inscripción activa (o la tuviste alguna vez) en algún plan de escuelita, aparece una solapa `Mis clases` con tu propio historial de asistencias.
+
+<figure markdown>
+  ![Mis clases](assets/screenshots/socio-mis-clases.png){ width="260" }
+  <figcaption>Tu historial de clases</figcaption>
+</figure>
+
+Esta solapa solo aparece si alguna vez tuviste una inscripción — si nunca fuiste alumno de escuelita, no la vas a ver.
+
+## 7. Mis Visitas (si sos frecuente en muro libre)
+
+Si registraste al menos una visita al muro de escalada, aparece la solapa `Mis Visitas` con tu propio historial de check-ins, el tipo de pase y cómo lo pagaste.
+
+<figure markdown>
+  ![Mis Visitas](assets/screenshots/socio-mis-visitas.png){ width="260" }
+  <figcaption>Tu historial de visitas a muro libre</figcaption>
+</figure>
+
+## 8. Notificaciones
 
 Avisos personales: que se registró un pago tuyo, recordatorios de cuota, novedades nuevas del club, o cambios en tu ficha. Tocando el ícono de campana desde Inicio.
 

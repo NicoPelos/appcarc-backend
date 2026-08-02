@@ -43,3 +43,7 @@ Igual que el profesor, cada hora que cargás queda asociada a tu nombre y a tu e
 2. Elegí la fecha, la hora de entrada y de salida.
 3. Elegí el tipo de tarea (por ejemplo, "atención del muro").
 4. Confirmá — el formulario es el mismo que usa un profesor, solo cambia la etiqueta de pago.
+
+## 3. Notificaciones
+
+Tocando el ícono de campana desde Inicio se ven tus notificaciones personales. Hoy los avisos proactivos del club (alta de socio, check-in con advertencias) están dirigidos a secretaría — ver el [manual de Admin](admin.md#12-notificaciones).
