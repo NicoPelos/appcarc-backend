@@ -13,6 +13,7 @@ vi.mock('../../../roles/services/resolverRoles.service.js', () => ({
 import User from '../../models/User.js';
 import Socio from '../../../socios/models/Socio.js';
 import VinculoFamiliar from '../../../vinculos/models/VinculoFamiliar.js';
+import Notification from '../../../notificaciones/models/Notification.js';
 import * as authHandlers from '../../handlers/auth.handler.js';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
@@ -36,6 +37,7 @@ describe('Usuarios auth handlers (unit)', () => {
     Socio.findById = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
     VinculoFamiliar.find = vi.fn().mockReturnValue({ populate: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }) });
     VinculoFamiliar.findOne = vi.fn().mockResolvedValue(null);
+    Notification.aggregate = vi.fn().mockResolvedValue([]);
     vi.spyOn(User.prototype, 'save').mockImplementation(async function () { return this; });
     vi.spyOn(jwt, 'sign').mockImplementation(() => 'mock-token');
     vi.spyOn(bcrypt, 'hash').mockImplementation(async () => 'hashed-pass');
@@ -211,6 +213,25 @@ describe('Usuarios auth handlers (unit)', () => {
 
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ perfiles: [expect.objectContaining({ socioId: 'socio-propio', tipo: 'propio' })] });
+  });
+
+  it('getProfiles should include the unread notification count per perfil', async () => {
+    User.findById.mockResolvedValue({ _id: 'u1', clubId: 'c1', active: true, socioId: 'socio-propio' });
+    Socio.findById.mockReturnValue({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'socio-propio', nombre: 'Juan', apellido: 'Pérez', fotoPerfil: null }) }) });
+    VinculoFamiliar.find.mockReturnValue({
+      populate: vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue([{ hijoSocioId: { _id: 'socio-hijo', nombre: 'Ana', apellido: 'Pérez', fotoPerfil: null } }]),
+      }),
+    });
+    Notification.aggregate.mockResolvedValue([{ _id: 'socio-hijo', count: 3 }]);
+
+    const req = { user: { id: 'u1' } };
+    const res = mockRes();
+    await authHandlers.getProfiles(req, res);
+
+    const { perfiles } = res.json.mock.calls[0][0];
+    expect(perfiles.find((p) => p.socioId === 'socio-propio').notificacionesNoLeidas).toBe(0);
+    expect(perfiles.find((p) => p.socioId === 'socio-hijo').notificacionesNoLeidas).toBe(3);
   });
 
   it('getProfiles should return 401 when the user is missing or inactive', async () => {

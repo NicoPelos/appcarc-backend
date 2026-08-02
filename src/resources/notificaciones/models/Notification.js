@@ -12,6 +12,16 @@ const notificationSchema = new mongoose.Schema({
     required: true,
     index: true,
   },
+  // A qué perfil (socio) corresponde la notificación — puede ser el propio
+  // socio de userId, o el de un hijo vinculado si userId es su tutor. null
+  // para notificaciones que no son sobre un socio puntual (ej. avisos
+  // generales del club a todo el staff). Sirve para mostrar el contador de
+  // no leídas por perfil en el selector de "como quién entrás".
+  socioId: {
+    type: String,
+    default: null,
+    index: true,
+  },
   title: {
     type: String,
     required: true,

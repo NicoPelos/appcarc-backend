@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import Socio from '../../socios/models/Socio.js';
 import VinculoFamiliar from '../../vinculos/models/VinculoFamiliar.js';
+import Notification from '../../notificaciones/models/Notification.js';
 import bcrypt from 'bcryptjs';
 import tokenService from '../../../services/tokenBlacklistService.js';
 import { getPermisosUsuario } from '../../../services/permisosCache.js';
@@ -74,6 +75,17 @@ const obtenerPerfilesDisponibles = async (user) => {
       apellido: v.hijoSocioId.apellido,
       fotoPerfil: v.hijoSocioId.fotoPerfil,
     });
+  }
+
+  if (perfiles.length > 0) {
+    const counts = await Notification.aggregate([
+      { $match: { userId: user._id, clubId: user.clubId, read: false, socioId: { $in: perfiles.map((p) => p.socioId) } } },
+      { $group: { _id: '$socioId', count: { $sum: 1 } } },
+    ]);
+    const countPorSocio = new Map(counts.map((c) => [c._id, c.count]));
+    for (const p of perfiles) {
+      p.notificacionesNoLeidas = countPorSocio.get(p.socioId) ?? 0;
+    }
   }
 
   return perfiles;

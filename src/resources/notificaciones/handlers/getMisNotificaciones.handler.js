@@ -16,7 +16,16 @@ import Notification from '../models/Notification.js';
  */
 export const getMisNotificacionesHandler = async (req, res) => {
   try {
-    const notifications = await Notification.find({ userId: req.user.id, clubId: req.user.clubId })
+    // Se filtra por el perfil activo (socioId de la sesión) más las
+    // generales del club (socioId null) — así, si estás actuando "como" un
+    // hijo vinculado, no ves mezcladas las notificaciones de otro perfil de
+    // la misma cuenta.
+    const filter = { userId: req.user.id, clubId: req.user.clubId };
+    if (req.user.socioId) {
+      filter.$or = [{ socioId: req.user.socioId }, { socioId: null }];
+    }
+
+    const notifications = await Notification.find(filter)
       .sort({ createdAt: -1 })
       .limit(50)
       .lean();

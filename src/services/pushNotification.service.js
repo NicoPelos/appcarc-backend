@@ -1,5 +1,6 @@
 import User from '../resources/usuarios/models/User.js';
 import Notification from '../resources/notificaciones/models/Notification.js';
+import VinculoFamiliar from '../resources/vinculos/models/VinculoFamiliar.js';
 import { obtenerRolIdsPorSlugs } from '../resources/roles/services/resolverRoles.service.js';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
@@ -33,14 +34,14 @@ const sendBatch = async (messages) => {
  * historial (antes dependía de escuchar el push en el momento exacto en que
  * llegaba, así que se perdía si la app estaba cerrada).
  * @param {{ userId: string, clubId: string, token?: string|null }[]} recipients
- * @param {{ title: string, body: string, data?: object }} notification
+ * @param {{ title: string, body: string, data?: object, socioId?: string|null }} notification
  */
-export const sendPushNotification = async (recipients, { title, body, data = {} }) => {
+export const sendPushNotification = async (recipients, { title, body, data = {}, socioId = null }) => {
   const list = (recipients ?? []).filter((r) => r?.userId && r?.clubId);
   if (list.length === 0) return { sent: 0 };
 
   await Notification.insertMany(
-    list.map((r) => ({ clubId: r.clubId, userId: r.userId, title, body, data })),
+    list.map((r) => ({ clubId: r.clubId, userId: r.userId, socioId, title, body, data })),
   ).catch((error) => console.error('Error guardando historial de notificaciones:', error.message));
 
   const messages = list
@@ -88,15 +89,39 @@ export const notifyRoles = async (clubId, roles, { title, body, data = {} }) => 
 };
 
 /**
- * Envía una notificación push al usuario vinculado a un socio específico.
+ * Envía una notificación push a quien corresponda por un socio específico:
+ * su propia cuenta si tiene una (User.socioId === socioId), y además
+ * cualquier tutor vinculado (VinculoFamiliar) — un hijo vinculado no
+ * necesariamente tiene cuenta propia, así que sin esto la notificación se
+ * perdía en silencio para toda la parte de la familia que entra "como" él.
  */
 export const notifySocio = async (socioId, { title, body, data = {} }) => {
-  const user = await User.findOne({ socioId: String(socioId), active: true })
-    .select('expoPushToken clubId').lean();
+  const [propio, vinculos] = await Promise.all([
+    User.findOne({ socioId: String(socioId), active: true }).select('expoPushToken clubId').lean(),
+    VinculoFamiliar.find({ hijoSocioId: String(socioId), active: true }).select('padreUserId').lean(),
+  ]);
 
-  if (!user) return { sent: 0 };
-  return sendPushNotification(
-    [{ userId: user._id, clubId: user.clubId, token: user.expoPushToken }],
-    { title, body, data },
-  );
+  const recipients = [];
+  const yaAgregado = new Set();
+
+  if (propio) {
+    recipients.push({ userId: propio._id, clubId: propio.clubId, token: propio.expoPushToken });
+    yaAgregado.add(String(propio._id));
+  }
+
+  if (vinculos.length > 0) {
+    const tutores = await User.find({
+      _id: { $in: vinculos.map((v) => v.padreUserId) },
+      active: true,
+    }).select('expoPushToken clubId').lean();
+
+    for (const tutor of tutores) {
+      if (yaAgregado.has(String(tutor._id))) continue;
+      recipients.push({ userId: tutor._id, clubId: tutor.clubId, token: tutor.expoPushToken });
+      yaAgregado.add(String(tutor._id));
+    }
+  }
+
+  if (recipients.length === 0) return { sent: 0 };
+  return sendPushNotification(recipients, { title, body, data, socioId: String(socioId) });
 };
