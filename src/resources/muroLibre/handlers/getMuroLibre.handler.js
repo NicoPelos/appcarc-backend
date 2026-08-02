@@ -25,6 +25,10 @@ import { PERMISOS } from '../../../constants/permisos.js';
  *         in: query
  *         description: Fecha hasta (YYYY-MM-DD)
  *         schema: { type: string, format: date }
+ *       - name: socioId
+ *         in: query
+ *         description: Acota a un socio puntual. Para cuentas sin muroLibre:write, siempre se ignora y se fuerza al propio socioId.
+ *         schema: { type: string }
  *     responses:
  *       200:
  *         description: Lista paginada de asistencias de muro libre
@@ -33,7 +37,7 @@ import { PERMISOS } from '../../../constants/permisos.js';
  */
 export const getMuroLibreHandler = async (req, res) => {
   try {
-    const { page = 1, limit = 100, from, to } = req.query;
+    const { page = 1, limit = 100, from, to, socioId } = req.query;
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 100, 1), 500);
     const filter = { clubId: req.user?.clubId, tipo: 'muro_libre', active: true };
@@ -48,7 +52,19 @@ export const getMuroLibreHandler = async (req, res) => {
     const rolesUsuario = req.user?.roles ?? [];
     const esStaffMuroLibre = rolesUsuario.includes('autoridad')
       || await tienePermiso(req.user?.clubId, rolesUsuario, PERMISOS.MURO_LIBRE_WRITE);
-    if (!esStaffMuroLibre && req.user?.socioId) filter.socioId = req.user.socioId;
+
+    // Un socio (puro o con rol de staff) siempre queda forzado a su propio
+    // socioId, ignorando cualquier otro valor que mande — no puede pedir el
+    // historial de otro. Bug real: "Mis Visitas" (mobile) pide explícitamente
+    // ?socioId=<el propio>, pero antes de este fix el filtro se ignoraba por
+    // completo para cualquier cuenta con muroLibre:write (admin, secretaria,
+    // palestrero) — un admin que es socio veía el listado de TODO el club en
+    // su propia pantalla de "mis visitas" en vez de las suyas.
+    if (!esStaffMuroLibre && req.user?.socioId) {
+      filter.socioId = req.user.socioId;
+    } else if (esStaffMuroLibre && socioId) {
+      filter.socioId = socioId;
+    }
 
     if (from || to) {
       filter.fecha = {};

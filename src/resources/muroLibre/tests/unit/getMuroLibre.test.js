@@ -137,4 +137,45 @@ describe('getMuroLibreHandler', () => {
     const callArg = Asistencia.countDocuments.mock.calls[0][0];
     expect(callArg.socioId).toBeUndefined();
   });
+
+  it('un admin que también es socio y pide ?socioId=<el propio> ve solo lo propio, no todo el club', async () => {
+    // Bug real: "Mis Visitas" (mobile) siempre manda ?socioId=<el propio>,
+    // pero antes de este fix el filtro se ignoraba por completo para
+    // cualquier cuenta con muroLibre:write — un admin/secretaria/palestrero
+    // que también es socio del club veía el historial de TODO el club en su
+    // propia pantalla de "mis visitas" en vez de las suyas.
+    Asistencia.countDocuments.mockResolvedValue(0);
+    mockFind([]);
+    tienePermiso.mockResolvedValue(true); // admin tiene muroLibre:write
+
+    const req = { user: { clubId: 'CARC', roles: ['admin', 'socio'], socioId: 'socioAdmin1' }, query: { socioId: 'socioAdmin1' } };
+    const res = mockRes();
+    await getMuroLibreHandler(req, res);
+
+    expect(Asistencia.countDocuments).toHaveBeenCalledWith(expect.objectContaining({ socioId: 'socioAdmin1' }));
+  });
+
+  it('staff puede acotar a un socio puntual distinto al propio vía ?socioId=', async () => {
+    Asistencia.countDocuments.mockResolvedValue(0);
+    mockFind([]);
+    tienePermiso.mockResolvedValue(true);
+
+    const req = { user: { clubId: 'CARC', roles: ['secretaria'], socioId: 'socioSecre1' }, query: { socioId: 'otroSocio' } };
+    const res = mockRes();
+    await getMuroLibreHandler(req, res);
+
+    expect(Asistencia.countDocuments).toHaveBeenCalledWith(expect.objectContaining({ socioId: 'otroSocio' }));
+  });
+
+  it('un socio puro no puede ver el historial de otro aunque mande ?socioId= de otra persona', async () => {
+    Asistencia.countDocuments.mockResolvedValue(0);
+    mockFind([]);
+    tienePermiso.mockResolvedValue(false);
+
+    const req = { user: { clubId: 'CARC', roles: ['socio'], socioId: 'socio1' }, query: { socioId: 'otroSocio' } };
+    const res = mockRes();
+    await getMuroLibreHandler(req, res);
+
+    expect(Asistencia.countDocuments).toHaveBeenCalledWith(expect.objectContaining({ socioId: 'socio1' }));
+  });
 });
