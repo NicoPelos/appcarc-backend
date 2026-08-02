@@ -1,0 +1,171 @@
+name: Revisión nocturna con Claude
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # 3am ARG (UTC-3) = 6am UTC
+  workflow_dispatch:
+
+env:
+  # Bump este valor (fecha, o lo que sea) para forzar que la rotación vuelva a
+  # revisar todo desde cero con ojos frescos — por ejemplo tras cambiar el
+  # modelo, o el prompt de abajo de forma significativa. Sin este bump, un
+  # módulo sin commits nuevos se saltea siempre, no importa cuánto tiempo pase.
+  REVIEW_VERSION: '2026-08'
+
+jobs:
+  select-scope:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      skip: ${{ steps.select.outputs.skip }}
+      scope: ${{ steps.select.outputs.scope }}
+      scope_name: ${{ steps.select.outputs.scope_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Elegir qué módulo le toca hoy
+        id: select
+        run: |
+          set -euo pipefail
+          STATE_FILE=".github/claude-review-state.json"
+          [ -f "$STATE_FILE" ] || echo '{}' > "$STATE_FILE"
+
+          mapfile -t MODULES < <(find src/resources -mindepth 1 -maxdepth 1 -type d | sort)
+          COUNT=${#MODULES[@]}
+          DOY=$((10#$(date -u +%j)))
+          START=$(( DOY % COUNT ))
+
+          SELECTED=""
+          for i in $(seq 0 $((COUNT - 1))); do
+            IDX=$(( (START + i) % COUNT ))
+            MOD="${MODULES[$IDX]}"
+            LAST_SHA=$(jq -r --arg m "$MOD" '.[$m].sha // empty' "$STATE_FILE")
+            LAST_VER=$(jq -r --arg m "$MOD" '.[$m].reviewVersion // empty' "$STATE_FILE")
+
+            if [ "$LAST_VER" != "$REVIEW_VERSION" ] || [ -z "$LAST_SHA" ]; then
+              SELECTED="$MOD"
+              break
+            fi
+            if ! CHANGES=$(git log --oneline "$LAST_SHA"..HEAD -- "$MOD" 2>/dev/null); then
+              SELECTED="$MOD"  # el SHA guardado ya no existe en la historia (rebase/force-push) -> revisar de nuevo
+              break
+            fi
+            if [ -n "$CHANGES" ]; then
+              SELECTED="$MOD"
+              break
+            fi
+          done
+
+          if [ -z "$SELECTED" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Nada pendiente: ningún módulo tiene commits sin revisar. No se crea ningún job."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "scope=$SELECTED" >> "$GITHUB_OUTPUT"
+            echo "scope_name=$(basename "$SELECTED")" >> "$GITHUB_OUTPUT"
+            echo "Módulo elegido: $SELECTED"
+          fi
+
+  review:
+    needs: select-scope
+    if: needs.select-scope.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Revisión con Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Read,Grep,Glob,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*)"
+          prompt: |
+            REPO: ${{ github.repository }}
+            MÓDULO A REVISAR (exclusivamente — no leas ni menciones nada fuera de esta carpeta,
+            salvo para confirmar con grep si algo se usa desde otro lado antes de llamarlo código muerto):
+            ${{ needs.select-scope.outputs.scope }}
+
+            Contexto: backend Node.js/Express + MongoDB (Mongoose) de appClub, un sistema de gestión
+            para clubes de montaña. Es multi-tenant: varios clubes comparten la misma base de datos,
+            separados por el campo clubId en cada documento. No hagas ningún cambio de código — esto
+            es solo lectura y reporte, nunca escribas ni edites archivos del repo.
+
+            Buscá, en este orden de prioridad:
+
+            1. SEGURIDAD — especialmente:
+               (a) cualquier query a Mongo en este módulo que no filtre por clubId (fuga de datos
+                   entre clubes distintos — el bug más grave posible acá).
+               (b) endpoints donde el que pregunta debería quedar acotado a su propio socioId/userId
+                   pero no queda forzado (alguien viendo o listando datos de otra persona). Prestá
+                   atención en particular a endpoints reusados tanto por pantallas de staff (ven todo)
+                   como por pantallas de "lo mío" en la app — verificá que el filtro se aplique de
+                   verdad según el rol de quien pregunta, no solo según lo que el cliente pida.
+               (c) validación de inputs faltante en rutas de escritura (montos, fechas, enums).
+
+            2. BUGS, con atención especial a patrones ya vistos en este código:
+               - Índices unique/sparse de Mongoose con un valor null asignado explícitamente en vez
+                 de dejar el campo sin definir (rompe la unicidad esperada).
+               - Comparación de fechas como string en vez de castear a Date (o normalizar antes).
+               - Filtros `active: true` faltantes o inconsistentes en listados (fuga de soft-deletes),
+                 y que un borrado en cascada realmente cierre todo lo relacionado.
+               - Operaciones con session de Mongo (transacciones) ejecutadas en paralelo con
+                 Promise.all en vez de secuencial (Mongo no permite dos operaciones en simultáneo
+                 sobre la misma session).
+               - Idempotencia en checkins/webhooks, manejo de errores async sin try/catch.
+
+            3. CÓDIGO MUERTO — funciones, exports, campos de modelo, rutas o archivos enteros que ya
+               no se usan en ningún lado. Confirmá con grep antes de reportarlo, no asumas por el nombre.
+
+            4. REFACTORS — simplificaciones concretas y de bajo riesgo (duplicación evidente, lógica
+               que se puede aplanar). Nada que dependa de una decisión de diseño ambigua.
+
+            Antes de crear un issue nuevo, corré:
+              gh issue list --repo ${{ github.repository }} --label claude-review --state open
+            y leé el contenido de los que toquen este módulo — no dupliques un hallazgo ya reportado
+            (aunque lo redactes distinto). Si el issue ya existe y seguís viendo el mismo problema, no
+            hagas nada con él (no lo comentes, no lo reabras).
+
+            Para cada hallazgo nuevo, creá un issue individual:
+              gh issue create --repo ${{ github.repository }} \
+                --title "[${{ needs.select-scope.outputs.scope_name }}] <resumen corto>" \
+                --label claude-review --label <bug|security|dead-code|refactor> \
+                --label <severidad-alta|severidad-media|severidad-baja> \
+                --body "<archivo:línea, qué está mal, por qué importa, sugerencia concreta>"
+
+            Si no encontrás nada digno de reportar en este módulo, no crees ningún issue — está bien
+            que una noche no genere nada.
+
+  update-state:
+    needs: [select-scope, review]
+    if: needs.select-scope.outputs.skip != 'true' && needs.review.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Registrar módulo como revisado
+        run: |
+          set -euo pipefail
+          STATE_FILE=".github/claude-review-state.json"
+          [ -f "$STATE_FILE" ] || echo '{}' > "$STATE_FILE"
+          MOD="${{ needs.select-scope.outputs.scope }}"
+          SHA=$(git rev-parse HEAD)
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          jq --arg m "$MOD" --arg sha "$SHA" --arg ver "$REVIEW_VERSION" --arg now "$NOW" \
+             '.[$m] = {sha: $sha, reviewVersion: $ver, reviewedAt: $now}' \
+             "$STATE_FILE" > "$STATE_FILE.tmp" && mv "$STATE_FILE.tmp" "$STATE_FILE"
+
+          git config user.name "claude-review-bot"
+          git config user.email "actions@github.com"
+          git add "$STATE_FILE"
+          git diff --cached --quiet || git commit -m "chore: registrar revisión nocturna de $MOD"
+          git push
