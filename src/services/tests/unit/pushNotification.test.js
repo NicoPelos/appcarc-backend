@@ -13,10 +13,11 @@ vi.mock('../../../resources/roles/services/resolverRoles.service.js', () => ({
   obtenerRolIdsPorSlugs: vi.fn(),
 }));
 
-import { notifySocio, sendPushNotification } from '../../pushNotification.service.js';
+import { notifySocio, sendPushNotification, notifyJobFailure } from '../../pushNotification.service.js';
 import User from '../../../resources/usuarios/models/User.js';
 import Notification from '../../../resources/notificaciones/models/Notification.js';
 import VinculoFamiliar from '../../../resources/vinculos/models/VinculoFamiliar.js';
+import { obtenerRolIdsPorSlugs } from '../../../resources/roles/services/resolverRoles.service.js';
 
 const chainableFindOne = (result) => ({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(result) }) });
 const chainableFind = (result) => ({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(result) }) });
@@ -101,5 +102,36 @@ describe('notifySocio', () => {
 
     expect(result).toEqual({ sent: 0 });
     expect(Notification.insertMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('notifyJobFailure', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Notification.insertMany.mockResolvedValue([]);
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+  });
+
+  it('avisa al rol admin del club con el nombre del job y el mensaje de error', async () => {
+    obtenerRolIdsPorSlugs.mockResolvedValue(['rolAdmin']);
+    User.find.mockReturnValue(chainableFind([{ _id: 'admin1', clubId: 'CARC', expoPushToken: null }]));
+
+    await notifyJobFailure('CARC', 'Exportación a Google Sheets', 'timeout de la API');
+
+    expect(obtenerRolIdsPorSlugs).toHaveBeenCalledWith({ clubId: 'CARC', slugs: ['admin'] });
+    expect(Notification.insertMany).toHaveBeenCalledWith([
+      expect.objectContaining({
+        userId: 'admin1',
+        clubId: 'CARC',
+        title: '⚠️ Falló: Exportación a Google Sheets',
+        body: 'timeout de la API',
+      }),
+    ]);
+  });
+
+  it('no explota si ni siquiera se puede avisar del error', async () => {
+    obtenerRolIdsPorSlugs.mockRejectedValue(new Error('roles caídos'));
+
+    await expect(notifyJobFailure('CARC', 'Job X', 'boom')).resolves.toBeUndefined();
   });
 });

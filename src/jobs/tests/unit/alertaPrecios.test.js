@@ -12,13 +12,19 @@ vi.mock('../../../resources/horarios/models/Horarios.js', () => ({
 vi.mock('../../../services/pushNotification.service.js', () => ({
   notifyRoles: vi.fn().mockResolvedValue({ sent: 1 }),
   notifySocio: vi.fn().mockResolvedValue({ sent: 1 }),
+  notifyJobFailure: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { revisarVencimientosSinReemplazo, revisarCambiosDePrecio } from '../../alertaPrecios.job.js';
+let cronCallback;
+vi.mock('node-cron', () => ({
+  default: { schedule: vi.fn((_expr, cb) => { cronCallback = cb; }) },
+}));
+
+import { revisarVencimientosSinReemplazo, revisarCambiosDePrecio, startAlertaPreciosJob } from '../../alertaPrecios.job.js';
 import Precios from '../../../resources/cuotas/models/Precios.js';
 import Suscripcion from '../../../resources/suscripciones/models/Suscripcion.js';
 import Horarios from '../../../resources/horarios/models/Horarios.js';
-import { notifyRoles, notifySocio } from '../../../services/pushNotification.service.js';
+import { notifyRoles, notifySocio, notifyJobFailure } from '../../../services/pushNotification.service.js';
 
 const mockPopulateLean = (result) => ({ populate: () => ({ lean: () => Promise.resolve(result) }) });
 const mockFindOneChain = (result) => ({
@@ -124,5 +130,16 @@ describe('revisarCambiosDePrecio', () => {
 
     expect(notifyRoles).not.toHaveBeenCalled();
     expect(notifySocio).not.toHaveBeenCalled();
+  });
+});
+
+describe('startAlertaPreciosJob', () => {
+  it('avisa al admin si el job entero falla inesperadamente', async () => {
+    Precios.find.mockImplementation(() => { throw new Error('Mongo caído'); });
+    startAlertaPreciosJob();
+
+    await cronCallback();
+
+    expect(notifyJobFailure).toHaveBeenCalledWith('CARC', 'Alerta de precios', 'Mongo caído');
   });
 });

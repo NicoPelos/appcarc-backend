@@ -14,6 +14,7 @@ vi.mock('../../../resources/cuotas/services/calcularDeuda.service.js', () => ({
 }));
 vi.mock('../../../services/pushNotification.service.js', () => ({
   notifyRoles: vi.fn().mockResolvedValue({ sent: 1 }),
+  notifyJobFailure: vi.fn().mockResolvedValue(undefined),
 }));
 
 import { revisarMorosidadCuotaSocial } from '../../avisoMorosidad.job.js';
@@ -21,7 +22,7 @@ import Club from '../../../resources/clubs/models/Club.js';
 import Socio from '../../../resources/socios/models/Socio.js';
 import Advertencia from '../../../resources/advertencias/models/Advertencia.js';
 import { calcularDeuda } from '../../../resources/cuotas/services/calcularDeuda.service.js';
-import { notifyRoles } from '../../../services/pushNotification.service.js';
+import { notifyRoles, notifyJobFailure } from '../../../services/pushNotification.service.js';
 
 const mockSelectLean = (result) => ({ select: () => ({ lean: () => Promise.resolve(result) }) });
 
@@ -115,10 +116,11 @@ describe('revisarMorosidadCuotaSocial', () => {
     expect(notifyRoles).toHaveBeenCalledWith('CARC', expect.anything(), expect.anything());
   });
 
-  it('no revienta si falla la revisión de un club', async () => {
+  it('no revienta si falla la revisión de un club, y avisa al admin de ese club', async () => {
     Club.find.mockResolvedValue([{ slug: 'CARC' }]);
     Socio.find.mockImplementation(() => { throw new Error('DB error'); });
 
     await expect(revisarMorosidadCuotaSocial()).resolves.not.toThrow();
+    expect(notifyJobFailure).toHaveBeenCalledWith('CARC', 'Aviso de morosidad', 'DB error');
   });
 });

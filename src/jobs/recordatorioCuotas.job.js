@@ -1,7 +1,9 @@
 import cron from 'node-cron';
 import User from '../resources/usuarios/models/User.js';
 import { calcularDeuda } from '../resources/cuotas/services/calcularDeuda.service.js';
-import { sendPushNotification } from '../services/pushNotification.service.js';
+import { sendPushNotification, notifyJobFailure } from '../services/pushNotification.service.js';
+
+const DEFAULT_CLUB_ID = process.env.DEFAULT_CLUB_ID || 'CARC';
 
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 
@@ -58,6 +60,7 @@ export const startRecordatorioCuotasJob = () => {
       await enviarRecordatorios();
     } catch (err) {
       console.error('❌ Error en recordatorio de cuotas:', err.message);
+      await notifyJobFailure(DEFAULT_CLUB_ID, 'Recordatorio de cuotas', err.message);
     }
   });
 

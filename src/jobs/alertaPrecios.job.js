@@ -2,10 +2,11 @@ import cron from 'node-cron';
 import Precios from '../resources/cuotas/models/Precios.js';
 import Suscripcion from '../resources/suscripciones/models/Suscripcion.js';
 import Horarios from '../resources/horarios/models/Horarios.js';
-import { notifyRoles, notifySocio } from '../services/pushNotification.service.js';
+import { notifyRoles, notifySocio, notifyJobFailure } from '../services/pushNotification.service.js';
 import { diaBoundsUTC } from '../services/fechaArgentina.js';
 
 const STAFF_ROLES = ['admin', 'secretaria', 'autoridad'];
+const DEFAULT_CLUB_ID = process.env.DEFAULT_CLUB_ID || 'CARC';
 const DIAS_AVISO_VENCIMIENTO = 7;
 
 const formatMonto = (n) => `$${Number(n).toLocaleString('es-AR')}`;
@@ -133,6 +134,7 @@ export const startAlertaPreciosJob = () => {
       await revisarCambiosDePrecio();
     } catch (err) {
       console.error('❌ Error en alerta de precios:', err.message);
+      await notifyJobFailure(DEFAULT_CLUB_ID, 'Alerta de precios', err.message);
     }
   });
 

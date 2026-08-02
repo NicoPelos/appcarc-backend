@@ -125,3 +125,27 @@ export const notifySocio = async (socioId, { title, body, data = {} }) => {
   if (recipients.length === 0) return { sent: 0 };
   return sendPushNotification(recipients, { title, body, data, socioId: String(socioId) });
 };
+
+/**
+ * Avisa al admin cuando un job programado (cron) falla — sin esto, un error
+ * de un proceso que corre solo de madrugada (ej. la exportación a Google
+ * Sheets, el aviso de morosidad) quedaba solo en el log del contenedor, que
+ * nadie mira salvo que ya sospeche que algo anda mal. No hace falta avisar
+ * cuando el job corre bien, solo cuando falla.
+ * @param {string} clubId
+ * @param {string} jobName - nombre corto para identificar qué job fue (ej. "Exportación a Google Sheets")
+ * @param {string} errorMessage
+ */
+export const notifyJobFailure = async (clubId, jobName, errorMessage) => {
+  try {
+    await notifyRoles(clubId, ['admin'], {
+      title: `⚠️ Falló: ${jobName}`,
+      body: errorMessage?.slice(0, 200) || 'Sin detalle del error — revisar los logs del servidor.',
+      data: { tipo: 'job_error', job: jobName },
+    });
+  } catch (err) {
+    // Si hasta avisar del error falla, no hay mucho más para hacer acá salvo
+    // no dejar que rompa el job que lo llamó.
+    console.error(`No se pudo notificar la falla de "${jobName}":`, err.message);
+  }
+};

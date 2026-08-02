@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { exportToSheets } from '../services/sheetsExport.service.js';
 import Club from '../resources/clubs/models/Club.js';
+import { notifyJobFailure } from '../services/pushNotification.service.js';
 
 const syncClub = async (club) => {
   const result = await exportToSheets({
@@ -28,6 +29,7 @@ export const startSyncSheetsJob = () => {
         await syncClub(club);
       } catch (err) {
         console.error(`❌ syncSheets [${club.slug}]: error en exportación:`, err.message);
+        await notifyJobFailure(club.slug, 'Exportación a Google Sheets', err.message);
       }
     }
   });

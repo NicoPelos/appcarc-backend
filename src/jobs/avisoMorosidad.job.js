@@ -3,7 +3,7 @@ import Club from '../resources/clubs/models/Club.js';
 import Socio from '../resources/socios/models/Socio.js';
 import Advertencia from '../resources/advertencias/models/Advertencia.js';
 import { calcularDeuda } from '../resources/cuotas/services/calcularDeuda.service.js';
-import { notifyRoles } from '../services/pushNotification.service.js';
+import { notifyRoles, notifyJobFailure } from '../services/pushNotification.service.js';
 import { ADVERTENCIA } from '../constants/advertenciaCodes.js';
 
 const STAFF_ROLES = ['admin', 'secretaria', 'autoridad'];
@@ -85,6 +85,7 @@ export const revisarMorosidadCuotaSocial = async () => {
       totalMorosos += await revisarClub(club);
     } catch (err) {
       console.error(`❌ Aviso de morosidad [${club.slug}]: error revisando:`, err.message);
+      await notifyJobFailure(club.slug, 'Aviso de morosidad', err.message);
     }
   }
 

@@ -8,12 +8,18 @@ vi.mock('../../../resources/cuotas/services/calcularDeuda.service.js', () => ({
 }));
 vi.mock('../../../services/pushNotification.service.js', () => ({
   sendPushNotification: vi.fn().mockResolvedValue({ sent: 1 }),
+  notifyJobFailure: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { enviarRecordatorios } from '../../recordatorioCuotas.job.js';
+let cronCallback;
+vi.mock('node-cron', () => ({
+  default: { schedule: vi.fn((_expr, cb) => { cronCallback = cb; }) },
+}));
+
+import { enviarRecordatorios, startRecordatorioCuotasJob } from '../../recordatorioCuotas.job.js';
 import User from '../../../resources/usuarios/models/User.js';
 import { calcularDeuda } from '../../../resources/cuotas/services/calcularDeuda.service.js';
-import { sendPushNotification } from '../../../services/pushNotification.service.js';
+import { sendPushNotification, notifyJobFailure } from '../../../services/pushNotification.service.js';
 
 const mockSelectLean = (result) => ({ select: () => ({ lean: () => Promise.resolve(result) }) });
 
@@ -69,5 +75,16 @@ describe('enviarRecordatorios', () => {
 
     await expect(enviarRecordatorios()).resolves.not.toThrow();
     expect(sendPushNotification).not.toHaveBeenCalled();
+  });
+});
+
+describe('startRecordatorioCuotasJob', () => {
+  it('avisa al admin si el job entero falla inesperadamente', async () => {
+    User.find.mockImplementation(() => { throw new Error('Mongo caído'); });
+    startRecordatorioCuotasJob();
+
+    await cronCallback();
+
+    expect(notifyJobFailure).toHaveBeenCalledWith('CARC', 'Recordatorio de cuotas', 'Mongo caído');
   });
 });
