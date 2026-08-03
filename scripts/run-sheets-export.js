@@ -15,7 +15,10 @@ const clubSlug = process.env.DEFAULT_CLUB_ID || 'CARC';
 await mongoose.connect(process.env.MONGO_URI);
 console.log('✅ MongoDB conectado');
 
-const club = await Club.findOne({ slug: clubSlug });
+// Club.slug tiene lowercase:true en el schema; algunos clubs (ej. CARC) tienen
+// el slug guardado en mayúsculas de antes de ese constraint, así que un
+// findOne({slug}) normal nunca matchea (Mongoose castea la query a minúsculas).
+const club = await Club.findOne({ slug: new RegExp(`^${clubSlug}$`, 'i') });
 if (!club) throw new Error(`Club "${clubSlug}" no encontrado`);
 
 const result = await exportToSheets({
