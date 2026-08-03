@@ -1,6 +1,7 @@
 import { google } from 'googleapis';
 import Socio from '../resources/socios/models/Socio.js';
 import Cuota from '../resources/cuotas/models/Cuota.js';
+import Suscripcion from '../resources/suscripciones/models/Suscripcion.js';
 import Cobro from '../resources/cobros/models/Cobro.js';
 import Escuelita from '../resources/escuelita/models/Escuelita.js';
 import Movimiento from '../resources/movimientos/models/Movimiento.js';
@@ -81,37 +82,56 @@ const buildSociosRows = async (clubId) => {
   return { headers, rows };
 };
 
+// Una suscripción exenta nunca genera Cuota (calcularDeuda.service.js corta
+// antes) — sin esto, los períodos cubiertos por una suscripción exenta
+// quedarían en blanco en la matriz en vez de marcarse como al día.
+const buildExentoMap = async ({ clubId, etiquetaIds, periodos }) => {
+  const suscripciones = await Suscripcion.find({
+    clubId, etiquetaId: { $in: etiquetaIds }, active: true, exento: true,
+  }).lean();
+
+  const map = {};
+  for (const s of suscripciones) {
+    const sid = s.socioId.toString();
+    if (!map[sid]) map[sid] = new Set();
+    const hasta = s.fechaHasta || periodos[periodos.length - 1];
+    for (const p of periodos) {
+      if (p >= s.fechaDesde && p <= hasta) map[sid].add(p);
+    }
+  }
+  return map;
+};
+
 const buildCuotasMatrix = async ({ clubId, etiquetaIds = [], periodos, extraHeaders = [], extraCols = () => [] }) => {
   const socios = await Socio.find({ clubId, active: true }).sort({ apellido: 1, nombre: 1 }).lean();
 
   const cuotaFilter = { clubId, periodo: { $in: periodos }, active: true, etiquetaId: { $in: etiquetaIds } };
-  const cuotas = await Cuota.find(cuotaFilter).lean();
+  const [cuotas, exentoMap] = await Promise.all([
+    Cuota.find(cuotaFilter).lean(),
+    buildExentoMap({ clubId, etiquetaIds, periodos }),
+  ]);
 
   const map = {};
   for (const c of cuotas) {
     const sid = c.socioId.toString();
     if (!map[sid]) map[sid] = {};
-    map[sid][c.periodo] = { estado: c.estado, monto: c.montoEsperadoSnapshot };
+    map[sid][c.periodo] = c.estado;
   }
 
   const INFO_COLS = 4 + extraHeaders.length;
-  const headers = ['N° Socio', 'Apellido', 'Nombre', 'DNI', ...extraHeaders, ...periodos.map(periodLabel), 'Meses adeudados', 'Deuda estimada'];
+  const headers = ['N° Socio', 'Apellido', 'Nombre', 'DNI', ...extraHeaders, ...periodos.map(periodLabel), 'Meses adeudados'];
 
   const rows = socios.map((s) => {
     const sid = s._id.toString();
     const socioData = map[sid] || {};
+    const exentoPeriodos = exentoMap[sid];
     let adeudados = 0;
-    let deuda = 0;
 
     const cells = periodos.map((p) => {
-      const entry = socioData[p];
-      if (!entry) return '';
-      if (entry.estado === 'pagada') return '✓';
-      if (entry.estado === 'pendiente') {
-        adeudados++;
-        deuda += entry.monto || 0;
-        return '✗';
-      }
+      if (exentoPeriodos?.has(p)) return '✓';
+      const estado = socioData[p];
+      if (estado === 'pagada') return '✓';
+      if (estado === 'pendiente') { adeudados++; return '✗'; }
       return '';
     });
 
@@ -123,14 +143,13 @@ const buildCuotasMatrix = async ({ clubId, etiquetaIds = [], periodos, extraHead
       ...extraCols(s),
       ...cells,
       adeudados,
-      deuda > 0 ? fmtMoney(deuda) : '',
     ];
   });
 
   return { headers, rows, dataStartCol: INFO_COLS, dataEndCol: INFO_COLS + periodos.length };
 };
 
-const buildCuotasSocialesRows = async (clubId) => {
+export const buildCuotasSocialesRows = async (clubId) => {
   const etiquetas = await Etiqueta.find({ clubId, uso_sistema: 'cuota_social', active: true }).lean();
   return buildCuotasMatrix({
     clubId,
@@ -139,7 +158,7 @@ const buildCuotasSocialesRows = async (clubId) => {
   });
 };
 
-const buildCuotasEscuelitaRows = async (clubId) => {
+export const buildCuotasEscuelitaRows = async (clubId) => {
   const periodos = generatePeriodos(24);
 
   const alumnos = await Escuelita.find({ clubId, active: true })
@@ -150,7 +169,7 @@ const buildCuotasEscuelitaRows = async (clubId) => {
   if (alumnos.length === 0) {
     const INFO_COLS = 5;
     return {
-      headers: ['N° Socio', 'Apellido', 'Nombre', 'DNI', 'Categoría', ...periodos.map(periodLabel), 'Meses adeudados', 'Deuda estimada'],
+      headers: ['N° Socio', 'Apellido', 'Nombre', 'DNI', 'Categoría', ...periodos.map(periodLabel), 'Meses adeudados'],
       rows: [],
       dataStartCol: INFO_COLS,
       dataEndCol: INFO_COLS + periodos.length,
@@ -161,30 +180,33 @@ const buildCuotasEscuelitaRows = async (clubId) => {
   const etiquetasEsc = await Etiqueta.find({ clubId, uso_sistema: 'cuota_escuelita', active: true }).lean();
   const etiquetaIdsEsc = etiquetasEsc.map((e) => e._id);
   const cuotaFilter = { clubId, socioId: { $in: socioIds }, periodo: { $in: periodos }, active: true, etiquetaId: { $in: etiquetaIdsEsc } };
-  const cuotas = await Cuota.find(cuotaFilter).lean();
+  const [cuotas, exentoMap] = await Promise.all([
+    Cuota.find(cuotaFilter).lean(),
+    buildExentoMap({ clubId, etiquetaIds: etiquetaIdsEsc, periodos }),
+  ]);
 
   const map = {};
   for (const c of cuotas) {
     const sid = c.socioId.toString();
     if (!map[sid]) map[sid] = {};
-    map[sid][c.periodo] = { estado: c.estado, monto: c.montoEsperadoSnapshot };
+    map[sid][c.periodo] = c.estado;
   }
 
   const INFO_COLS = 5;
-  const headers = ['N° Socio', 'Apellido', 'Nombre', 'DNI', 'Categoría', ...periodos.map(periodLabel), 'Meses adeudados', 'Deuda estimada'];
+  const headers = ['N° Socio', 'Apellido', 'Nombre', 'DNI', 'Categoría', ...periodos.map(periodLabel), 'Meses adeudados'];
 
   const rows = alumnos.map((a) => {
     const s = a.socioId || {};
     const sid = s._id?.toString() || '';
     const socioData = map[sid] || {};
+    const exentoPeriodos = exentoMap[sid];
     let adeudados = 0;
-    let deuda = 0;
 
     const cells = periodos.map((p) => {
-      const entry = socioData[p];
-      if (!entry) return '';
-      if (entry.estado === 'pagada') return '✓';
-      if (entry.estado === 'pendiente') { adeudados++; deuda += entry.monto || 0; return '✗'; }
+      if (exentoPeriodos?.has(p)) return '✓';
+      const estado = socioData[p];
+      if (estado === 'pagada') return '✓';
+      if (estado === 'pendiente') { adeudados++; return '✗'; }
       return '';
     });
 
@@ -193,7 +215,6 @@ const buildCuotasEscuelitaRows = async (clubId) => {
       a.planId?.nombre || '',
       ...cells,
       adeudados,
-      deuda > 0 ? fmtMoney(deuda) : '',
     ];
   });
 
