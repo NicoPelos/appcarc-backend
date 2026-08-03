@@ -9,12 +9,16 @@ import Suscripcion from '../../../suscripciones/models/Suscripcion.js';
 import Cobro from '../../models/Cobro.js';
 import Movimiento from '../../../movimientos/models/Movimiento.js';
 import CargoPuntual from '../../../cargosPuntuales/models/CargoPuntual.js';
+import Asistencia from '../../../asistencias/models/Asistencia.js';
+import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 
 const CLUB_ID = 'club1';
 const SOCIO_ID = '507f1f77bcf86cd799439011';
 const SUSCRIPCION_ID = '507f1f77bcf86cd799439099';
 const ETIQUETA_ID = '507f1f77bcf86cd799439088';
 const CARGO_PUNTUAL_ID = '507f1f77bcf86cd799439077';
+const ASISTENCIA_ID_1 = '507f1f77bcf86cd799439066';
+const ASISTENCIA_ID_2 = '507f1f77bcf86cd799439055';
 const USER = { id: '507f1f77bcf86cd799439012', email: 'secretaria@carc.test' };
 
 const buildSessionQuery = (result) => ({ session: vi.fn().mockResolvedValue(result) });
@@ -25,6 +29,20 @@ const mockSuscripcionVigente = (result) => {
 
 const mockCargoPuntualVigente = (result) => {
   CargoPuntual.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(result) });
+};
+
+const mockAsistenciasPendientes = (result) => {
+  Asistencia.find = vi.fn().mockReturnValueOnce({
+    sort: vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(result) }),
+  });
+};
+
+const mockAsistenciasDb = (result) => {
+  Asistencia.find.mockReturnValueOnce({ session: vi.fn().mockResolvedValue(result) });
+};
+
+const mockEtiquetaMuroLibre = (result) => {
+  Etiqueta.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(result) }) });
 };
 
 const mockPrecioVigente = (result) => {
@@ -73,6 +91,8 @@ describe('registrarCobro service (unit)', () => {
     Suscripcion.findOne = vi.fn();
     CargoPuntual.findOne = vi.fn();
     CargoPuntual.find = vi.fn();
+    Asistencia.find = vi.fn();
+    Etiqueta.findOne = vi.fn();
 
     cobroSaveSpy = vi.spyOn(Cobro.prototype, 'save').mockImplementation(async function () {
       if (!this._id) this._id = new mongoose.Types.ObjectId();
@@ -131,12 +151,12 @@ describe('registrarCobro service (unit)', () => {
     }));
   });
 
-  it('should fail when item is missing suscripcionId and cargoPuntualId', async () => {
+  it('should fail when item is missing suscripcionId, cargoPuntualId and muroLibrePendiente', async () => {
     await expect(registrarCobro({
       clubId: CLUB_ID, user: USER,
       body: { paymentMethod: 'Efectivo', items: [{ ...validItem, suscripcionId: '' }] },
     })).rejects.toEqual(expect.objectContaining({
-      message: 'El item 1 debe indicar suscripcionId o cargoPuntualId',
+      message: 'El item 1 debe indicar suscripcionId, cargoPuntualId o muroLibrePendiente',
     }));
   });
 
@@ -363,6 +383,70 @@ describe('registrarCobro service (unit)', () => {
       expect(result.cuotas).toHaveLength(1);
       expect(result.cargosPuntuales).toHaveLength(1);
       expect(savedMovimientos[0].amount).toBe(15000 + 200000);
+    });
+  });
+
+  describe('muro libre pendiente (item con muroLibrePendiente)', () => {
+    const muroLibreItem = { socioId: SOCIO_ID, muroLibrePendiente: true };
+
+    it('should fail with 404 when socio has no visitas pendientes', async () => {
+      mockAsistenciasPendientes([]);
+
+      await expect(registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [muroLibreItem] },
+      })).rejects.toMatchObject({ status: 404 });
+
+      expect(Socio.find).not.toHaveBeenCalled();
+    });
+
+    it('should fail with 409 when the selected visita was already resolved before the transaction re-check', async () => {
+      const fecha = new Date('2026-07-01T12:00:00Z');
+      mockAsistenciasPendientes([
+        { _id: ASISTENCIA_ID_1, fecha, esSocio: true, precioSugeridoSnapshot: 5000, estadoPago: 'pendiente' },
+      ]);
+      mockEtiquetaMuroLibre({ _id: ETIQUETA_ID });
+      Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+      mockAsistenciasDb([
+        { _id: ASISTENCIA_ID_1, fecha, socioId: SOCIO_ID, estadoPago: 'pagado' },
+      ]);
+
+      await expect(registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [muroLibreItem] },
+      })).rejects.toMatchObject({ status: 409 });
+    });
+
+    it('should pay only the oldest N pending visitas when cantidad is less than the total pendientes', async () => {
+      const fecha1 = new Date('2026-07-01T12:00:00Z');
+      const fecha2 = new Date('2026-07-05T12:00:00Z');
+      mockAsistenciasPendientes([
+        { _id: ASISTENCIA_ID_1, fecha: fecha1, esSocio: true, precioSugeridoSnapshot: 5000, estadoPago: 'pendiente' },
+        { _id: ASISTENCIA_ID_2, fecha: fecha2, esSocio: true, precioSugeridoSnapshot: 5000, estadoPago: 'pendiente' },
+      ]);
+      mockEtiquetaMuroLibre({ _id: ETIQUETA_ID });
+      Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+
+      const asistenciaDoc = {
+        _id: ASISTENCIA_ID_1, estadoPago: 'pendiente', monto: 0, formaPago: 'Sin pago',
+        save: vi.fn(async function () { return this; }),
+      };
+      mockAsistenciasDb([asistenciaDoc]);
+
+      const result = await registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [{ ...muroLibreItem, cantidad: 1 }] },
+      });
+
+      expect(asistenciaDoc.save).toHaveBeenCalledTimes(1);
+      expect(asistenciaDoc.estadoPago).toBe('pagado');
+      expect(asistenciaDoc.monto).toBe(5000);
+      expect(asistenciaDoc.formaPago).toBe('Efectivo');
+      expect(asistenciaDoc.cobroId).toBeDefined();
+      expect(asistenciaDoc.movimientoId).toBeDefined();
+      expect(result.asistencias).toEqual([asistenciaDoc]);
+      expect(result.cuotas).toHaveLength(0);
+      expect(savedMovimientos[0]).toMatchObject({ type: 'Ingreso', amount: 5000 });
     });
   });
 });

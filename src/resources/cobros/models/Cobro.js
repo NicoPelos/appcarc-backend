@@ -16,6 +16,11 @@ const cobroItemSchema = new mongoose.Schema({
     ref: 'CargoPuntual',
     default: null,
   },
+  asistenciaId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Asistencia',
+    default: null,
+  },
   etiquetaId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Etiqueta',

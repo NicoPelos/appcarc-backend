@@ -19,6 +19,7 @@ const asistenciaSchema = new mongoose.Schema({
   periodo: { type: String, default: '', match: /^$|^\d{4}-(0[1-9]|1[0-2])$/, index: true },
   formaPago: { type: String, default: null },
   movimientoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Movimiento', default: null },
+  cobroId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cobro', default: null },
   enviarComprobanteWp: { type: Boolean, default: false },
 
   // escuelita

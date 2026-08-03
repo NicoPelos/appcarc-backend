@@ -6,6 +6,7 @@ import Cobro from '../../models/Cobro.js';
 import Movimiento from '../../../movimientos/models/Movimiento.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
 import CargoPuntual from '../../../cargosPuntuales/models/CargoPuntual.js';
+import Asistencia from '../../../asistencias/models/Asistencia.js';
 
 const CLUB_ID = 'club1';
 const COBRO_ID = '507f1f77bcf86cd799439011';
@@ -54,6 +55,7 @@ describe('anularCobro handler (unit)', () => {
     Movimiento.findByIdAndUpdate = vi.fn().mockResolvedValue(null);
     Cuota.updateMany = vi.fn().mockResolvedValue(null);
     CargoPuntual.updateMany = vi.fn().mockResolvedValue(null);
+    Asistencia.updateMany = vi.fn().mockResolvedValue(null);
   });
 
   afterEach(() => {
@@ -136,6 +138,19 @@ describe('anularCobro handler (unit)', () => {
         montoPagadoSnapshot: 0,
         paymentMethod: null,
         fechaPago: null,
+        cobroId: null,
+        movimientoId: null,
+        updatedBy: USER.email,
+      },
+      { session: sessionMock },
+    );
+
+    expect(Asistencia.updateMany).toHaveBeenCalledWith(
+      { cobroId: cobro._id, clubId: CLUB_ID },
+      {
+        estadoPago: 'pendiente',
+        monto: 0,
+        formaPago: 'Sin pago',
         cobroId: null,
         movimientoId: null,
         updatedBy: USER.email,

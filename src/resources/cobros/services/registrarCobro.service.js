@@ -4,6 +4,8 @@ import Cuota from '../../cuotas/models/Cuota.js';
 import Precios from '../../cuotas/models/Precios.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import CargoPuntual from '../../cargosPuntuales/models/CargoPuntual.js';
+import Asistencia from '../../asistencias/models/Asistencia.js';
+import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Cobro from '../models/Cobro.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 
@@ -22,6 +24,11 @@ const addMonthsToPeriodo = (periodo, monthsToAdd) => {
   const [year, month] = periodo.split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1 + monthsToAdd, 1));
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+};
+
+const buildPeriodoFromFecha = (fecha) => {
+  const d = new Date(fecha);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 };
 
 const getPeriodosFromItem = (item, index) => {
@@ -61,14 +68,15 @@ const normalizeItem = async ({ item, index, clubId, date, precioCache, session =
   const socioId = String(item?.socioId || '').trim();
   const suscripcionId = String(item?.suscripcionId || '').trim();
   const cargoPuntualId = String(item?.cargoPuntualId || '').trim();
+  const muroLibrePendiente = Boolean(item?.muroLibrePendiente);
   const amount = item?.amount == null ? null : Number(item.amount);
   let precioSugeridoSnapshot = item?.precioSugeridoSnapshot == null
     ? null
     : Number(item.precioSugeridoSnapshot);
 
   if (!socioId) throw new BusinessError(`El item ${index + 1} debe indicar socioId`);
-  if (!suscripcionId && !cargoPuntualId) {
-    throw new BusinessError(`El item ${index + 1} debe indicar suscripcionId o cargoPuntualId`);
+  if (!suscripcionId && !cargoPuntualId && !muroLibrePendiente) {
+    throw new BusinessError(`El item ${index + 1} debe indicar suscripcionId, cargoPuntualId o muroLibrePendiente`);
   }
 
   if (amount !== null && (!Number.isFinite(amount) || amount <= 0)) {
@@ -103,6 +111,53 @@ const normalizeItem = async ({ item, index, clubId, date, precioCache, session =
       precioSugeridoSnapshot: precioSugeridoSnapshot ?? cargo.precioSugeridoSnapshot,
       description: String(item?.description || '').trim() || cargo.description,
     }];
+  }
+
+  if (muroLibrePendiente) {
+    const pendientes = await Asistencia.find({
+      clubId,
+      socioId,
+      tipo: 'muro_libre',
+      tipoPase: 'diario',
+      active: true,
+      estadoPago: 'pendiente',
+    }).sort({ fecha: 1 }).session(session);
+
+    if (!pendientes.length) {
+      throw new BusinessError(`El socio ${socioId} no tiene visitas de Muro Libre pendientes`, 404);
+    }
+
+    const cantidad = item?.cantidad == null ? pendientes.length : Number(item.cantidad);
+    if (!Number.isInteger(cantidad) || cantidad <= 0) {
+      throw new BusinessError(`El item ${index + 1} debe tener una cantidad entera mayor que cero`);
+    }
+
+    const seleccionadas = pendientes.slice(0, Math.min(cantidad, pendientes.length));
+
+    const usoSistema = seleccionadas[0].esSocio ? 'muro_libre_diario_socio' : 'muro_libre_diario_no_socio';
+    const etiqueta = await Etiqueta.findOne({ clubId, uso_sistema: usoSistema, active: true }).session(session).lean();
+    if (!etiqueta) {
+      throw new BusinessError('No hay una etiqueta de Muro Libre Diario configurada para este club');
+    }
+
+    return seleccionadas.map((asistencia) => {
+      const visitAmount = amount ?? asistencia.precioSugeridoSnapshot;
+      if (!Number.isFinite(visitAmount) || visitAmount < 0) {
+        throw new BusinessError(`El item ${index + 1} necesita un importe o un precio vigente configurado`);
+      }
+
+      return {
+        socioId,
+        suscripcionId: null,
+        cargoPuntualId: null,
+        asistenciaId: String(asistencia._id),
+        etiquetaId: String(etiqueta._id),
+        periodo: buildPeriodoFromFecha(asistencia.fecha),
+        amount: visitAmount,
+        precioSugeridoSnapshot: asistencia.precioSugeridoSnapshot,
+        description: String(item?.description || '').trim() || 'Muro Libre - visita pendiente',
+      };
+    });
   }
 
   const periodos = getPeriodosFromItem(item, index);
@@ -148,11 +203,11 @@ const normalizeItem = async ({ item, index, clubId, date, precioCache, session =
   }));
 };
 
-const buildItemKey = (item) => (
-  item.cargoPuntualId
-    ? `cargo:${item.cargoPuntualId}`
-    : `${item.socioId}:${item.suscripcionId}:${item.periodo}`
-);
+const buildItemKey = (item) => {
+  if (item.cargoPuntualId) return `cargo:${item.cargoPuntualId}`;
+  if (item.asistenciaId) return `asistencia:${item.asistenciaId}`;
+  return `${item.socioId}:${item.suscripcionId}:${item.periodo}`;
+};
 
 export const registrarCobro = async ({ clubId, user, body }) => {
   if (!clubId) throw new BusinessError('No se pudo determinar el club del usuario', 401);
@@ -203,6 +258,7 @@ export const registrarCobro = async ({ clubId, user, body }) => {
 
       const itemsSuscripcion = items.filter((item) => item.suscripcionId);
       const itemsCargoPuntual = items.filter((item) => item.cargoPuntualId);
+      const itemsAsistencia = items.filter((item) => item.asistenciaId);
 
       const cuotaFilters = itemsSuscripcion.map((item) => ({
         clubId,
@@ -230,6 +286,18 @@ export const registrarCobro = async ({ clubId, user, body }) => {
       const cargoYaResuelto = cargosPuntualesDb.find((c) => c.estado !== 'pendiente');
       if (cargoYaResuelto) {
         throw new BusinessError(`El cargo puntual "${cargoYaResuelto.description}" ya está ${cargoYaResuelto.estado}`, 409);
+      }
+
+      const asistenciasDb = itemsAsistencia.length
+        ? await Asistencia.find({
+          _id: { $in: itemsAsistencia.map((item) => item.asistenciaId) },
+          clubId,
+          active: true,
+        }).session(session)
+        : [];
+      const asistenciaYaResuelta = asistenciasDb.find((a) => a.estadoPago !== 'pendiente');
+      if (asistenciaYaResuelta) {
+        throw new BusinessError(`La visita de Muro Libre del ${asistenciaYaResuelta.fecha.toISOString().slice(0, 10)} del socio ${asistenciaYaResuelta.socioId} ya está ${asistenciaYaResuelta.estadoPago}`, 409);
       }
 
       const totalAmount = items.reduce((total, item) => total + item.amount, 0);
@@ -324,11 +392,24 @@ export const registrarCobro = async ({ clubId, user, body }) => {
         cargosPuntuales.push(cargo);
       }
 
+      const asistencias = [];
+      for (const item of itemsAsistencia) {
+        const asistencia = asistenciasDb.find((a) => String(a._id) === item.asistenciaId);
+        asistencia.estadoPago = 'pagado';
+        asistencia.monto = item.amount;
+        asistencia.formaPago = paymentMethod;
+        asistencia.cobroId = cobro._id;
+        asistencia.movimientoId = movimiento._id;
+        asistencia.updatedBy = actor;
+        await asistencia.save({ session });
+        asistencias.push(asistencia);
+      }
+
       cobro.movimientoId = movimiento._id;
       cobro.updatedBy = actor;
       await cobro.save({ session });
 
-      result = { cobro, movimiento, cuotas, cargosPuntuales };
+      result = { cobro, movimiento, cuotas, cargosPuntuales, asistencias };
     });
 
     return result;
