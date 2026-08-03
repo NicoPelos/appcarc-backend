@@ -3,7 +3,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Pre-register models needed for populate chains
-import '../src/resources/escuelita/models/CategoriaEscuelita.js';
+import '../src/resources/planes/models/Plan.js';
 import '../src/resources/socios/models/Socio.js';
 import '../src/resources/asistencias/models/Asistencia.js';
 
