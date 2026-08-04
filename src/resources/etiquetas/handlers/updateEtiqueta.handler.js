@@ -40,7 +40,18 @@ export const updateEtiquetaHandler = async (req, res) => {
     const etiquetaAntes = etiqueta.toObject();
 
     if (nombre !== undefined) etiqueta.nombre = nombre;
-    if (uso_sistema !== undefined) etiqueta.uso_sistema = uso_sistema;
+    if (uso_sistema !== undefined) {
+      const nuevoUsoSistema = uso_sistema || null;
+      if (nuevoUsoSistema) {
+        const existente = await Etiqueta.findOne({
+          clubId: req.user.clubId, uso_sistema: nuevoUsoSistema, active: true, _id: { $ne: id },
+        });
+        if (existente) {
+          return res.status(400).json({ message: `Ya existe otra etiqueta activa con uso_sistema "${nuevoUsoSistema}" en este club` });
+        }
+      }
+      etiqueta.uso_sistema = nuevoUsoSistema;
+    }
 
     etiqueta.updatedBy = req.user.email || req.user.id;
     await etiqueta.save();

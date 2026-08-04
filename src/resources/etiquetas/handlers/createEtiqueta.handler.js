@@ -47,6 +47,13 @@ export const createEtiquetaHandler = async (req, res) => {
       return res.status(400).json({ message: `unidad debe ser: ${VALID_UNIDADES.join(', ')}` });
     }
 
+    if (uso_sistema) {
+      const existente = await Etiqueta.findOne({ clubId: req.user.clubId, uso_sistema, active: true });
+      if (existente) {
+        return res.status(400).json({ message: `Ya existe una etiqueta activa con uso_sistema "${uso_sistema}" en este club` });
+      }
+    }
+
     const etiqueta = new Etiqueta({
       clubId: req.user.clubId,
       nombre,

@@ -34,17 +34,55 @@ describe('updateEtiquetaHandler', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it('actualiza uso_sistema correctamente', async () => {
+  it('actualiza uso_sistema correctamente cuando no hay otra etiqueta activa con ese valor', async () => {
     const mockSave = vi.fn().mockResolvedValue();
     const etiqueta = { _id: '1', uso_sistema: null, save: mockSave, toObject: vi.fn().mockReturnValue({}) };
-    Etiqueta.findOne.mockResolvedValue(etiqueta);
+    Etiqueta.findOne
+      .mockResolvedValueOnce(etiqueta) // fetch por id
+      .mockResolvedValueOnce(null); // chequeo de colisión
 
     const req = { user: mockUser, params: { id: '1' }, body: { uso_sistema: 'cuota_social' } };
     const res = mockRes();
 
     await updateEtiquetaHandler(req, res);
 
+    expect(Etiqueta.findOne).toHaveBeenCalledWith({
+      clubId: 'CARC', uso_sistema: 'cuota_social', active: true, _id: { $ne: '1' },
+    });
     expect(etiqueta.uso_sistema).toBe('cuota_social');
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('retorna 400 si ya existe otra etiqueta activa con el mismo uso_sistema', async () => {
+    const mockSave = vi.fn().mockResolvedValue();
+    const etiqueta = { _id: '1', uso_sistema: null, save: mockSave, toObject: vi.fn().mockReturnValue({}) };
+    Etiqueta.findOne
+      .mockResolvedValueOnce(etiqueta) // fetch por id
+      .mockResolvedValueOnce({ _id: 'otra-etiqueta', uso_sistema: 'cuota_social' }); // colisión
+
+    const req = { user: mockUser, params: { id: '1' }, body: { uso_sistema: 'cuota_social' } };
+    const res = mockRes();
+
+    await updateEtiquetaHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('uso_sistema') }));
+    expect(mockSave).not.toHaveBeenCalled();
+    expect(etiqueta.uso_sistema).toBeNull();
+  });
+
+  it('normaliza uso_sistema vacío a null sin chequear colisión', async () => {
+    const mockSave = vi.fn().mockResolvedValue();
+    const etiqueta = { _id: '1', uso_sistema: 'cuota_social', save: mockSave, toObject: vi.fn().mockReturnValue({}) };
+    Etiqueta.findOne.mockResolvedValueOnce(etiqueta); // fetch por id (única llamada)
+
+    const req = { user: mockUser, params: { id: '1' }, body: { uso_sistema: '' } };
+    const res = mockRes();
+
+    await updateEtiquetaHandler(req, res);
+
+    expect(Etiqueta.findOne).toHaveBeenCalledTimes(1);
+    expect(etiqueta.uso_sistema).toBeNull();
     expect(res.status).toHaveBeenCalledWith(200);
   });
 

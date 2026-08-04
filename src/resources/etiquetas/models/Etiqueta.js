@@ -30,7 +30,14 @@ const etiquetaSchema = new mongoose.Schema({
   updatedBy: String,
 }, { timestamps: true });
 
-etiquetaSchema.index({ clubId: 1, uso_sistema: 1 }, { sparse: true });
+// partialFilterExpression (no sparse): "sparse" solo excluye el campo cuando
+// está AUSENTE, pero acá uso_sistema siempre está presente con default: null,
+// así que un índice sparse indexaría igual todos los null y el unique
+// rechazaría clubes con más de una etiqueta sin uso_sistema configurado.
+etiquetaSchema.index(
+  { clubId: 1, uso_sistema: 1 },
+  { unique: true, partialFilterExpression: { uso_sistema: { $type: 'string' } } },
+);
 
 const Etiqueta = mongoose.model('Etiqueta', etiquetaSchema);
 
