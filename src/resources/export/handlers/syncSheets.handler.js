@@ -30,6 +30,11 @@ export const syncSheetsHandler = async (req, res) => {
   try {
     const clubId = req.user.clubId;
     const club = await Club.findOne({ slug: clubId });
+
+    if (!club?.modulos?.exportSheets) {
+      return res.status(403).json({ message: 'La exportación a Sheets no está habilitada para este club' });
+    }
+
     const clubName = club?.nombre || clubId;
 
     const result = await exportToSheets({ clubId, clubName, spreadsheetId: club?.integraciones?.sheets?.spreadsheetId });
