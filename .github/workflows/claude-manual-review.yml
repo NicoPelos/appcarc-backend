@@ -1,0 +1,128 @@
+name: Revisión y actualización del manual
+
+on:
+  schedule:
+    - cron: '45 6 * * *'  # 3:45am ARG (UTC-3) = 6:45am UTC — offset de la revisión de código
+  workflow_dispatch:
+
+jobs:
+  select-scope:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      scope: ${{ steps.select.outputs.scope }}
+      scope_name: ${{ steps.select.outputs.scope_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Elegir qué página del manual le toca hoy
+        id: select
+        run: |
+          set -euo pipefail
+          mapfile -t MODULES < <(find mkdocs-manual/docs -maxdepth 1 -name '*.md' -printf '%p\n' | sort)
+          COUNT=${#MODULES[@]}
+          DOY=$((10#$(date -u +%j)))
+          IDX=$(( DOY % COUNT ))
+          SELECTED="${MODULES[$IDX]}"
+          echo "scope=$SELECTED" >> "$GITHUB_OUTPUT"
+          echo "scope_name=$(basename "$SELECTED" .md)" >> "$GITHUB_OUTPUT"
+          echo "Página elegida: $SELECTED"
+
+  review:
+    needs: select-scope
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      id-token: write
+    steps:
+      - name: Checkout appcarc-backend (acá vive el manual, se commitea/pushea acá)
+        uses: actions/checkout@v4
+        with:
+          path: appcarc-backend
+
+      - name: Checkout appCARC-mobile (solo lectura, fuente de verdad de la app)
+        uses: actions/checkout@v4
+        with:
+          repository: NicoPelos/appCARC-mobile
+          token: ${{ secrets.MOBILE_REPO_READ_TOKEN }}
+          path: appcarc-mobile
+
+      - name: Revisión y actualización del manual con Claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Read,Grep,Glob,Bash(git -C appcarc-backend log:*),Bash(git -C appcarc-backend diff:*),Bash(git -C appcarc-backend add:*),Bash(git -C appcarc-backend commit:*),Bash(git -C appcarc-backend push:*),Bash(git -C appcarc-backend config:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue close:*),Edit"
+          prompt: |
+            Estás parado en un working directory con DOS checkouts hermanos:
+            - ./appcarc-backend  → acá vive el manual de usuario (mkdocs-manual/docs/). Es el único repo
+              donde vas a escribir, commitear y pushear.
+            - ./appcarc-mobile   → repo de la app mobile (Expo/React Native), SOLO LECTURA. Es la fuente
+              de verdad de cómo funciona la app hoy — nunca lo edites, nunca lo commitees.
+
+            REPO: ${{ github.repository }}
+            PÁGINA DEL MANUAL A REVISAR (exclusivamente — no toques ninguna otra página, ni código de la
+            app, ni las imágenes de assets/screenshots/):
+            ./appcarc-backend/${{ needs.select-scope.outputs.scope }}
+
+            Contexto: appClub es un sistema de gestión para clubes de montaña, con un backend (este repo)
+            y una app mobile (appcarc-mobile). El manual (mkdocs-manual/docs/) es una guía paso a paso por
+            rol (admin, secretaría, socio, profesor, palestrero) con instrucciones de texto + capturas de
+            pantalla embebidas (`![...](assets/screenshots/...)`).
+
+            ## Tu tarea
+
+            1. Leé la página del manual asignada completa.
+            2. Por cada flujo que describe (ej. "Registrar cobro", "Inscribir a escuelita"), buscá en
+               `./appcarc-mobile/src/` la pantalla real correspondiente y comparé el texto del manual
+               contra el comportamiento actual de esa pantalla: pasos que ya no existen, campos que
+               cambiaron de nombre o de mecánica (ej. un TextInput que ahora es una lista de checkboxes),
+               botones que se movieron o se renombraron, funcionalidad nueva que no está documentada.
+            3. Si encontrás desactualizaciones de TEXTO, corregilas vos mismo directo en el archivo
+               `.md` con la tool Edit — necesitás que el texto describa fielmente lo que un usuario ve y
+               hace hoy en la app. No inventes funcionalidad que no exista; si tenés dudas sobre el
+               comportamiento exacto, leé el código de la pantalla con más detalle antes de escribir.
+            4. Si notás que una **captura de pantalla** (`assets/screenshots/*.png`) quedó desactualizada
+               respecto al texto/flujo real (ej. muestra un campo que ya no existe), NO la toques ni
+               intentes regenerarla — nombrala en el issue para que se regenere a mano en otra sesión
+               (hay un proceso manual aparte para eso).
+            5. No toques nunca código de `./appcarc-mobile` ni de `./appcarc-backend` fuera de la única
+               página de manual asignada.
+
+            ## Antes de crear un issue nuevo
+
+            Corré `gh issue list --repo ${{ github.repository }} --label manual-review --state open` y
+            leé los que toquen esta página — no dupliques un hallazgo ya reportado.
+
+            ## Si encontrás y arreglás algo
+
+            1. Creá el issue ANTES de commitear (para poder referenciarlo en el commit):
+               ```
+               gh issue create --repo ${{ github.repository }} \
+                 --title "[manual/${{ needs.select-scope.outputs.scope_name }}] <resumen corto>" \
+                 --label manual-review \
+                 --body "<qué estaba desactualizado, qué cambiaste, y si alguna captura quedó vieja>"
+               ```
+            2. Aplicá el fix de texto con Edit.
+            3. Commiteá y pusheá SOLO el archivo de esa página del manual, desde `./appcarc-backend`:
+               ```
+               cd appcarc-backend
+               git config user.name "claude-manual-bot"
+               git config user.email "actions@github.com"
+               git add mkdocs-manual/docs/<archivo>.md
+               git commit -m "docs(manual): actualizar <página> — <resumen corto>
+
+               Closes #<número del issue>"
+               git push
+               ```
+
+            ## Si la página ya está al día
+
+            No crees ningún issue, no hagas ningún commit. Terminá ahí.
+
+            No hace falta apurarse ni cubrir toda la página en una sola pasada — si es larga, priorizá
+            los flujos más claramente desactualizados y dejá el resto para la próxima vez que le toque el
+            turno a esta página (la rotación vuelve a pasar por todas las páginas cada pocos días).
