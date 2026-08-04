@@ -55,7 +55,7 @@ export const revisarVencimientosSinReemplazo = async () => {
       await notifyRoles(precio.clubId, STAFF_ROLES, {
         title: '⚠️ Precio por vencer sin reemplazo',
         body: `"${precio.etiquetaId.nombre}" vence el ${formatFechaAR(precio.vigenteHasta)} y no hay un precio nuevo cargado para después. Creá uno para no dejar a nadie sin precio.`,
-        data: { tipo: 'precio_por_vencer', precioId: String(precio._id) },
+        data: { tipo: 'precio_por_vencer', precioId: String(precio._id), url: `carc://precios?precioId=${precio._id}` },
       });
       avisados++;
     } catch (err) {
@@ -101,7 +101,7 @@ export const revisarCambiosDePrecio = async () => {
       await notifyRoles(nuevo.clubId, STAFF_ROLES, {
         title: '💰 Cambio de precio',
         body: `"${nombre}" cambió ${cambio} a partir de hoy.`,
-        data: { tipo: 'precio_cambio', precioId: String(nuevo._id) },
+        data: { tipo: 'precio_cambio', precioId: String(nuevo._id), url: `carc://precios?precioId=${nuevo._id}` },
       });
 
       const socioIds = await buscarSocioIdsAfectados({
@@ -113,7 +113,7 @@ export const revisarCambiosDePrecio = async () => {
         await notifySocio(socioId, {
           title: '💰 Cambio de precio',
           body: `La cuota de "${nombre}" cambió ${cambio} a partir de hoy.`,
-          data: { tipo: 'precio_cambio', precioId: String(nuevo._id) },
+          data: { tipo: 'precio_cambio', precioId: String(nuevo._id), url: `carc://precios?precioId=${nuevo._id}` },
         }).catch((err) => console.error(`Error notificando cambio de precio a socio ${socioId}:`, err.message));
       }
 

@@ -214,6 +214,11 @@ export const registrarCobro = async ({ clubId, user, body }) => {
 
   const date = body?.date ? new Date(body.date) : new Date();
   if (Number.isNaN(date.getTime())) throw new BusinessError('La fecha del cobro es inválida');
+  // Compara por día calendario en horario argentino (UTC-3), no por timestamp exacto:
+  // de lo contrario "hoy" se rechazaría como futuro mientras el mediodía AR aún no
+  // ocurrió en UTC (el servidor corre en UTC).
+  const diaAR = (d) => new Date(d.getTime() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  if (diaAR(date) > diaAR(new Date())) throw new BusinessError('La fecha del cobro no puede ser futura');
 
   const session = await mongoose.startSession();
   try {

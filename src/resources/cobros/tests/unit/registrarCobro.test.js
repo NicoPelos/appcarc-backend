@@ -131,6 +131,18 @@ describe('registrarCobro service (unit)', () => {
     expect(sessionMock.endSession).not.toHaveBeenCalled();
   });
 
+  it('should throw BusinessError on future cobro date', async () => {
+    const mañana = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    await expect(registrarCobro({
+      clubId: CLUB_ID, user: USER,
+      body: { date: mañana, paymentMethod: 'Efectivo', items: [] },
+    })).rejects.toEqual(expect.objectContaining({
+      message: 'La fecha del cobro no puede ser futura',
+    }));
+
+    expect(sessionMock.endSession).not.toHaveBeenCalled();
+  });
+
   it('should fail when no cuotas are sent', async () => {
     await expect(registrarCobro({
       clubId: CLUB_ID, user: USER,
