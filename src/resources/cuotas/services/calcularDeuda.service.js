@@ -114,11 +114,16 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
   const hoy = periodoHoy();
   const ahora = new Date();
 
+  // Ojo: no filtrar por fechaHasta >= hoy acá. Una suscripción cerrada con
+  // fecha pasada puede seguir teniendo períodos sin pagar dentro de su propio
+  // rango (ej. al excluir un mes puntual con /excluir-periodo, el tramo viejo
+  // queda con fechaHasta pasado pero puede deber meses anteriores) — cada
+  // suscripción ya acota sus propios "candidatos" a [fechaDesde, fechaHasta]
+  // más abajo, así que no hace falta (ni conviene) descartarla acá.
   const suscripciones = await Suscripcion.find({
     socioId,
     clubId,
     active: true,
-    $or: [{ fechaHasta: null }, { fechaHasta: { $gte: hoy } }],
   })
     .populate('etiquetaId', 'nombre unidad uso_sistema')
     .lean();

@@ -95,17 +95,35 @@ describe('calcularDeuda', () => {
     expect(result.otrosCargos).toEqual([]);
   });
 
-  it('solo trae suscripciones vigentes (fechaHasta null o >= hoy)', async () => {
+  it('trae todas las suscripciones activas, sin filtrar por fechaHasta', async () => {
     mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
 
     await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
-    expect(mockSuscripcionFind).toHaveBeenCalledWith(expect.objectContaining({
+    expect(mockSuscripcionFind).toHaveBeenCalledWith({
       socioId: 'socio_001',
       clubId: 'CARC',
       active: true,
-      $or: [{ fechaHasta: null }, { fechaHasta: { $gte: expect.stringMatching(/^\d{4}-\d{2}$/) } }],
-    }));
+    });
+  });
+
+  it('incluye una suscripción cerrada con fechaHasta pasado si le queda un período sin pagar (appcarc-backend#46)', async () => {
+    // Reproduce el bug real encontrado al probar /excluir-periodo: un tramo
+    // cerrado con fechaHasta anterior a hoy no debe desaparecer de la deuda
+    // si todavía tiene periodos sin pagar dentro de su propio rango.
+    const sus = mockSuscripcion({ fechaDesde: '2026-02', fechaHasta: '2026-05' });
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
+    mockCuotaFindOne.mockReturnValue(chainableCuota({ periodo: '2026-04' }));
+    mockCuotaFind.mockReturnValue(chainableCuota([
+      { periodo: '2026-02' }, { periodo: '2026-03' }, { periodo: '2026-04' },
+    ]));
+    mockPreciosFindOne.mockReturnValue(chainablePrecio({ monto: 15000 }));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result.suscripciones).toHaveLength(1);
+    expect(result.suscripciones[0].periodos).toEqual(['2026-05']);
+    expect(result.suscripciones[0].totalDeuda).toBe(15000);
   });
 
   it('incluye suscripcionId y etiqueta en el resultado', async () => {
