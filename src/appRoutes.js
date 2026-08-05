@@ -22,6 +22,8 @@ import planesRoutes from './resources/planes/routes.js';
 import advertenciasRoutes from './resources/advertencias/routes.js';
 import formsWebhookRoutes from './resources/formsWebhook/routes.js';
 import notificacionesRoutes from './resources/notificaciones/routes.js';
+import pagosRoutes from './resources/pagos/routes.js';
+import webhooksRoutes from './resources/webhooks/routes.js';
 
 const router = express.Router();
 
@@ -48,5 +50,7 @@ router.use('/planes', planesRoutes);
 router.use('/advertencias', advertenciasRoutes);
 router.use('/forms-webhook', formsWebhookRoutes);
 router.use('/notificaciones', notificacionesRoutes);
+router.use('/pagos', pagosRoutes);
+router.use('/webhooks', webhooksRoutes);
 
 export default router;

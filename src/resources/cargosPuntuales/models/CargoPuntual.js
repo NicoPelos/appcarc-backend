@@ -63,7 +63,7 @@ const cargoPuntualSchema = new mongoose.Schema({
   },
   paymentMethod: {
     type: String,
-    enum: ['Efectivo', 'Transferencia'],
+    enum: ['Efectivo', 'Transferencia', 'MercadoPago'],
     default: null,
   },
   createdBy: {

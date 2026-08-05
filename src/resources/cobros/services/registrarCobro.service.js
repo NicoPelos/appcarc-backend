@@ -9,7 +9,9 @@ import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Cobro from '../models/Cobro.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 
-const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
+// 'MercadoPago' solo lo asigna el webhook al confirmar un pago online — nunca
+// lo elige un humano a mano (RegistrarCobroScreen solo ofrece Efectivo/Transferencia).
+const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia', 'MercadoPago'];
 const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 class BusinessError extends Error {
