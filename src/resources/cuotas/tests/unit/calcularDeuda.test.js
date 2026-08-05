@@ -126,6 +126,28 @@ describe('calcularDeuda', () => {
     expect(result.suscripciones[0].totalDeuda).toBe(15000);
   });
 
+  it('incluye periodosPagados con todo el historial de cuotas pagadas de la etiqueta', async () => {
+    const sus = mockSuscripcion({ fechaDesde: '2026-06' });
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
+    mockCuotaFindOne.mockReturnValue(chainableCuota(null));
+    mockCuotaFind.mockReturnValue(chainableCuota([{ periodo: '2026-01' }, { periodo: '2026-02' }]));
+    mockPreciosFindOne.mockReturnValue(chainablePrecio({ monto: 15000 }));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result.suscripciones[0].periodosPagados).toEqual(['2026-01', '2026-02']);
+  });
+
+  it('periodosPagados es un array vacío para una suscripción exenta, sin consultar Cuota', async () => {
+    const sus = mockSuscripcion({ fechaDesde: '2026-06', exento: true });
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result.suscripciones[0].periodosPagados).toEqual([]);
+    expect(mockCuotaFind).not.toHaveBeenCalled();
+  });
+
   it('incluye suscripcionId y etiqueta en el resultado', async () => {
     const sus = mockSuscripcion({ fechaDesde: '2026-06' });
     mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));

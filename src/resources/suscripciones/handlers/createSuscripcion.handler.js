@@ -3,6 +3,7 @@ import Suscripcion from '../models/Suscripcion.js';
 import Socio from '../../socios/models/Socio.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Plan from '../../planes/models/Plan.js';
+import Escuelita from '../../escuelita/models/Escuelita.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
@@ -40,6 +41,38 @@ const cerrarSuscripcionesPrevias = async ({ clubId, socioId, tipo, etiquetaId, f
     await s.save({ session });
     logAudit({ clubId, req, action: 'UPDATE', resource: 'Suscripcion', resourceId: s._id, before, after: s.toObject() });
   }
+};
+
+// "Asignar plan" desde Detalle de socio crea la Suscripcion que cobra, pero
+// la lista de alumnos de Escuelita se arma a partir de la ficha Escuelita
+// (estado, planId, fechaInscripcion) — sin esto, asignar un plan de escuelita
+// ahí dejaba a la persona cobrando sin figurar como alumna (mismo tipo de
+// descalce que causó appcarc-backend#51/Catalina Marzari).
+const sincronizarFichaEscuelita = async ({ clubId, socioId, socio, planDoc, req, session }) => {
+  const actor = req.user.email || req.user.id;
+  const existente = await Escuelita.findOne({ clubId, socioId, active: true }).session(session);
+
+  if (existente) {
+    if (String(existente.planId ?? '') === String(planDoc._id)) return;
+    const before = existente.toObject();
+    existente.planId = planDoc._id;
+    existente.updatedBy = actor;
+    await existente.save({ session });
+    logAudit({ clubId, req, action: 'UPDATE', resource: 'Escuelita', resourceId: existente._id, before, after: existente.toObject() });
+    return;
+  }
+
+  const nuevo = new Escuelita({
+    clubId,
+    socioId,
+    dni: socio.dni || '',
+    estado: 'activo',
+    planId: planDoc._id,
+    createdBy: actor,
+    updatedBy: actor,
+  });
+  await nuevo.save({ session });
+  logAudit({ clubId, req, action: 'CREATE', resource: 'Escuelita', resourceId: nuevo._id, before: null, after: nuevo.toObject() });
 };
 
 /**
@@ -149,23 +182,29 @@ export const createSuscripcionHandler = async (req, res) => {
         await existente.save({ session });
         logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Suscripcion', resourceId: existente._id, before, after: existente.toObject() });
         suscripcion = existente;
-        return;
+      } else {
+        suscripcion = new Suscripcion({
+          clubId: req.user.clubId,
+          socioId,
+          planId: planDoc?._id ?? null,
+          etiquetaId,
+          fechaDesde,
+          fechaHasta: fechaHasta ?? null,
+          exento: Boolean(planDoc?.noGeneraDeuda),
+          createdBy: req.user.email || req.user.id,
+          updatedBy: req.user.email || req.user.id,
+        });
+
+        await suscripcion.save({ session });
+        logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Suscripcion', resourceId: suscripcion._id, before: null, after: suscripcion.toObject() });
       }
 
-      suscripcion = new Suscripcion({
-        clubId: req.user.clubId,
-        socioId,
-        planId: planDoc?._id ?? null,
-        etiquetaId,
-        fechaDesde,
-        fechaHasta: fechaHasta ?? null,
-        exento: Boolean(planDoc?.noGeneraDeuda),
-        createdBy: req.user.email || req.user.id,
-        updatedBy: req.user.email || req.user.id,
-      });
-
-      await suscripcion.save({ session });
-      logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Suscripcion', resourceId: suscripcion._id, before: null, after: suscripcion.toObject() });
+      // Si el plan es de escuelita, "Asignar plan" desde Detalle de socio tiene
+      // que dejar a la persona anotada como alumna de escuelita también — si
+      // no, queda cobrando sin aparecer en la lista de alumnos (appcarc-backend#52).
+      if (planDoc?.tipo === 'escuelita') {
+        await sincronizarFichaEscuelita({ clubId: req.user.clubId, socioId, socio, planDoc, req, session });
+      }
     });
 
     return res.status(201).json(suscripcion);

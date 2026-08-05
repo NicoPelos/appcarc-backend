@@ -27,9 +27,16 @@ vi.mock('../../../planes/models/Plan.js', () => ({
   default: { findOne: vi.fn() },
 }));
 
+vi.mock('../../../escuelita/models/Escuelita.js', () => {
+  const EscuelitaMock = vi.fn().mockImplementation((data) => ({ ...data, save: vi.fn().mockResolvedValue(undefined), toObject: vi.fn().mockReturnValue(data) }));
+  EscuelitaMock.findOne = vi.fn();
+  return { default: EscuelitaMock };
+});
+
 import Socio from '../../../socios/models/Socio.js';
 import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 import Plan from '../../../planes/models/Plan.js';
+import Escuelita from '../../../escuelita/models/Escuelita.js';
 
 const mockUser = { clubId: 'CARC', email: 'admin@carc.com' };
 
@@ -57,6 +64,7 @@ beforeEach(() => {
   mockSave.mockResolvedValue();
   mockFind.mockReturnValue({ populate: () => ({ session: () => Promise.resolve([]) }) });
   mockFindOne.mockReturnValue({ session: () => Promise.resolve(null) });
+  Escuelita.findOne.mockReturnValue({ session: () => Promise.resolve(null) });
   vi.spyOn(mongoose, 'startSession').mockResolvedValue({
     withTransaction: vi.fn(async (cb) => cb()),
     endSession: vi.fn(),
@@ -276,5 +284,64 @@ describe('createSuscripcionHandler', () => {
     expect(mockSave).toHaveBeenCalled();
     const created = res.json.mock.calls[0][0];
     expect(created.exento).toBe(true);
+  });
+
+  it('no toca la ficha de Escuelita si el plan no es de tipo escuelita', async () => {
+    const req = { user: mockUser, body: { socioId: 'socio123', planId: PLAN_ID, fechaDesde: '2026-01' } };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    expect(Escuelita.findOne).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it('crea la ficha de Escuelita si el plan es de escuelita y todavía no estaba inscripta (appcarc-backend#52)', async () => {
+    Plan.findOne.mockResolvedValue({ _id: PLAN_ID, etiquetaId: ETIQUETA_ID, tipo: 'escuelita', noGeneraDeuda: false });
+    const req = { user: mockUser, body: { socioId: 'socio123', planId: PLAN_ID, fechaDesde: '2026-01' } };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    expect(Escuelita).toHaveBeenCalledWith(expect.objectContaining({ socioId: 'socio123', estado: 'activo', planId: PLAN_ID }));
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it('actualiza el planId de la ficha de Escuelita existente si difiere', async () => {
+    Plan.findOne.mockResolvedValue({ _id: PLAN_ID, etiquetaId: ETIQUETA_ID, tipo: 'escuelita', noGeneraDeuda: false });
+    const fichaExistente = {
+      _id: 'escuelita1',
+      planId: 'otro-plan-viejo',
+      save: vi.fn().mockResolvedValue(undefined),
+      toObject: vi.fn().mockReturnValue({}),
+    };
+    Escuelita.findOne.mockReturnValue({ session: () => Promise.resolve(fichaExistente) });
+
+    const req = { user: mockUser, body: { socioId: 'socio123', planId: PLAN_ID, fechaDesde: '2026-01' } };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    expect(fichaExistente.planId).toBe(PLAN_ID);
+    expect(fichaExistente.save).toHaveBeenCalled();
+    expect(Escuelita).not.toHaveBeenCalled();
+  });
+
+  it('no vuelve a guardar la ficha de Escuelita si ya tiene el mismo plan', async () => {
+    Plan.findOne.mockResolvedValue({ _id: PLAN_ID, etiquetaId: ETIQUETA_ID, tipo: 'escuelita', noGeneraDeuda: false });
+    const fichaExistente = {
+      _id: 'escuelita1',
+      planId: PLAN_ID,
+      save: vi.fn().mockResolvedValue(undefined),
+      toObject: vi.fn().mockReturnValue({}),
+    };
+    Escuelita.findOne.mockReturnValue({ session: () => Promise.resolve(fichaExistente) });
+
+    const req = { user: mockUser, body: { socioId: 'socio123', planId: PLAN_ID, fechaDesde: '2026-01' } };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    expect(fichaExistente.save).not.toHaveBeenCalled();
   });
 });

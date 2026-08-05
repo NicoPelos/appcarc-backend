@@ -145,11 +145,19 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
           periodoActual: hoy,
           mesesDeuda: 0,
           periodos: [],
+          periodosPagados: [],
           precioUnitario: null,
           totalDeuda: 0,
           exento: true,
         };
       }
+
+      // Períodos ya pagados de esta etiqueta en toda la historia del socio
+      // (no solo dentro del tramo vigente) — la grilla de edición de meses
+      // los necesita para no dejar destildar un mes ya cobrado.
+      const periodosPagados = (await Cuota.find({
+        socioId, clubId, etiquetaId: sus.etiquetaId._id, estado: 'pagada',
+      }).lean()).map((c) => c.periodo);
 
       if (desde > hoy) {
         return {
@@ -161,6 +169,7 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
           periodoActual: hoy,
           mesesDeuda: 0,
           periodos: [],
+          periodosPagados,
           precioUnitario: null,
           totalDeuda: 0,
         };
@@ -207,6 +216,7 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
         periodoActual: hoy,
         mesesDeuda: pendientes.length,
         periodos: pendientes,
+        periodosPagados,
         precioUnitario,
         totalDeuda: precioUnitario !== null ? pendientes.length * precioUnitario : null,
       };
