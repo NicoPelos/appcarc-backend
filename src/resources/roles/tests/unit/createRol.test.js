@@ -98,6 +98,17 @@ describe('createRolHandler', () => {
     expect(res.status).toHaveBeenCalledWith(409);
   });
 
+  it('el chequeo de duplicados filtra por active: true (no bloquea reutilizar el nombre de un rol borrado)', async () => {
+    Rol.findOne.mockResolvedValue(null);
+    mockSave.mockResolvedValue();
+
+    const req = { user: mockUser, body: { nombre: 'entrenador' } };
+    const res = mockRes();
+    await createRolHandler(req, res);
+
+    expect(Rol.findOne).toHaveBeenCalledWith(expect.objectContaining({ nombre: 'entrenador', active: true }));
+  });
+
   it('retorna 500 si hay error de BD', async () => {
     Rol.findOne.mockRejectedValue(new Error('DB error'));
 

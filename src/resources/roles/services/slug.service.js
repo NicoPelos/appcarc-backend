@@ -22,7 +22,7 @@ export const generarSlugUnico = async ({ clubId, nombre, excludeId }) => {
   let sufijo = 2;
 
   while (true) {
-    const filter = { clubId, slug: candidato };
+    const filter = { clubId, slug: candidato, active: true };
     if (excludeId) filter._id = { $ne: excludeId };
     const existe = await Rol.findOne(filter);
     if (!existe) return candidato;

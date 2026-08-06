@@ -12,8 +12,8 @@ const rolSchema = new mongoose.Schema({
   active:    { type: Boolean, default: true },
 }, { timestamps: true, collection: 'roles' });
 
-rolSchema.index({ clubId: 1, nombre: 1 }, { unique: true });
-rolSchema.index({ clubId: 1, slug: 1 }, { unique: true });
+rolSchema.index({ clubId: 1, nombre: 1 }, { unique: true, partialFilterExpression: { active: true } });
+rolSchema.index({ clubId: 1, slug: 1 }, { unique: true, partialFilterExpression: { active: true } });
 
 const Rol = mongoose.model('Rol', rolSchema);
 

@@ -59,6 +59,12 @@ describe('generarSlugUnico', () => {
     expect(slug).toBe('rol');
   });
 
+  it('filtra por active: true (permite reusar el slug de un rol borrado)', async () => {
+    Rol.findOne.mockResolvedValue(null);
+    await generarSlugUnico({ clubId: 'CARC', nombre: 'Entrenador' });
+    expect(Rol.findOne).toHaveBeenCalledWith(expect.objectContaining({ active: true }));
+  });
+
   it('excludeId se pasa al filtro (para no chocar contra el propio rol al editar)', async () => {
     Rol.findOne.mockResolvedValue(null);
     await generarSlugUnico({ clubId: 'CARC', nombre: 'Entrenador', excludeId: 'abc123' });

@@ -45,7 +45,7 @@ export const createRolHandler = async (req, res) => {
   if (invalidos.length) return res.status(400).json({ message: `Permisos inválidos: ${invalidos.join(', ')}` });
 
   try {
-    const existe = await Rol.findOne({ clubId: req.user.clubId, nombre });
+    const existe = await Rol.findOne({ clubId: req.user.clubId, nombre, active: true });
     if (existe) return res.status(409).json({ message: `El rol '${nombre}' ya existe` });
 
     const slug = await generarSlugUnico({ clubId: req.user.clubId, nombre });
