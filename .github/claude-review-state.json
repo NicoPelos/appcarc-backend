@@ -8,5 +8,10 @@
     "sha": "1f8986e1f613efe9cf1b7a3314c9df370635fdd5",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-05T08:42:53Z"
+  },
+  "src/resources/roles": {
+    "sha": "6010b8f63fbb6dd04a5605c40136d3e242ff3f27",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-06T08:46:30Z"
   }
 }
