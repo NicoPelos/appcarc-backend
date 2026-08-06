@@ -40,7 +40,9 @@ describe('updateRolHandler', () => {
 
   it('actualiza nombre correctamente', async () => {
     const rol = makeRol();
-    Rol.findOne.mockResolvedValue(rol);
+    Rol.findOne
+      .mockResolvedValueOnce(rol) // busca el rol a editar
+      .mockResolvedValueOnce(null); // chequeo de nombre duplicado: libre
 
     const req = { user: mockUser, params: { id: 'rol1' }, body: { nombre: 'entrenador' } };
     const res = mockRes();
@@ -48,6 +50,42 @@ describe('updateRolHandler', () => {
 
     expect(rol.nombre).toBe('entrenador');
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('no consulta duplicados si el nombre no cambia', async () => {
+    const rol = makeRol();
+    Rol.findOne.mockResolvedValueOnce(rol);
+
+    const req = { user: mockUser, params: { id: 'rol1' }, body: { nombre: 'palestrero', permisos: ['socios:read'] } };
+    const res = mockRes();
+    await updateRolHandler(req, res);
+
+    expect(Rol.findOne).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('retorna 400 si el nombre viene vacío', async () => {
+    const req = { user: mockUser, params: { id: 'rol1' }, body: { nombre: '' } };
+    const res = mockRes();
+    await updateRolHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('nombre') }));
+  });
+
+  it('retorna 409 si ya existe otro rol con ese nombre', async () => {
+    const rol = makeRol();
+    Rol.findOne
+      .mockResolvedValueOnce(rol) // busca el rol a editar
+      .mockResolvedValueOnce({ nombre: 'secretaria' }); // ya hay otro rol con ese nombre
+
+    const req = { user: mockUser, params: { id: 'rol1' }, body: { nombre: 'secretaria' } };
+    const res = mockRes();
+    await updateRolHandler(req, res);
+
+    expect(rol.nombre).toBe('palestrero'); // no se modificó
+    expect(rol.save).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
   });
 
   it('retorna 400 si hay permisos inválidos', async () => {
