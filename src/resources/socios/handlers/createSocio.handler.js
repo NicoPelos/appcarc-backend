@@ -1,6 +1,6 @@
 import Socio from '../models/Socio.js';
 import { syncSocioToSheet } from '../services/socioSheetSync.js';
-import { prepareSocioCreateData, syncSocioUserIfPossible } from '../services/socioData.service.js';
+import { prepareSocioCreateData, syncSocioUserIfPossible, asignarSocioNumber } from '../services/socioData.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { notifyRoles } from '../../../services/pushNotification.service.js';
 
@@ -61,7 +61,13 @@ import { notifyRoles } from '../../../services/pushNotification.service.js';
 
 export const createSocioHandler = async (req, res) => {
   try {
-    const socio = new Socio(prepareSocioCreateData(req.body, req.user));
+    const data = prepareSocioCreateData(req.body, req.user);
+    // Si no viene un socioNumber explícito (ej. importación desde Sheets, que
+    // ya trae el número de la planilla), se asigna automáticamente — ver #47.
+    if (!data.socioNumber) {
+      data.socioNumber = await asignarSocioNumber(data.clubId);
+    }
+    const socio = new Socio(data);
     await socio.save();
 
     await syncSocioUserIfPossible(socio);

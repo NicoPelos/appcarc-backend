@@ -23,6 +23,9 @@ const clubSchema = new mongoose.Schema({
   },
   active:       { type: Boolean, default: true },
   suspendidoAt: { type: Date, default: null },
+  // Contador atómico para asignar el próximo socioNumber — ver
+  // src/resources/socios/services/socioData.service.js#asignarSocioNumber.
+  ultimoSocioNumber: { type: Number, default: 0 },
 }, { timestamps: true });
 
 const Club = mongoose.model('Club', clubSchema);

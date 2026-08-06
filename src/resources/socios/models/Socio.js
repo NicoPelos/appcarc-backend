@@ -65,7 +65,7 @@ import mongoose from 'mongoose';
  */
 
 const socioSchema = new mongoose.Schema({
-  socioNumber: { type: String, unique: true, sparse: true },
+  socioNumber: { type: String },
   sexo: { type: String, enum: ['Masculino', 'Femenino', 'Otro'] },
   apellido: { type: String, required: true },
   nombre: { type: String, required: true },
@@ -105,6 +105,10 @@ const socioSchema = new mongoose.Schema({
 }, {
   timestamps: true,
 });
+
+// El socioNumber es único dentro de cada club, no globalmente — dos clubes
+// distintos pueden tener ambos un socio "1" sin problema (issue #47).
+socioSchema.index({ clubId: 1, socioNumber: 1 }, { unique: true, sparse: true });
 
 const Socio = mongoose.model('Socio', socioSchema);
 

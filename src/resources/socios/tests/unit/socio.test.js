@@ -2,9 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../services/socioSheetSync.js', () => ({ syncSocioToSheet: vi.fn().mockResolvedValue() }));
 vi.mock('../../services/socioData.service.js', () => ({
-  prepareSocioCreateData: vi.fn((body, user) => ({ ...body, createdBy: user?.id, updatedBy: user?.id })),
+  prepareSocioCreateData: vi.fn((body, user) => ({ ...body, clubId: body?.clubId || user?.clubId, createdBy: user?.id, updatedBy: user?.id })),
   prepareSocioUpdateData: vi.fn((body) => body),
   syncSocioUserIfPossible: vi.fn().mockResolvedValue(),
+  asignarSocioNumber: vi.fn().mockResolvedValue('42'),
 }));
 vi.mock('../../../services/pushNotification.service.js', () => ({
   sendPushNotification: vi.fn().mockResolvedValue(),
@@ -22,6 +23,7 @@ import { restoreSocioHandler } from '../../handlers/restoreSocio.handler.js';
 import Socio from '../../models/Socio.js';
 import Suscripcion from '../../../suscripciones/models/Suscripcion.js';
 import User from '../../../usuarios/models/User.js';
+import { asignarSocioNumber } from '../../services/socioData.service.js';
 
 const mockRes = () => {
   const res = {};
@@ -67,6 +69,19 @@ describe('Socios handlers (unit)', () => {
     const createdSocio = res.json.mock.calls[0][0];
     expect(createdSocio.createdBy).toBe('user1');
     expect(createdSocio.updatedBy).toBe('user1');
+    expect(asignarSocioNumber).toHaveBeenCalledWith('club1');
+    expect(createdSocio.socioNumber).toBe('42');
+  });
+
+  it('createSocioHandler no pisa un socioNumber explícito (ej. importación desde Sheets)', async () => {
+    const req = { body: { apellido: 'Perez', nombre: 'Juan', dni: '123', socioNumber: '7' }, user: { clubId: 'club1', id: 'user1' } };
+    const res = mockRes();
+
+    await createSocioHandler(req, res);
+
+    expect(asignarSocioNumber).not.toHaveBeenCalled();
+    const createdSocio = res.json.mock.calls[0][0];
+    expect(createdSocio.socioNumber).toBe('7');
   });
 
   it('getSociosHandler should return array of socios', async () => {

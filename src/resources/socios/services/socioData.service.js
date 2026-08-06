@@ -1,4 +1,16 @@
+import Club from '../../clubs/models/Club.js';
 import { syncSocioUserFromSocio } from '../../usuarios/services/userSync.js';
+
+// Asigna el próximo socioNumber del club de forma atómica ($inc no pisa
+// incrementos concurrentes de dos altas simultáneas) — ver issue #47.
+export const asignarSocioNumber = async (clubId) => {
+  const club = await Club.findOneAndUpdate(
+    { slug: clubId },
+    { $inc: { ultimoSocioNumber: 1 } },
+    { new: true }
+  );
+  return club ? String(club.ultimoSocioNumber) : undefined;
+};
 
 export const buildDomicilioCompleto = ({ domicilioCompleto, calle, altura, direccionActual } = {}) => {
   if (domicilioCompleto) return domicilioCompleto;
@@ -24,8 +36,11 @@ export const prepareSocioCreateData = (body, user) => {
 };
 
 export const prepareSocioUpdateData = (body, user) => {
+  // socioNumber es 100% automático e inmutable una vez asignado (issue #47) —
+  // se ignora cualquier intento de tocarlo por esta vía.
+  const { socioNumber, ...rest } = body ?? {};
   const data = {
-    ...body,
+    ...rest,
     updatedBy: user?.id,
   };
 
