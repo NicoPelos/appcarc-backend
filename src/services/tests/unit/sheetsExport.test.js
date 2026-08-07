@@ -6,7 +6,7 @@ vi.mock('googleapis', () => ({
     sheets: vi.fn().mockReturnValue({}),
   },
 }));
-vi.mock('../../../resources/socios/models/Socio.js', () => ({ default: { find: vi.fn() } }));
+vi.mock('../../../resources/socios/models/Socio.js', () => ({ default: { find: vi.fn(), countDocuments: vi.fn() } }));
 vi.mock('../../../resources/cuotas/models/Cuota.js', () => ({ default: { find: vi.fn() } }));
 vi.mock('../../../resources/suscripciones/models/Suscripcion.js', () => ({ default: { find: vi.fn() } }));
 vi.mock('../../../resources/cobros/models/Cobro.js', () => ({ default: { find: vi.fn() } }));
@@ -15,13 +15,16 @@ vi.mock('../../../resources/movimientos/models/Movimiento.js', () => ({ default:
 vi.mock('../../../resources/horarios/models/Horarios.js', () => ({ default: { find: vi.fn() } }));
 vi.mock('../../../resources/etiquetas/models/Etiqueta.js', () => ({ default: { find: vi.fn() } }));
 vi.mock('../../../resources/asistencias/models/Asistencia.js', () => ({ default: { find: vi.fn() } }));
+vi.mock('../../../resources/advertencias/models/Advertencia.js', () => ({ default: { countDocuments: vi.fn() } }));
+vi.mock('../../../resources/cuotas/services/calcularDeuda.service.js', () => ({ calcularDeuda: vi.fn() }));
 
-import { buildCuotasSocialesRows, buildCuotasEscuelitaRows } from '../../sheetsExport.service.js';
+import { buildCuotasSocialesRowsPorEstado, buildCuotasEscuelitaRowsPorEstado } from '../../sheetsExport.service.js';
 import Socio from '../../../resources/socios/models/Socio.js';
 import Cuota from '../../../resources/cuotas/models/Cuota.js';
 import Suscripcion from '../../../resources/suscripciones/models/Suscripcion.js';
 import Escuelita from '../../../resources/escuelita/models/Escuelita.js';
 import Etiqueta from '../../../resources/etiquetas/models/Etiqueta.js';
+import { calcularDeuda } from '../../../resources/cuotas/services/calcularDeuda.service.js';
 
 const chain = (result) => {
   const obj = {};
@@ -42,10 +45,16 @@ const last24Periodos = () => {
   return periods;
 };
 
+const deudaCon = (usoSistema, mesesDeuda, periodos = []) => ({
+  suscripciones: [{ etiqueta: { uso_sistema: usoSistema }, mesesDeuda, periodos }],
+  otrosCargos: [],
+});
+const deudaVacia = () => ({ suscripciones: [], otrosCargos: [] });
+
 beforeEach(() => vi.clearAllMocks());
 
-describe('buildCuotasSocialesRows', () => {
-  it('no incluye columna de montos, solo tildes y meses adeudados', async () => {
+describe('buildCuotasSocialesRowsPorEstado', () => {
+  it('no incluye columna de montos, y "Meses adeudados" sale de calcularDeuda (no de contar pendiente)', async () => {
     const periodos = last24Periodos();
     Etiqueta.find.mockReturnValue(chain([{ _id: 'etqSocial' }]));
     Socio.find.mockReturnValue(chain([
@@ -53,17 +62,35 @@ describe('buildCuotasSocialesRows', () => {
     ]));
     Cuota.find.mockReturnValue(chain([
       { socioId: 'socio1', periodo: periodos.at(-1), estado: 'pagada' },
-      { socioId: 'socio1', periodo: periodos.at(-2), estado: 'pendiente' },
     ]));
     Suscripcion.find.mockReturnValue(chain([]));
+    calcularDeuda.mockResolvedValue(deudaCon('cuota_social', 2, [periodos.at(-2), periodos.at(-3)]));
 
-    const { headers, rows } = await buildCuotasSocialesRows('CARC');
+    const { headers, rows } = await buildCuotasSocialesRowsPorEstado('CARC', 'Activo');
 
     expect(headers).not.toContain('Deuda estimada');
     expect(headers.at(-1)).toBe('Meses adeudados');
     const row = rows[0];
-    expect(row.at(-1)).toBe(1); // 1 mes adeudado
+    expect(row.at(-1)).toBe(2); // viene de calcularDeuda, no de contar celdas
     expect(row).not.toContain(expect.stringMatching(/^\$/));
+  });
+
+  it('marca ✗ en los períodos que calcularDeuda reporta como pendientes aunque no exista Cuota', async () => {
+    const periodos = last24Periodos();
+    Etiqueta.find.mockReturnValue(chain([{ _id: 'etqSocial' }]));
+    Socio.find.mockReturnValue(chain([
+      { _id: 'socio1', socioNumber: '1', apellido: 'Deudor', nombre: 'A', dni: '1' },
+    ]));
+    Cuota.find.mockReturnValue(chain([])); // sin Cuota 'pendiente' precargada
+    Suscripcion.find.mockReturnValue(chain([]));
+    calcularDeuda.mockResolvedValue(deudaCon('cuota_social', 1, [periodos.at(-1)]));
+
+    const { rows } = await buildCuotasSocialesRowsPorEstado('CARC', 'Activo');
+    const INFO_COLS = 4;
+    const cells = rows[0].slice(INFO_COLS, INFO_COLS + periodos.length);
+
+    expect(cells.at(-1)).toBe('✗');
+    expect(rows[0].at(-1)).toBe(1);
   });
 
   it('marca con tilde verde los períodos cubiertos por una suscripción exenta', async () => {
@@ -76,8 +103,9 @@ describe('buildCuotasSocialesRows', () => {
     Suscripcion.find.mockReturnValue(chain([
       { socioId: 'socioExento', fechaDesde: periodos[0], fechaHasta: null, active: true, exento: true },
     ]));
+    calcularDeuda.mockResolvedValue(deudaVacia());
 
-    const { headers, rows } = await buildCuotasSocialesRows('CARC');
+    const { headers, rows } = await buildCuotasSocialesRowsPorEstado('CARC', 'Activo');
     const INFO_COLS = 4;
     const cells = rows[0].slice(INFO_COLS, INFO_COLS + periodos.length);
 
@@ -85,14 +113,26 @@ describe('buildCuotasSocialesRows', () => {
     expect(rows[0].at(-1)).toBe(0); // ningún mes adeudado
     expect(headers).not.toContain('Deuda estimada');
   });
+
+  it('devuelve filas vacías si no hay socios en ese estado', async () => {
+    Etiqueta.find.mockReturnValue(chain([{ _id: 'etqSocial' }]));
+    Socio.find.mockReturnValue(chain([]));
+
+    const { rows } = await buildCuotasSocialesRowsPorEstado('CARC', 'Baja');
+    expect(rows).toEqual([]);
+  });
 });
 
-describe('buildCuotasEscuelitaRows', () => {
-  it('no incluye columna de montos y marca exentos con tilde', async () => {
+describe('buildCuotasEscuelitaRowsPorEstado', () => {
+  it('no incluye columna de montos, marca exentos con tilde y filtra por estado del socio', async () => {
     const periodos = last24Periodos();
     Escuelita.find.mockReturnValue(chain([
       {
-        socioId: { _id: 'alumno1', socioNumber: '3', apellido: 'Chico', nombre: 'C', dni: '3' },
+        socioId: { _id: 'alumno1', socioNumber: '3', apellido: 'Chico', nombre: 'C', dni: '3', estado: 'Adherente' },
+        planId: { nombre: 'Plan Escuelita' },
+      },
+      {
+        socioId: { _id: 'alumno2', socioNumber: '4', apellido: 'Otro', nombre: 'D', dni: '4', estado: 'Activo' },
         planId: { nombre: 'Plan Escuelita' },
       },
     ]));
@@ -101,19 +141,21 @@ describe('buildCuotasEscuelitaRows', () => {
     Suscripcion.find.mockReturnValue(chain([
       { socioId: 'alumno1', fechaDesde: periodos[0], fechaHasta: periodos.at(-1), active: true, exento: true },
     ]));
+    calcularDeuda.mockResolvedValue(deudaVacia());
 
-    const { headers, rows } = await buildCuotasEscuelitaRows('CARC');
+    const { headers, rows } = await buildCuotasEscuelitaRowsPorEstado('CARC', 'Adherente');
 
     expect(headers).not.toContain('Deuda estimada');
+    expect(rows).toHaveLength(1); // solo el Adherente, no el Activo
     const INFO_COLS = 5;
     const cells = rows[0].slice(INFO_COLS, INFO_COLS + periodos.length);
     expect(cells.every((c) => c === '✓')).toBe(true);
   });
 
-  it('devuelve headers sin Deuda estimada cuando no hay alumnos', async () => {
+  it('devuelve headers sin Deuda estimada cuando no hay alumnos de ese estado', async () => {
     Escuelita.find.mockReturnValue(chain([]));
 
-    const { headers, rows } = await buildCuotasEscuelitaRows('CARC');
+    const { headers, rows } = await buildCuotasEscuelitaRowsPorEstado('CARC', 'Baja');
 
     expect(headers).not.toContain('Deuda estimada');
     expect(rows).toEqual([]);
