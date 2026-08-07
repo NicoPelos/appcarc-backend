@@ -192,6 +192,33 @@ describe('mercadoPagoWebhookHandler', () => {
     expect(registrarCobro).not.toHaveBeenCalled();
   });
 
+  it('IPN (sin x-signature, topic/id en query): no exige firma y procesa igual', async () => {
+    const intent = buildIntent();
+    stubPaymentFetch({ status: 'approved', transaction_amount: 15000, external_reference: 'ext-ref-1' });
+    PagoOnlineIntent.findOne.mockResolvedValue(intent);
+    PagoOnlineIntent.findOneAndUpdate.mockResolvedValue({ ...intent, estado: 'aprobado' });
+    registrarCobro.mockResolvedValue({ cobro: { _id: 'cobro-1' } });
+
+    const req = baseReq({ body: {}, query: { topic: 'payment', id: DATA_ID }, headers: {} });
+    const res = mockRes();
+
+    await mercadoPagoWebhookHandler(req, res);
+
+    expect(verifyMercadoPagoSignature).not.toHaveBeenCalled();
+    expect(registrarCobro).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('IPN con topic distinto de payment: ignora sin pedir el club', async () => {
+    const req = baseReq({ body: {}, query: { topic: 'merchant_order', id: DATA_ID }, headers: {} });
+    const res = mockRes();
+
+    await mercadoPagoWebhookHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(MercadoPagoConfig.findOne).not.toHaveBeenCalled();
+  });
+
   it('si registrarCobro falla (conflicto de negocio), igual responde 200 y deja el intent aprobado sin cobroId', async () => {
     const intent = buildIntent();
     const updatedIntent = buildIntent({ estado: 'aprobado' });
