@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import User from '../../usuarios/models/User.js';
+import { generarPasswordTemporal } from '../../../services/generarPasswordTemporal.service.js';
 
 export const resetUserPasswordHandler = async (req, res) => {
   try {
@@ -8,7 +9,7 @@ export const resetUserPasswordHandler = async (req, res) => {
     const user = await User.findById(id);
     if (!user) return res.status(404).json({ message: 'Usuario no encontrado' });
 
-    const tempPassword = Math.random().toString(36).slice(-10);
+    const tempPassword = generarPasswordTemporal();
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(tempPassword, salt);
     user.mustChangePassword = true;

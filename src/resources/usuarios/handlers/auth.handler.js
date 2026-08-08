@@ -7,6 +7,7 @@ import Notification from '../../notificaciones/models/Notification.js';
 import bcrypt from 'bcryptjs';
 import tokenService from '../../../services/tokenBlacklistService.js';
 import { getPermisosUsuario } from '../../../services/permisosCache.js';
+import { generarPasswordTemporal } from '../../../services/generarPasswordTemporal.service.js';
 import {
   obtenerRolIdsPorNombres,
   obtenerRolIdsPorSlugs,
@@ -146,7 +147,7 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
       throw error;
     }
 
-    const randomPassword = Math.random().toString(36).slice(-12);
+    const randomPassword = generarPasswordTemporal();
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(randomPassword, salt);
     const rolesSocio = await obtenerRolIdsPorSlugs({ clubId, slugs: ['socio'] });

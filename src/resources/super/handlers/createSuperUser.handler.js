@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import User from '../../usuarios/models/User.js';
 import { obtenerRolIdsPorNombres } from '../../roles/services/resolverRoles.service.js';
+import { generarPasswordTemporal } from '../../../services/generarPasswordTemporal.service.js';
 
 export const createSuperUserHandler = async (req, res) => {
   try {
@@ -18,7 +19,7 @@ export const createSuperUserHandler = async (req, res) => {
       return res.status(400).json({ message: `Ninguno de los roles indicados (${roles.join(', ')}) existe en ese club` });
     }
 
-    const rawPassword = tempPassword || Math.random().toString(36).slice(-10);
+    const rawPassword = tempPassword || generarPasswordTemporal();
     const salt = await bcrypt.genSalt(10);
     const password = await bcrypt.hash(rawPassword, salt);
 

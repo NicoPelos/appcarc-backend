@@ -4,6 +4,7 @@ import Socio from '../../socios/models/Socio.js';
 import VinculoFamiliar from '../models/VinculoFamiliar.js';
 import { syncSocioUserFromSocio } from '../../usuarios/services/userSync.js';
 import { obtenerRolIdsPorSlugs } from '../../roles/services/resolverRoles.service.js';
+import { generarPasswordTemporal } from '../../../services/generarPasswordTemporal.service.js';
 
 class BusinessError extends Error {
   constructor(message, status = 400) {
@@ -49,7 +50,7 @@ const resolverPadre = async ({ clubId, padreUserId, padreSocioId, padreEmail, pa
 
   if (!nombre) throw new BusinessError('padreNombre es requerido para crear una cuenta de tutor nueva', 400);
 
-  const passwordTemporal = Math.random().toString(36).slice(-10);
+  const passwordTemporal = generarPasswordTemporal();
   const salt = await bcrypt.genSalt(10);
   const hashedPassword = await bcrypt.hash(passwordTemporal, salt);
   const rolesSocio = await obtenerRolIdsPorSlugs({ clubId, slugs: ['socio'] });
