@@ -20,6 +20,17 @@ export const syncSocioUserFromSocio = async (socio) => {
   }
 
   if (user) {
+    // Dos Socios del mismo club pueden compartir el email de contacto (típico:
+    // padre e hijo, el hijo no tiene email propio). Si el User que matcheó por
+    // email ya es la cuenta de OTRO socio (su socioId ya está seteado y es
+    // distinto), no hay que fusionar identidades: pisar nombre/rol/password acá
+    // le robaría la cuenta a ese otro socio en silencio. Este socio se queda
+    // sin User propio hasta que tenga un email distinto.
+    if (user.socioId && socio._id && user.socioId !== socio._id.toString()) {
+      console.error(`No se sincronizó User para socio ${socio._id}: el email ${email} ya pertenece a la cuenta del socio ${user.socioId}`);
+      return null;
+    }
+
     user.nombre = nombre || user.nombre;
     user.clubId = socio.clubId || user.clubId;
     user.email = email;
