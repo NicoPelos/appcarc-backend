@@ -35,11 +35,12 @@ import { generarSlugUnico } from '../../roles/services/slug.service.js';
 export const createSuperRolHandler = async (req, res) => {
   const { clubId, nombre, permisos = [] } = req.body;
   if (!clubId || !nombre) return res.status(400).json({ message: 'clubId y nombre son requeridos' });
-
-  const invalidos = permisos.filter((p) => !TODOS_LOS_PERMISOS.includes(p));
-  if (invalidos.length) return res.status(400).json({ message: `Permisos inválidos: ${invalidos.join(', ')}` });
+  if (!Array.isArray(permisos)) return res.status(400).json({ message: 'permisos debe ser un array' });
 
   try {
+    const invalidos = permisos.filter((p) => !TODOS_LOS_PERMISOS.includes(p));
+    if (invalidos.length) return res.status(400).json({ message: `Permisos inválidos: ${invalidos.join(', ')}` });
+
     const existe = await Rol.findOne({ clubId, nombre });
     if (existe) return res.status(409).json({ message: `El rol '${nombre}' ya existe en ese club` });
 

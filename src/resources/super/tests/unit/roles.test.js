@@ -79,6 +79,14 @@ describe('createSuperRolHandler', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
+  it('devuelve 400 (no revienta el proceso) si permisos no es un array', async () => {
+    const req = { body: { clubId: 'CARC', nombre: 'entrenador', permisos: 'admin' } };
+    const res = mockRes();
+    await expect(createSuperRolHandler(req, res)).resolves.not.toThrow();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(Rol.findOne).not.toHaveBeenCalled();
+  });
+
   it('devuelve 409 si el rol ya existe en ese club', async () => {
     Rol.findOne.mockResolvedValue({ nombre: 'entrenador' });
     const req = { body: { clubId: 'CARC', nombre: 'entrenador' } };
@@ -118,6 +126,14 @@ describe('updateSuperRolHandler', () => {
     const res = mockRes();
     await updateSuperRolHandler(req, res);
     expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('devuelve 400 (no revienta el proceso) si permisos no es un array', async () => {
+    const req = { params: { id: 'r1' }, body: { permisos: 'admin' } };
+    const res = mockRes();
+    await expect(updateSuperRolHandler(req, res)).resolves.not.toThrow();
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(Rol.findOne).not.toHaveBeenCalled();
   });
 });
 

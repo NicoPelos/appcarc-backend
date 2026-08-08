@@ -26,12 +26,16 @@ import { invalidarClub } from '../../../services/permisosCache.js';
 export const updateSuperRolHandler = async (req, res) => {
   const { nombre, permisos } = req.body;
 
-  if (permisos !== undefined) {
-    const invalidos = permisos.filter((p) => !TODOS_LOS_PERMISOS.includes(p));
-    if (invalidos.length) return res.status(400).json({ message: `Permisos inválidos: ${invalidos.join(', ')}` });
+  if (permisos !== undefined && !Array.isArray(permisos)) {
+    return res.status(400).json({ message: 'permisos debe ser un array' });
   }
 
   try {
+    if (permisos !== undefined) {
+      const invalidos = permisos.filter((p) => !TODOS_LOS_PERMISOS.includes(p));
+      if (invalidos.length) return res.status(400).json({ message: `Permisos inválidos: ${invalidos.join(', ')}` });
+    }
+
     const rol = await Rol.findOne({ _id: req.params.id, active: true });
     if (!rol) return res.status(404).json({ message: 'Rol no encontrado' });
 
