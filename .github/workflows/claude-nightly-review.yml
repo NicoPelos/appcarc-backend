@@ -85,7 +85,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
-            --max-turns 40
+            --max-turns 80
             --allowedTools "Read,Grep,Glob,Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*)"
           prompt: |
             REPO: ${{ github.repository }}
