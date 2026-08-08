@@ -19,12 +19,19 @@ const buildIntent = (overrides = {}) => ({
   items: [{ socioId: 'socio-1', suscripcionId: 'sus-1', periodos: ['2026-06'], amount: 15000 }],
   totalAmount: 15000,
   externalReference: 'ext-ref-1',
+  preferenceId: 'pref-1',
   estado: 'pendiente',
   save: vi.fn().mockResolvedValue(undefined),
   ...overrides,
 });
 
-beforeEach(() => vi.clearAllMocks());
+// La mayoría de los casos de "pago aprobado" disparan además el PUT que
+// expira la preferencia — se stubea un default OK acá para no repetirlo en
+// cada test; los que necesitan inspeccionar esa llamada la pisan puntualmente.
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true }));
+});
 afterEach(() => vi.unstubAllGlobals());
 
 describe('obtenerPagoMercadoPago', () => {
@@ -65,7 +72,7 @@ describe('procesarPagoMercadoPago', () => {
     expect(result).toEqual({ resultado: 'ignorado', motivo: 'intent_no_encontrado' });
   });
 
-  it('pago aprobado: transiciona el intent y llama registrarCobro', async () => {
+  it('pago aprobado: transiciona el intent, llama registrarCobro y expira la preferencia', async () => {
     const intent = buildIntent();
     PagoOnlineIntent.findOne.mockResolvedValue(intent);
     PagoOnlineIntent.findOneAndUpdate.mockResolvedValue({ ...intent, estado: 'aprobado' });
@@ -73,6 +80,7 @@ describe('procesarPagoMercadoPago', () => {
 
     const result = await procesarPagoMercadoPago({
       clubId: 'CARC',
+      accessToken: 'TEST-token',
       payment: { id: '999', status: 'approved', status_detail: 'accredited', transaction_amount: 15000, external_reference: 'ext-ref-1' },
     });
 
@@ -82,6 +90,46 @@ describe('procesarPagoMercadoPago', () => {
       body: expect.objectContaining({ paymentMethod: 'MercadoPago' }),
     }));
     expect(result.resultado).toBe('aprobado');
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.mercadopago.com/checkout/preferences/pref-1',
+      expect.objectContaining({
+        method: 'PUT',
+        headers: expect.objectContaining({ Authorization: 'Bearer TEST-token' }),
+      }),
+    );
+    const [, options] = global.fetch.mock.calls.find(([url]) => url.includes('/checkout/preferences/'));
+    expect(JSON.parse(options.body)).toEqual(expect.objectContaining({ expires: true }));
+  });
+
+  it('pago rechazado: no intenta expirar la preferencia', async () => {
+    const intent = buildIntent();
+    PagoOnlineIntent.findOne.mockResolvedValue(intent);
+    PagoOnlineIntent.findOneAndUpdate.mockResolvedValue({ ...intent, estado: 'rechazado' });
+
+    await procesarPagoMercadoPago({
+      clubId: 'CARC',
+      accessToken: 'TEST-token',
+      payment: { id: '999', status: 'rejected', external_reference: 'ext-ref-1' },
+    });
+
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('si falla la expiración de la preferencia, el cobro se registra igual', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    const intent = buildIntent();
+    PagoOnlineIntent.findOne.mockResolvedValue(intent);
+    PagoOnlineIntent.findOneAndUpdate.mockResolvedValue({ ...intent, estado: 'aprobado' });
+    registrarCobro.mockResolvedValue({ cobro: { _id: 'cobro-1' } });
+
+    const result = await procesarPagoMercadoPago({
+      clubId: 'CARC',
+      accessToken: 'TEST-token',
+      payment: { id: '999', status: 'approved', transaction_amount: 15000, external_reference: 'ext-ref-1' },
+    });
+
+    expect(result.resultado).toBe('aprobado');
+    expect(registrarCobro).toHaveBeenCalled();
   });
 
   it('reintento duplicado (intent ya no pendiente): no reprocesa', async () => {

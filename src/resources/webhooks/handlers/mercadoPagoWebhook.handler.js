@@ -76,7 +76,7 @@ export const mercadoPagoWebhookHandler = async (req, res) => {
       return res.status(200).json({ ok: true, retry: true });
     }
 
-    const { resultado } = await procesarPagoMercadoPago({ clubId, payment });
+    const { resultado } = await procesarPagoMercadoPago({ clubId, payment, accessToken: config.accessToken });
 
     if (resultado === 'duplicado') return res.status(200).json({ ok: true, duplicate: true });
 

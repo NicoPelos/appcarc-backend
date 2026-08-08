@@ -40,7 +40,7 @@ export const reconciliarPagosMercadoPagoClub = async ({ clubId, accessToken }) =
     });
     if (!payment) continue;
 
-    const { resultado } = await procesarPagoMercadoPago({ clubId, payment });
+    const { resultado } = await procesarPagoMercadoPago({ clubId, payment, accessToken });
     if (resultado === 'aprobado' || resultado === 'rechazado') resueltos++;
   }
 

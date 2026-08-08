@@ -46,6 +46,7 @@ describe('reconciliarPagosMercadoPagoClub', () => {
     expect(procesarPagoMercadoPago).toHaveBeenCalledWith({
       clubId: 'CARC',
       payment: expect.objectContaining({ id: '555', status: 'approved' }),
+      accessToken: 'TEST-token',
     });
     expect(result).toEqual({ revisados: 1, resueltos: 1 });
   });
@@ -73,6 +74,7 @@ describe('reconciliarPagosMercadoPagoClub', () => {
     expect(procesarPagoMercadoPago).toHaveBeenCalledWith({
       clubId: 'CARC',
       payment: expect.objectContaining({ id: '2', status: 'approved' }),
+      accessToken: 'token',
     });
   });
 
