@@ -22,6 +22,8 @@ import { invalidarClub } from '../../../services/permisosCache.js';
  *         description: Permisos inválidos
  *       404:
  *         description: Rol no encontrado
+ *       409:
+ *         description: Ya existe otro rol con ese nombre en ese club
  */
 export const updateSuperRolHandler = async (req, res) => {
   const { nombre, permisos } = req.body;
@@ -39,7 +41,11 @@ export const updateSuperRolHandler = async (req, res) => {
     const rol = await Rol.findOne({ _id: req.params.id, active: true });
     if (!rol) return res.status(404).json({ message: 'Rol no encontrado' });
 
-    if (nombre !== undefined) rol.nombre = nombre;
+    if (nombre !== undefined && nombre !== rol.nombre) {
+      const existe = await Rol.findOne({ clubId: rol.clubId, nombre, active: true, _id: { $ne: rol._id } });
+      if (existe) return res.status(409).json({ message: `El rol '${nombre}' ya existe en ese club` });
+      rol.nombre = nombre;
+    }
     if (permisos !== undefined) rol.permisos = permisos;
     await rol.save();
 

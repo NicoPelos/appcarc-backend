@@ -107,7 +107,7 @@ describe('updateSuperRolHandler', () => {
 
   it('actualiza nombre y permisos, invalida el cache del club del rol', async () => {
     const rol = { _id: 'r1', clubId: 'CARC', nombre: 'viejo', permisos: [], save: vi.fn() };
-    Rol.findOne.mockResolvedValue(rol);
+    Rol.findOne.mockResolvedValueOnce(rol).mockResolvedValueOnce(null); // 1: buscar por id, 2: chequeo de duplicado
 
     const req = { params: { id: 'r1' }, body: { nombre: 'nuevo', permisos: [PERMISOS.SOCIOS_READ] } };
     const res = mockRes();
@@ -117,6 +117,32 @@ describe('updateSuperRolHandler', () => {
     expect(rol.permisos).toEqual([PERMISOS.SOCIOS_READ]);
     expect(rol.save).toHaveBeenCalled();
     expect(invalidarClub).toHaveBeenCalledWith('CARC');
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('devuelve 409 si el nuevo nombre ya lo usa otro rol activo del mismo club', async () => {
+    const rol = { _id: 'r1', clubId: 'CARC', nombre: 'viejo', permisos: [], save: vi.fn() };
+    const otroRol = { _id: 'r2', clubId: 'CARC', nombre: 'nuevo' };
+    Rol.findOne.mockResolvedValueOnce(rol).mockResolvedValueOnce(otroRol);
+
+    const req = { params: { id: 'r1' }, body: { nombre: 'nuevo' } };
+    const res = mockRes();
+    await updateSuperRolHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(rol.nombre).toBe('viejo');
+    expect(rol.save).not.toHaveBeenCalled();
+  });
+
+  it('no chequea duplicado si el nombre no cambió', async () => {
+    const rol = { _id: 'r1', clubId: 'CARC', nombre: 'igual', permisos: [], save: vi.fn() };
+    Rol.findOne.mockResolvedValueOnce(rol);
+
+    const req = { params: { id: 'r1' }, body: { nombre: 'igual' } };
+    const res = mockRes();
+    await updateSuperRolHandler(req, res);
+
+    expect(Rol.findOne).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
