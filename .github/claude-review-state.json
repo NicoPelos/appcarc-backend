@@ -18,5 +18,10 @@
     "sha": "685a1f1e1720aa8d70fc82a9d731684227e0a0ee",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-08T22:16:35Z"
+  },
+  "src/resources/suscripciones": {
+    "sha": "ad7082891fc0dfc2df081ed072a8b30d6a17a4db",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-09T07:05:20Z"
   }
 }
