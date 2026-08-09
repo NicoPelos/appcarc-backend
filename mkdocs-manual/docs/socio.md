@@ -11,7 +11,7 @@ socio@demo.appclub.ar / DemoSocio2026!
 
 ## 1. Inicio
 
-De un vistazo: tu estado de cuota, accesos rápidos (Advertencias, Muro Libre, Cuotas, Credencial, Comunidad) y las últimas novedades del club.
+De un vistazo: tu estado de cuota, accesos rápidos (Cuotas, Credencial, Comunidad y, si estás inscripto en escuelita, Mis clases) y las últimas novedades del club.
 
 <figure markdown>
   ![Inicio](assets/screenshots/socio-inicio.png){ width="260" }
