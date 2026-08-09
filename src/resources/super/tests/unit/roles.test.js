@@ -94,6 +94,18 @@ describe('createSuperRolHandler', () => {
     await createSuperRolHandler(req, res);
     expect(res.status).toHaveBeenCalledWith(409);
   });
+
+  it('permite recrear un rol con el mismo nombre que uno eliminado (soft-delete)', async () => {
+    Rol.findOne.mockResolvedValue(null); // el índice único es parcial (solo entre activos)
+    mockSave.mockResolvedValue();
+
+    const req = { body: { clubId: 'CARC', nombre: 'entrenador' } };
+    const res = mockRes();
+    await createSuperRolHandler(req, res);
+
+    expect(Rol.findOne).toHaveBeenCalledWith({ clubId: 'CARC', nombre: 'entrenador', active: true });
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
 });
 
 describe('updateSuperRolHandler', () => {

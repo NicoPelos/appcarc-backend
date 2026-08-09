@@ -41,7 +41,7 @@ export const createSuperRolHandler = async (req, res) => {
     const invalidos = permisos.filter((p) => !TODOS_LOS_PERMISOS.includes(p));
     if (invalidos.length) return res.status(400).json({ message: `Permisos inválidos: ${invalidos.join(', ')}` });
 
-    const existe = await Rol.findOne({ clubId, nombre });
+    const existe = await Rol.findOne({ clubId, nombre, active: true });
     if (existe) return res.status(409).json({ message: `El rol '${nombre}' ya existe en ese club` });
 
     const slug = await generarSlugUnico({ clubId, nombre });
