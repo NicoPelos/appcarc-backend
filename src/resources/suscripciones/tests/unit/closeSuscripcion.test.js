@@ -1,11 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import mongoose from 'mongoose';
 import { closeSuscripcionHandler } from '../../handlers/closeSuscripcion.handler.js';
 
 vi.mock('../../models/Suscripcion.js', () => ({
   default: { findOne: vi.fn() },
 }));
+vi.mock('../../../escuelita/services/sincronizarSuscripcionPlan.service.js', () => ({
+  sincronizarEscuelitaPorSuscripcionModificada: vi.fn(),
+}));
 
 import Suscripcion from '../../models/Suscripcion.js';
+import { sincronizarEscuelitaPorSuscripcionModificada } from '../../../escuelita/services/sincronizarSuscripcionPlan.service.js';
 
 const mockUser = { clubId: 'CARC', email: 'admin@carc.com' };
 
@@ -16,12 +21,19 @@ const mockRes = () => {
   return res;
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  sincronizarEscuelitaPorSuscripcionModificada.mockResolvedValue(undefined);
+  vi.spyOn(mongoose, 'startSession').mockResolvedValue({
+    withTransaction: vi.fn(async (cb) => cb()),
+    endSession: vi.fn(),
+  });
+});
 
 describe('closeSuscripcionHandler', () => {
   it('cierra suscripción correctamente (200)', async () => {
     const mockSave = vi.fn().mockResolvedValue();
-    const suscripcion = { _id: 'sus123', fechaHasta: null, save: mockSave, toObject: vi.fn().mockReturnValue({}) };
+    const suscripcion = { _id: 'sus123', socioId: 'socio1', etiquetaId: 'etq1', fechaHasta: null, save: mockSave, toObject: vi.fn().mockReturnValue({}) };
     Suscripcion.findOne.mockResolvedValue(suscripcion);
 
     const req = { user: mockUser, params: { id: 'sus123' }, body: { fechaHasta: '2026-06' } };
@@ -32,6 +44,21 @@ describe('closeSuscripcionHandler', () => {
     expect(suscripcion.fechaHasta).toBe('2026-06');
     expect(mockSave).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('appcarc-backend#62: sincroniza la ficha de escuelita tras cerrar la suscripción', async () => {
+    const mockSave = vi.fn().mockResolvedValue();
+    const suscripcion = { _id: 'sus123', socioId: 'socio1', etiquetaId: 'etq-escuelita', fechaHasta: null, save: mockSave, toObject: vi.fn().mockReturnValue({}) };
+    Suscripcion.findOne.mockResolvedValue(suscripcion);
+
+    const req = { user: mockUser, params: { id: 'sus123' }, body: { fechaHasta: '2026-06' } };
+    const res = mockRes();
+
+    await closeSuscripcionHandler(req, res);
+
+    expect(sincronizarEscuelitaPorSuscripcionModificada).toHaveBeenCalledWith(expect.objectContaining({
+      clubId: 'CARC', socioId: 'socio1', etiquetaId: 'etq-escuelita',
+    }));
   });
 
   it('retorna 404 si la suscripción no existe', async () => {

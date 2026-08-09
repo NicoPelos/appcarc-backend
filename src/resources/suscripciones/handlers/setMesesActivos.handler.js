@@ -4,6 +4,7 @@ import Cuota from '../../cuotas/models/Cuota.js';
 import Socio from '../../socios/models/Socio.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { sincronizarEscuelitaPorSuscripcionModificada } from '../../escuelita/services/sincronizarSuscripcionPlan.service.js';
 
 const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -181,6 +182,9 @@ export const setMesesActivosHandler = async (req, res) => {
         }
       }
 
+      await sincronizarEscuelitaPorSuscripcionModificada({
+        clubId: req.user.clubId, socioId, etiquetaId, req, session,
+      });
       result = { suscripciones: finales };
     });
 

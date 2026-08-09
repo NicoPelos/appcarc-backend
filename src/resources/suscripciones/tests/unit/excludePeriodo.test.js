@@ -20,9 +20,13 @@ vi.mock('../../models/Suscripcion.js', () => {
 vi.mock('../../../cuotas/models/Cuota.js', () => ({
   default: { findOne: vi.fn() },
 }));
+vi.mock('../../../escuelita/services/sincronizarSuscripcionPlan.service.js', () => ({
+  sincronizarEscuelitaPorSuscripcionModificada: vi.fn(),
+}));
 
 import Suscripcion from '../../models/Suscripcion.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
+import { sincronizarEscuelitaPorSuscripcionModificada } from '../../../escuelita/services/sincronizarSuscripcionPlan.service.js';
 
 const mockUser = { clubId: 'CARC', email: 'admin@carc.com' };
 
@@ -59,6 +63,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   Cuota.findOne = vi.fn().mockReturnValue({ session: () => Promise.resolve(null) });
   mockSave.mockResolvedValue();
+  sincronizarEscuelitaPorSuscripcionModificada.mockResolvedValue(undefined);
   vi.spyOn(mongoose, 'startSession').mockResolvedValue({
     withTransaction: vi.fn(async (cb) => cb()),
     endSession: vi.fn(),
@@ -201,6 +206,19 @@ describe('excludePeriodoHandler', () => {
 
     expect(suscripcion.active).toBe(false);
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('appcarc-backend#62: sincroniza la ficha de escuelita tras excluir un período', async () => {
+    const suscripcion = buildSuscripcion({ fechaDesde: '2026-06', fechaHasta: '2026-06' });
+    mockSuscripcionFindOne(suscripcion);
+    const req = { user: mockUser, params: { id: 'sus123' }, body: { periodo: '2026-06' } };
+    const res = mockRes();
+
+    await excludePeriodoHandler(req, res);
+
+    expect(sincronizarEscuelitaPorSuscripcionModificada).toHaveBeenCalledWith(expect.objectContaining({
+      clubId: 'CARC', socioId: suscripcion.socioId, etiquetaId: suscripcion.etiquetaId,
+    }));
   });
 
   it('retorna 500 si hay error de base de datos', async () => {

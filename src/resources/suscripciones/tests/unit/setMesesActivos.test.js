@@ -27,10 +27,15 @@ vi.mock('../../../etiquetas/models/Etiqueta.js', () => ({
   default: { findOne: vi.fn() },
 }));
 
+vi.mock('../../../escuelita/services/sincronizarSuscripcionPlan.service.js', () => ({
+  sincronizarEscuelitaPorSuscripcionModificada: vi.fn(),
+}));
+
 import Suscripcion from '../../models/Suscripcion.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
 import Socio from '../../../socios/models/Socio.js';
 import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
+import { sincronizarEscuelitaPorSuscripcionModificada } from '../../../escuelita/services/sincronizarSuscripcionPlan.service.js';
 
 const mockUser = { clubId: 'CARC', email: 'admin@carc.com' };
 const SOCIO_ID = 'socio123';
@@ -62,6 +67,7 @@ beforeEach(() => {
   mockFind.mockReturnValue({ session: () => Promise.resolve([]) });
   mockFindOne.mockReturnValue({ session: () => Promise.resolve(null) });
   mockSave.mockResolvedValue();
+  sincronizarEscuelitaPorSuscripcionModificada.mockResolvedValue(undefined);
   vi.spyOn(mongoose, 'startSession').mockResolvedValue({
     withTransaction: vi.fn(async (cb) => cb()),
     endSession: vi.fn(),
@@ -78,6 +84,15 @@ describe('setMesesActivosHandler', () => {
     expect(Suscripcion).toHaveBeenCalledWith(expect.objectContaining({ fechaDesde: '2026-04', fechaHasta: null }));
     expect(mockSave).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('appcarc-backend#62: sincroniza la ficha de escuelita tras reemplazar los tramos', async () => {
+    const res = mockRes();
+    await setMesesActivosHandler(req({ tramos: [{ fechaDesde: '2026-04', fechaHasta: null }] }), res);
+
+    expect(sincronizarEscuelitaPorSuscripcionModificada).toHaveBeenCalledWith(expect.objectContaining({
+      clubId: 'CARC', socioId: SOCIO_ID, etiquetaId: ETIQUETA_ID,
+    }));
   });
 
   it('retorna 400 si tramos no es un array', async () => {

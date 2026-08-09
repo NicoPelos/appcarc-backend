@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import Suscripcion from '../../../suscripciones/models/Suscripcion.js';
 import Plan from '../../../planes/models/Plan.js';
+import Escuelita from '../../models/Escuelita.js';
 import { logAudit } from '../../../audit/services/audit.service.js';
-import { sincronizarSuscripcionEscuelita } from '../../services/sincronizarSuscripcionPlan.service.js';
+import { sincronizarSuscripcionEscuelita, sincronizarEscuelitaPorSuscripcionModificada } from '../../services/sincronizarSuscripcionPlan.service.js';
 
 vi.mock('../../../audit/services/audit.service.js', () => ({
   logAudit: vi.fn(),
@@ -163,5 +164,53 @@ describe('sincronizarSuscripcionEscuelita', () => {
     expect(inactiva.planId).toBe('planA');
     expect(inactiva.save).toHaveBeenCalledWith({ session });
     expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({ resource: 'Suscripcion', action: 'UPDATE', resourceId: 's-inactiva' }));
+  });
+});
+
+describe('sincronizarEscuelitaPorSuscripcionModificada (appcarc-backend#62)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Plan.find = vi.fn().mockReturnValue(chainablePlanFind([{ etiquetaId: 'etq-escuelita' }]));
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('no hace nada si la etiqueta modificada no es de un plan de escuelita', async () => {
+    Suscripcion.exists = vi.fn();
+    Escuelita.findOne = vi.fn();
+
+    await sincronizarEscuelitaPorSuscripcionModificada({ clubId: CLUB_ID, socioId: SOCIO_ID, etiquetaId: 'etq-otra-cosa', req, session });
+
+    expect(Suscripcion.exists).not.toHaveBeenCalled();
+    expect(Escuelita.findOne).not.toHaveBeenCalled();
+  });
+
+  it('no toca la ficha si el socio todavía tiene otra suscripción de escuelita vigente este mes', async () => {
+    Suscripcion.exists = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue({ _id: 'otra-sus' }) });
+    Escuelita.findOne = vi.fn();
+
+    await sincronizarEscuelitaPorSuscripcionModificada({ clubId: CLUB_ID, socioId: SOCIO_ID, etiquetaId: 'etq-escuelita', req, session });
+
+    expect(Escuelita.findOne).not.toHaveBeenCalled();
+  });
+
+  it('da de baja la ficha de escuelita si no queda ninguna suscripción vigente este mes', async () => {
+    Suscripcion.exists = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(null) });
+    const alumno = { _id: 'alumno1', estado: 'activo', toObject: () => ({ estado: 'activo' }), save: vi.fn().mockResolvedValue(undefined) };
+    Escuelita.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(alumno) });
+
+    await sincronizarEscuelitaPorSuscripcionModificada({ clubId: CLUB_ID, socioId: SOCIO_ID, etiquetaId: 'etq-escuelita', req, session });
+
+    expect(alumno.estado).toBe('baja');
+    expect(alumno.save).toHaveBeenCalledWith({ session });
+    expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({ resource: 'Escuelita', action: 'UPDATE', resourceId: 'alumno1' }));
+  });
+
+  it('no hace nada si el socio no tiene ficha de escuelita (nunca fue alumno)', async () => {
+    Suscripcion.exists = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(null) });
+    Escuelita.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(null) });
+
+    await expect(sincronizarEscuelitaPorSuscripcionModificada({ clubId: CLUB_ID, socioId: SOCIO_ID, etiquetaId: 'etq-escuelita', req, session }))
+      .resolves.not.toThrow();
+    expect(logAudit).not.toHaveBeenCalled();
   });
 });

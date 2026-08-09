@@ -1,5 +1,6 @@
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import Plan from '../../planes/models/Plan.js';
+import Escuelita from '../models/Escuelita.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 class BusinessError extends Error {
@@ -25,6 +26,17 @@ const previousPeriodo = () => {
 const vigenteEsteMes = (suscripcion, periodo) => (
   !suscripcion.fechaHasta || suscripcion.fechaHasta >= periodo
 );
+
+// Etiquetas que corresponde algún Plan de escuelita vigente — necesario porque
+// casi ninguna Suscripcion vieja/migrada tiene un Plan asociado (ver comentario
+// más abajo en sincronizarSuscripcionEscuelita).
+const getEtiquetaIdsEscuelita = async ({ clubId, session }) => {
+  const planesEscuelita = await Plan.find({ clubId, tipo: 'escuelita', active: true })
+    .select('etiquetaId')
+    .session(session)
+    .lean();
+  return new Set(planesEscuelita.map((p) => String(p.etiquetaId)));
+};
 
 // Asignar/quitar el plan de escuelita de un alumno (Escuelita.planId) tiene que
 // mantener en sincro la Suscripcion que efectivamente genera el cobro — antes
@@ -55,11 +67,7 @@ export async function sincronizarSuscripcionEscuelita({ clubId, socioId, planId,
   // Escuelita. Se complementa comparando contra el conjunto de etiquetas que
   // usa cualquier Plan de escuelita vigente, para detectar la suscripción
   // vieja tenga o no un Plan asociado.
-  const etiquetasEscuelita = await Plan.find({ clubId, tipo: 'escuelita', active: true })
-    .select('etiquetaId')
-    .session(session)
-    .lean();
-  const etiquetaIdsEscuelita = new Set(etiquetasEscuelita.map((p) => String(p.etiquetaId)));
+  const etiquetaIdsEscuelita = await getEtiquetaIdsEscuelita({ clubId, session });
 
   const escuelitaActivas = activas.filter(
     (s) => (s.planId?.tipo === 'escuelita' || etiquetaIdsEscuelita.has(String(s.etiquetaId)))
@@ -128,6 +136,40 @@ export async function sincronizarSuscripcionEscuelita({ clubId, socioId, planId,
   });
   await nueva.save({ session });
   logAudit({ clubId, req, action: 'CREATE', resource: 'Suscripcion', resourceId: nueva._id, before: null, after: nueva.toObject() });
+}
+
+// Sentido inverso de sincronizarSuscripcionEscuelita: cuando se borra, cierra
+// o recorta la Suscripcion que respalda a un alumno de escuelita, la ficha
+// Escuelita tiene que reflejarlo — si no, el alumno sigue figurando activo
+// (cupos, reportes, habilitado para hacer check-in) sin ninguna suscripción
+// vigente detrás (appcarc-backend#62). Se llama con la etiquetaId de la
+// Suscripcion recién modificada; si esa etiqueta no es de escuelita, no hace
+// nada. Si lo es, revisa si el socio todavía tiene ALGUNA suscripción vigente
+// este mes para cualquier etiqueta de escuelita (puede tener más de una) antes
+// de dar de baja la ficha.
+export async function sincronizarEscuelitaPorSuscripcionModificada({ clubId, socioId, etiquetaId, req, session }) {
+  const etiquetaIdsEscuelita = await getEtiquetaIdsEscuelita({ clubId, session });
+  if (!etiquetaIdsEscuelita.has(String(etiquetaId))) return;
+
+  const periodoActual = currentPeriodo();
+  const sigueVigente = await Suscripcion.exists({
+    clubId,
+    socioId,
+    active: true,
+    etiquetaId: { $in: [...etiquetaIdsEscuelita] },
+    fechaDesde: { $lte: periodoActual },
+    $or: [{ fechaHasta: null }, { fechaHasta: { $gte: periodoActual } }],
+  }).session(session);
+  if (sigueVigente) return;
+
+  const alumno = await Escuelita.findOne({ clubId, socioId, active: true, estado: 'activo' }).session(session);
+  if (!alumno) return;
+
+  const before = alumno.toObject();
+  alumno.estado = 'baja';
+  alumno.updatedBy = req.user.email || req.user.id;
+  await alumno.save({ session });
+  logAudit({ clubId, req, action: 'UPDATE', resource: 'Escuelita', resourceId: alumno._id, before, after: alumno.toObject() });
 }
 
 export { BusinessError };

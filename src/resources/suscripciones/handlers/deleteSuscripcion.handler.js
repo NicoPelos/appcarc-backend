@@ -1,5 +1,7 @@
+import mongoose from 'mongoose';
 import Suscripcion from '../models/Suscripcion.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { sincronizarEscuelitaPorSuscripcionModificada } from '../../escuelita/services/sincronizarSuscripcionPlan.service.js';
 
 /**
  * @openapi
@@ -23,6 +25,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *         description: Error al eliminar suscripción
  */
 export const deleteSuscripcionHandler = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
     const { id } = req.params;
 
@@ -32,15 +35,23 @@ export const deleteSuscripcionHandler = async (req, res) => {
     }
     const suscripcionAntes = suscripcion.toObject();
 
-    suscripcion.active = false;
-    suscripcion.updatedBy = req.user.email || req.user.id;
-    await suscripcion.save();
+    await session.withTransaction(async () => {
+      suscripcion.active = false;
+      suscripcion.updatedBy = req.user.email || req.user.id;
+      await suscripcion.save({ session });
+
+      await sincronizarEscuelitaPorSuscripcionModificada({
+        clubId: req.user.clubId, socioId: suscripcion.socioId, etiquetaId: suscripcion.etiquetaId, req, session,
+      });
+    });
 
     logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'Suscripcion', resourceId: suscripcion._id, before: suscripcionAntes, after: null });
     return res.status(200).json({ message: 'Suscripción eliminada' });
   } catch (error) {
     console.error('Error eliminando suscripción:', error);
     return res.status(500).json({ message: 'Error al eliminar suscripción' });
+  } finally {
+    session.endSession();
   }
 };
 

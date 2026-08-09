@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Suscripcion from '../models/Suscripcion.js';
 import Cuota from '../../cuotas/models/Cuota.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { sincronizarEscuelitaPorSuscripcionModificada } from '../../escuelita/services/sincronizarSuscripcionPlan.service.js';
 
 const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -100,6 +101,9 @@ export const excludePeriodoHandler = async (req, res) => {
         suscripcion.updatedBy = actor;
         await suscripcion.save({ session });
         logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Suscripcion', resourceId: suscripcion._id, before: suscripcionAntes, after: suscripcion.toObject() });
+        await sincronizarEscuelitaPorSuscripcionModificada({
+          clubId: req.user.clubId, socioId: suscripcion.socioId, etiquetaId: suscripcion.etiquetaId, req, session,
+        });
         result = { suscripciones: [suscripcion] };
         return;
       }
@@ -109,6 +113,9 @@ export const excludePeriodoHandler = async (req, res) => {
         suscripcion.updatedBy = actor;
         await suscripcion.save({ session });
         logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Suscripcion', resourceId: suscripcion._id, before: suscripcionAntes, after: suscripcion.toObject() });
+        await sincronizarEscuelitaPorSuscripcionModificada({
+          clubId: req.user.clubId, socioId: suscripcion.socioId, etiquetaId: suscripcion.etiquetaId, req, session,
+        });
         result = { suscripciones: [suscripcion] };
         return;
       }
@@ -150,6 +157,9 @@ export const excludePeriodoHandler = async (req, res) => {
         logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Suscripcion', resourceId: nueva._id, before: null, after: nueva.toObject() });
       }
 
+      await sincronizarEscuelitaPorSuscripcionModificada({
+        clubId: req.user.clubId, socioId: suscripcion.socioId, etiquetaId: suscripcion.etiquetaId, req, session,
+      });
       result = { suscripciones: [suscripcion, nueva] };
     });
 

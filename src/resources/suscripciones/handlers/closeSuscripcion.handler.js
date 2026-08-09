@@ -1,5 +1,7 @@
+import mongoose from 'mongoose';
 import Suscripcion from '../models/Suscripcion.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { sincronizarEscuelitaPorSuscripcionModificada } from '../../escuelita/services/sincronizarSuscripcionPlan.service.js';
 
 const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -39,6 +41,7 @@ const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
  *         description: Error al cerrar suscripción
  */
 export const closeSuscripcionHandler = async (req, res) => {
+  const session = await mongoose.startSession();
   try {
     const { id } = req.params;
     const { fechaHasta } = req.body;
@@ -60,15 +63,24 @@ export const closeSuscripcionHandler = async (req, res) => {
     }
 
     const suscripcionAntes = suscripcion.toObject();
-    suscripcion.fechaHasta = fechaHasta;
-    suscripcion.updatedBy = req.user.email || req.user.id;
-    await suscripcion.save();
+
+    await session.withTransaction(async () => {
+      suscripcion.fechaHasta = fechaHasta;
+      suscripcion.updatedBy = req.user.email || req.user.id;
+      await suscripcion.save({ session });
+
+      await sincronizarEscuelitaPorSuscripcionModificada({
+        clubId: req.user.clubId, socioId: suscripcion.socioId, etiquetaId: suscripcion.etiquetaId, req, session,
+      });
+    });
 
     logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Suscripcion', resourceId: suscripcion._id, before: suscripcionAntes, after: suscripcion.toObject() });
     return res.status(200).json(suscripcion);
   } catch (error) {
     console.error('Error cerrando suscripción:', error);
     return res.status(500).json({ message: 'Error al cerrar suscripción' });
+  } finally {
+    session.endSession();
   }
 };
 
