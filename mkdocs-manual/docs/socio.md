@@ -29,7 +29,7 @@ Mantené presionado cualquier ícono del grid para entrar en modo edición, arra
 
 ## 2. Ver y pagar tus cuotas
 
-Muestra tu estado actual, el total adeudado si tenés cuotas vencidas, y los períodos pendientes. Si el club tiene Mercado Pago configurado, podés pagar directo desde ahí.
+Muestra tu estado actual, el total adeudado si tenés cuotas vencidas, y los períodos pendientes. El botón "Pagar con Mercado Pago" siempre está disponible y te lleva a Mercado Pago para pagar.
 
 <figure markdown>
   ![Tus cuotas](assets/screenshots/socio-cuotas.png){ width="260" }

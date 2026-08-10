@@ -53,6 +53,10 @@ Cada hora que cargás queda asociada a tu nombre y a una etiqueta de pago ("Hora
 4. Elegí el tipo de tarea (por ejemplo, "clases de escuelita").
 5. Agregá una observación si hace falta, y confirmá.
 
+En la lista de tus registros, cada uno tiene un lápiz y un tacho al lado para editarlo o borrarlo si cargaste algo mal.
+
+La pantalla también tiene una solapa `Resumen`, con el total de horas que cargaste cada mes agrupado por tipo de tarea — útil para llevar la cuenta antes de que cierre el mes.
+
 ## 4. Notificaciones
 
 Tocando el ícono de campana desde Inicio se ven tus notificaciones personales. Hoy los avisos proactivos del club (alta de socio, check-in con advertencias) están dirigidos a secretaría — ver el [manual de Admin](admin.md#12-notificaciones).

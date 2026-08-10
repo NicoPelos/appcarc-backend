@@ -24,15 +24,16 @@ Cada visita al muro (sea de un socio o de alguien externo) se registra acá, jun
 </figure>
 
 1. Andá a `Muro Libre` y tocá el botón de agregar (+).
-2. Buscá a la persona por nombre o DNI. Si ya es socio, va a aparecer en los resultados con su estado.
-3. Elegí el tipo de pase: `diario` o `mensual`. Si ya tiene un pase mensual vigente, la app te avisa antes de cobrarle de más.
-4. Elegí el estado de pago: `pagado` o `pendiente`.
-5. Si está pagado, elegí la forma de pago (`Efectivo` / `Transferencia`).
-6. Confirmá — queda el check-in con fecha y hora.
+2. Buscá a la persona por nombre o DNI. Si ya es socio, va a aparecer en los resultados con su estado. Si no aparece nadie, tocá "¿No es socio? Registrar como visitante externo" y cargá nombre (obligatorio), apellido y DNI (opcionales).
+3. Elegí la fecha del check-in.
+4. Elegí el tipo de pase: `diario` o `mensual`. El pase mensual solo está disponible para socios — a una persona externa solo se le puede cobrar el diario. Si el socio ya tiene un pase mensual vigente, la app te avisa antes de cobrarle de más.
+5. Elegí el estado de pago: `pagado`, `pendiente` o `exento`.
+6. Si está pagado, elegí la forma de pago (`Efectivo` / `Transferencia`).
+7. Confirmá — queda el check-in con fecha y hora.
 
 ## 2. Cargar tus horas trabajadas
 
-Igual que el profesor, cada hora que cargás queda asociada a tu nombre y a tu etiqueta de pago ("Hora Palestrero"), y así el admin sabe cuánto corresponde pagarte cada mes.
+Igual que el profesor, cada hora que cargás queda asociada a tu nombre, y así el admin sabe cuánto corresponde pagarte cada mes.
 
 <figure markdown>
   ![Horas cargadas](assets/screenshots/palestrero-horarios-lista.png){ width="260" }
@@ -41,8 +42,10 @@ Igual que el profesor, cada hora que cargás queda asociada a tu nombre y a tu e
 
 1. Andá a `Horarios` y tocá el botón de agregar (+).
 2. Elegí la fecha, la hora de entrada y de salida.
-3. Elegí el tipo de tarea (por ejemplo, "atención del muro").
-4. Confirmá — el formulario es el mismo que usa un profesor, solo cambia la etiqueta de pago.
+3. Elegí el tipo de tarea — la lista muestra todas las etiquetas de hora del club, así que elegí la que te corresponde a vos (por ejemplo, "Hora Palestrero").
+4. Confirmá — el formulario es el mismo que usa un profesor, solo cambia qué etiqueta corresponde pagarte.
+
+La pantalla también tiene una solapa `Resumen`, con el total de horas que cargaste cada mes agrupado por tipo de tarea.
 
 ## 3. Notificaciones
 
