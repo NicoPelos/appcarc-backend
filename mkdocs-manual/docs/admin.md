@@ -94,7 +94,7 @@ Un **Precio** siempre es un concepto de cobro con su monto vigente (ej. "Cuota E
   <figcaption>Lista de precios — el monto vigente de cada concepto</figcaption>
 </figure>
 
-Tocando el nombre de un concepto se despliega su histórico (precios anteriores) o los que ya están cargados a futuro. El lápiz de al lado abre directamente la edición del precio vigente.
+Tocando el nombre de un concepto se despliega su histórico (precios anteriores) o los que ya están cargados a futuro; ahí podés tocar cualquier precio de la lista (el vigente incluido) para editar su monto o vigencia. El lápiz de al lado, en cambio, edita el concepto en sí — nombre y unidad de cobro — no el monto.
 
 **Crear un concepto nuevo (precio nuevo)**
 
