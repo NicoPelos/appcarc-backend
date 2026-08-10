@@ -18,12 +18,13 @@ vi.mock('../../../resources/asistencias/models/Asistencia.js', () => ({ default:
 vi.mock('../../../resources/advertencias/models/Advertencia.js', () => ({ default: { countDocuments: vi.fn() } }));
 vi.mock('../../../resources/cuotas/services/calcularDeuda.service.js', () => ({ calcularDeuda: vi.fn() }));
 
-import { buildCuotasSocialesRows, buildCuotasEscuelitaRows } from '../../sheetsExport.service.js';
+import { buildCuotasSocialesRows, buildCuotasEscuelitaRows, buildMovimientosRows } from '../../sheetsExport.service.js';
 import Socio from '../../../resources/socios/models/Socio.js';
 import Cuota from '../../../resources/cuotas/models/Cuota.js';
 import Suscripcion from '../../../resources/suscripciones/models/Suscripcion.js';
 import Escuelita from '../../../resources/escuelita/models/Escuelita.js';
 import Etiqueta from '../../../resources/etiquetas/models/Etiqueta.js';
+import Movimiento from '../../../resources/movimientos/models/Movimiento.js';
 import { calcularDeuda } from '../../../resources/cuotas/services/calcularDeuda.service.js';
 
 const chain = (result) => {
@@ -153,5 +154,52 @@ describe('buildCuotasEscuelitaRows', () => {
 
     expect(headers).not.toContain('Deuda estimada');
     expect(rows).toEqual([]);
+  });
+});
+
+describe('buildMovimientosRows', () => {
+  it('ordena cronológicamente y calcula el saldo acumulado', async () => {
+    Movimiento.find.mockReturnValue(chain([
+      { date: new Date(2026, 5, 5), type: 'Ingreso', amount: 1000, concept: 'A', paymentMethod: 'Efectivo', responsable: 'x' },
+      { date: new Date(2026, 5, 10), type: 'Egreso', amount: 300, concept: 'B', paymentMethod: 'Efectivo', responsable: 'x' },
+    ]));
+
+    const { headers, rows } = await buildMovimientosRows('CARC');
+
+    expect(headers).toEqual(['Fecha', 'Tipo', 'Concepto', 'Monto', 'Método', 'Responsable', 'Saldo', 'Ingresos del mes', 'Egresos del mes']);
+    expect(rows[0][0]).toBe('05/06/2026');
+    expect(rows[0][6]).toBe('$1.000'); // saldo tras el ingreso
+    expect(rows[1][6]).toBe('$700'); // saldo tras el egreso (1000-300)
+  });
+
+  it('agrega una fila de cierre al pasar de un mes a otro, con el saldo y los totales del mes', async () => {
+    Movimiento.find.mockReturnValue(chain([
+      { date: new Date(2026, 5, 5), type: 'Ingreso', amount: 1000, concept: 'A', paymentMethod: 'Efectivo', responsable: 'x' },
+      { date: new Date(2026, 6, 1), type: 'Egreso', amount: 400, concept: 'B', paymentMethod: 'Efectivo', responsable: 'x' },
+    ]));
+
+    const { rows, cierreRowIndices } = await buildMovimientosRows('CARC');
+
+    expect(rows).toHaveLength(4); // 2 movimientos + cierre de junio + cierre de julio
+    expect(cierreRowIndices).toEqual([1, 3]);
+    expect(rows[1][0]).toBe('Cierre Junio 2026');
+    expect(rows[1][6]).toBe('$1.000'); // saldo al cierre de junio
+    expect(rows[1][7]).toBe('$1.000'); // ingresos de junio
+    expect(rows[1][8]).toBe('$0'); // egresos de junio
+    expect(rows[2][6]).toBe('$600'); // saldo tras el egreso de julio (1000-400)
+    expect(rows[3][0]).toBe('Cierre Julio 2026');
+    expect(rows[3][6]).toBe('$600'); // saldo al cierre de julio
+  });
+
+  it('agrega el cierre del último mes aunque no haya un movimiento posterior', async () => {
+    Movimiento.find.mockReturnValue(chain([
+      { date: new Date(2026, 5, 5), type: 'Ingreso', amount: 1000, concept: 'A', paymentMethod: 'Efectivo', responsable: 'x' },
+    ]));
+
+    const { rows, cierreRowIndices } = await buildMovimientosRows('CARC');
+
+    expect(rows).toHaveLength(2);
+    expect(cierreRowIndices).toEqual([1]);
+    expect(rows[1][0]).toBe('Cierre Junio 2026');
   });
 });

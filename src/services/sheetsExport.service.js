@@ -27,6 +27,7 @@ const COLORS = {
   deuda1:    { red: 1,    green: 0.95, blue: 0.70 }, // 1-2 meses
   deuda2:    { red: 0.98, green: 0.80, blue: 0.45 }, // 3-5 meses
   deuda3:    { red: 0.90, green: 0.45, blue: 0.38 }, // 6+ meses
+  cierreBg:  { red: 0.88, green: 0.90, blue: 0.94 },
 };
 
 const TAB_COLOR = {
@@ -279,14 +280,55 @@ const buildEscuelitaRows = async (clubId) => {
   return { headers, rows };
 };
 
-const buildMovimientosRows = async (clubId) => {
-  const headers = ['Fecha', 'Tipo', 'Concepto', 'Monto', 'Método', 'Responsable'];
-  const movimientos = await Movimiento.find({ clubId, active: true }).sort({ date: -1 }).lean();
-  const rows = movimientos.map((m) => [
-    fmtDate(m.date), m.type, m.concept || m.description || '',
-    fmtMoney(m.amount), m.paymentMethod, m.responsable,
-  ]);
-  return { headers, rows };
+const MESES_LARGOS = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+
+// Orden cronológico (no el más reciente primero, como el resto de las
+// pestañas) porque acá lo que importa es poder seguir el saldo acumulado mes
+// a mes, igual que en la planilla de control de caja en papel — una fila de
+// "Cierre <mes>" al final de cada mes con el saldo teórico del sistema para
+// poder cotejarlo contra lo contado en efectivo + lo que hay en la cuenta.
+export const buildMovimientosRows = async (clubId) => {
+  const headers = ['Fecha', 'Tipo', 'Concepto', 'Monto', 'Método', 'Responsable', 'Saldo', 'Ingresos del mes', 'Egresos del mes'];
+  const movimientos = await Movimiento.find({ clubId, active: true }).sort({ date: 1 }).lean();
+
+  const rows = [];
+  const cierreRowIndices = [];
+  let saldo = 0;
+  let mesActual = null;
+  let ingresosMes = 0;
+  let egresosMes = 0;
+
+  const cerrarMes = () => {
+    if (mesActual === null) return;
+    rows.push(['Cierre ' + mesActual, '', '', '', '', '', fmtMoney(saldo), fmtMoney(ingresosMes), fmtMoney(egresosMes)]);
+    cierreRowIndices.push(rows.length - 1);
+  };
+
+  for (const m of movimientos) {
+    const fecha = new Date(m.date);
+    const mesKey = `${MESES_LARGOS[fecha.getMonth()]} ${fecha.getFullYear()}`;
+    if (mesActual !== null && mesKey !== mesActual) {
+      cerrarMes();
+      ingresosMes = 0;
+      egresosMes = 0;
+    }
+    mesActual = mesKey;
+
+    if (m.type === 'Ingreso') { saldo += m.amount; ingresosMes += m.amount; }
+    else { saldo -= m.amount; egresosMes += m.amount; }
+
+    rows.push([
+      fmtDate(m.date), m.type, m.concept || m.description || '',
+      fmtMoney(m.amount), m.paymentMethod, m.responsable,
+      fmtMoney(saldo), '', '',
+    ]);
+  }
+  cerrarMes();
+
+  return { headers, rows, cierreRowIndices };
 };
 
 const buildHorariosRows = async (clubId) => {
@@ -729,7 +771,7 @@ const clearExistingDecorations = async (spreadsheetId) => {
   }
 };
 
-const buildFormatRequests = (sheetId, numCols, cuotasOpts = null) => {
+const buildFormatRequests = (sheetId, numCols, cuotasOpts = null, cierreRowIndices = null) => {
   const requests = [
     {
       repeatCell: {
@@ -756,6 +798,18 @@ const buildFormatRequests = (sheetId, numCols, cuotasOpts = null) => {
       { addConditionalFormatRule: { rule: { ranges: [{ sheetId, startRowIndex: 1, startColumnIndex: adeudadosCol, endColumnIndex: adeudadosCol + 1 }], booleanRule: { condition: { type: 'NUMBER_BETWEEN', values: [{ userEnteredValue: '3' }, { userEnteredValue: '5' }] }, format: { backgroundColor: COLORS.deuda2 } } }, index: 3 } },
       { addConditionalFormatRule: { rule: { ranges: [{ sheetId, startRowIndex: 1, startColumnIndex: adeudadosCol, endColumnIndex: adeudadosCol + 1 }], booleanRule: { condition: { type: 'NUMBER_BETWEEN', values: [{ userEnteredValue: '1' }, { userEnteredValue: '2' }] }, format: { backgroundColor: COLORS.deuda1 } } }, index: 4 } },
     );
+  }
+
+  if (cierreRowIndices?.length) {
+    for (const rowIndex of cierreRowIndices) {
+      requests.push({
+        repeatCell: {
+          range: { sheetId, startRowIndex: rowIndex + 1, endRowIndex: rowIndex + 2, startColumnIndex: 0, endColumnIndex: numCols },
+          cell: { userEnteredFormat: { backgroundColor: COLORS.cierreBg, textFormat: { bold: true } } },
+          fields: 'userEnteredFormat(backgroundColor,textFormat)',
+        },
+      });
+    }
   }
 
   return requests;
@@ -816,6 +870,7 @@ export const exportToSheets = async ({ clubId, clubName = 'CARC', spreadsheetId:
       sheetId,
       tab.data.headers.length,
       tab.esCuotas ? { startCol: tab.data.dataStartCol, endCol: tab.data.dataEndCol, adeudadosCol: tab.data.adeudadosCol } : null,
+      tab.name === 'Movimientos' ? tab.data.cierreRowIndices : null,
     ));
   }
   const resumenSheetId = allSheetIds['Resumen'];
