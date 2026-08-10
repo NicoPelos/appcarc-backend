@@ -100,6 +100,14 @@ describe('syncSocioUserFromSocio', () => {
     expect(userDelPadre.save).not.toHaveBeenCalled();
   });
 
+  it('appcarc-backend#66: el fallback por email filtra por clubId (no se roba un User de otro club)', async () => {
+    User.findOne.mockResolvedValue(null);
+
+    await syncSocioUserFromSocio(buildSocio({ clubId: 'OTROCLUB' }));
+
+    expect(User.findOne).toHaveBeenNthCalledWith(2, { email: 'papa@carc.test', clubId: 'OTROCLUB' });
+  });
+
   it('sí reutiliza un User encontrado por email si todavía no tiene socioId propio (ej. cuenta de tutor)', async () => {
     const userTutor = { socioId: undefined, roles: ['rol-socio-id'], nombre: 'Tutor', save: vi.fn().mockResolvedValue(undefined) };
     User.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(userTutor);

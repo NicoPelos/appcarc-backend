@@ -63,6 +63,21 @@ describe('Usuarios auth handlers (unit)', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ token: 'mock-token' }));
   });
 
+  it('appcarc-backend#67: register no debe setear socioId:null explícito cuando no hay socio (rompe el índice unique+sparse)', async () => {
+    User.findOne.mockResolvedValue(null);
+    Socio.findOne.mockResolvedValue(null);
+    let constructedUser = null;
+    User.prototype.save.mockImplementation(async function () { constructedUser = this; return this; });
+    const req = { body: { email: 'sinSocio@b.com', password: 'pass', clubId: 'club1' } };
+    const res = mockRes();
+
+    await authHandlers.register(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(constructedUser.socioId).toBeUndefined();
+    expect('socioId' in constructedUser.toObject()).toBe(false);
+  });
+
   it('register should link socioId when socio exists with same email', async () => {
     User.findOne.mockResolvedValue(null);
     Socio.findOne.mockResolvedValue({ _id: 'socio1', nombre: 'Ana', clubId: 'club1' });

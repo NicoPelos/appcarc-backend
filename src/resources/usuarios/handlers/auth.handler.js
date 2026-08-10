@@ -219,13 +219,14 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: `El rol "${role || 'secretaria'}" no existe para este club.` });
     }
 
+    const socioId = socio?._id?.toString();
     const user = new User({
       email,
       password: hashedPassword,
       nombre: nombre || socio?.nombre,
       roles: rolesIds,
       clubId,
-      socioId: socio?._id?.toString() || null,
+      ...(socioId ? { socioId } : {}),
       mustChangePassword,
     });
     await user.save();

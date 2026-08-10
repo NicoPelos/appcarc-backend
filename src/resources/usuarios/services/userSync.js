@@ -16,7 +16,11 @@ export const syncSocioUserFromSocio = async (socio) => {
     user = await User.findOne({ socioId: socio._id.toString() });
   }
   if (!user) {
-    user = await User.findOne({ email });
+    // Acotado por clubId: el email no es único globalmente (ver User.js), y
+    // Socio.correoElectronico tampoco — sin este filtro, un socio de OTRO club
+    // con el mismo email de contacto podía "robarse" el User ajeno y quedar
+    // reasignado a este club (appcarc-backend#66).
+    user = await User.findOne({ email, clubId: socio.clubId });
   }
 
   if (user) {
