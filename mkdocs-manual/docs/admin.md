@@ -42,14 +42,16 @@ Un socio (por lo general, menor de edad) puede tener uno o más tutores vinculad
 **Vincular un tutor**
 
 1. Abrí la ficha del socio (el "hijo") y tocá `Vincular a un tutor`.
-2. Cargá el email del tutor y, si todavía no tiene cuenta en el club, su nombre.
+2. Elegí el modo, según si el tutor ya es socio del club o no:
+    - `Es socio del club` (modo por defecto): tocá `Buscar socio` y elegilo de la lista — queda vinculado al confirmar la búsqueda, sin más pasos.
+    - `No es socio`: cargá el email del tutor y, si todavía no tiene cuenta en el club, su nombre.
 
 <figure markdown>
   ![Formulario para vincular un tutor](assets/screenshots/admin-socio-vincular-tutor-form.png){ width="260" }
   <figcaption>Formulario para vincular un tutor</figcaption>
 </figure>
 
-3. Guardá.
+3. Si elegiste `No es socio`, guardá.
     - Si el email ya pertenece a una cuenta existente (sea socio o no), se usa esa cuenta.
     - Si es un email nuevo, se crea una cuenta de tutor y la app te muestra una contraseña temporal — comunicásela a mano, es la única vez que se muestra.
 
