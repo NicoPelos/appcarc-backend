@@ -55,7 +55,7 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
             --max-turns 50
-            --allowedTools "Read,Grep,Glob,Bash(git -C appcarc-backend log:*),Bash(git -C appcarc-backend diff:*),Bash(git -C appcarc-backend add:*),Bash(git -C appcarc-backend commit:*),Bash(git -C appcarc-backend push:*),Bash(git -C appcarc-backend config:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue close:*),Edit"
+            --allowedTools "Read,Grep,Glob,Bash(git -C appcarc-backend log:*),Bash(git -C appcarc-backend diff:*),Bash(git -C appcarc-backend add:*),Bash(git -C appcarc-backend commit:*),Bash(git -C appcarc-backend push:*),Bash(git -C appcarc-backend config:*),Bash(git -C appcarc-mobile log:*),Bash(git -C appcarc-mobile diff:*),Bash(git -C appcarc-mobile show:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue close:*),Edit"
           prompt: |
             Estás parado en un working directory con DOS checkouts hermanos:
             - ./appcarc-backend  → acá vive el manual de usuario (mkdocs-manual/docs/). Es el único repo
