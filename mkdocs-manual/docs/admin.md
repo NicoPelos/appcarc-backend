@@ -78,11 +78,12 @@ Un **Plan** es lo que se le ofrece a un socio: "Cuota Social", "Escuelita Princi
 
 1. Andá a `Planes` y tocá el botón de agregar (+).
 2. Elegí el tipo de plan (social, escuelita o muro libre).
-3. Ponele un nombre claro y una descripción — se usa en toda la app para que el resto del equipo sepa qué incluye.
-4. Asociale la etiqueta de cobro correspondiente (ver [Precios y etiquetas](#4-precios-y-etiquetas)) — de ahí sale el precio.
-5. Si es de escuelita, definí cuántas clases por semana incluye — eso es lo que controla el límite al tomar asistencia.
-6. Si el plan no debe generar deuda (por ejemplo "Socio Honorario" o un canje), activá `No genera deuda` — cualquier suscripción que se asigne con ese plan queda exenta automáticamente, sin tener que marcarlo caso por caso.
-7. Guardá. El plan ya queda disponible para inscribir socios (escuelita) o para asignar directamente ([Suscribir un socio a un plan](#7-suscribir-un-socio-a-un-plan)).
+3. Elegí la modalidad: `Mensual` (genera una cuota recurrente todos los meses, como Cuota Social o Escuelita) o `Por uso` (se cobra por uso puntual, como un pase Diario de Muro Libre, sin generar una cuota fija cada mes).
+4. Ponele un nombre claro y una descripción — se usa en toda la app para que el resto del equipo sepa qué incluye.
+5. Asociale la etiqueta de cobro correspondiente (ver [Precios y etiquetas](#4-precios-y-etiquetas)) — de ahí sale el precio.
+6. Si es de escuelita, definí cuántas clases por semana incluye — eso es lo que controla el límite al tomar asistencia.
+7. Si el plan no debe generar deuda (por ejemplo "Socio Honorario" o un canje), activá `No genera deuda` — cualquier suscripción que se asigne con ese plan queda exenta automáticamente, sin tener que marcarlo caso por caso.
+8. Guardá. El plan ya queda disponible para inscribir socios (escuelita) o para asignar directamente ([Suscribir un socio a un plan](#7-suscribir-un-socio-a-un-plan)).
 
 ## 4. Precios y etiquetas
 
