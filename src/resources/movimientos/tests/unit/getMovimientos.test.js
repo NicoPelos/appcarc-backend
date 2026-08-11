@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getMovimientosHandler } from '../../handlers/getMovimientos.handler.js';
 import Movimiento from '../../models/Movimiento.js';
 
@@ -20,6 +20,10 @@ const makeQuery = (queryable) => ({
 });
 
 describe('getMovimientosHandler', () => {
+  beforeEach(() => {
+    vi.spyOn(Movimiento, 'aggregate').mockResolvedValue([]);
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -69,6 +73,46 @@ describe('getMovimientosHandler', () => {
 
     const callArg = Movimiento.find.mock.calls[0][0];
     expect(callArg).not.toHaveProperty('type');
+  });
+
+  it('should filter by paymentMethod when provided', async () => {
+    vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(1);
+    vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([]));
+
+    const res = mockRes();
+    await getMovimientosHandler({ query: { paymentMethod: 'Transferencia' }, user: USER }, res);
+
+    expect(Movimiento.find).toHaveBeenCalledWith(expect.objectContaining({ paymentMethod: 'Transferencia' }));
+  });
+
+  it('should ignore invalid paymentMethod filter', async () => {
+    vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(0);
+    vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([]));
+
+    const res = mockRes();
+    await getMovimientosHandler({ query: { paymentMethod: 'Tarjeta' }, user: USER }, res);
+
+    const callArg = Movimiento.find.mock.calls[0][0];
+    expect(callArg).not.toHaveProperty('paymentMethod');
+  });
+
+  it('should return subtotalesPorMedioPago aggregated over the whole filtered set', async () => {
+    vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(0);
+    vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([]));
+    Movimiento.aggregate.mockResolvedValue([
+      { _id: { paymentMethod: 'Efectivo', type: 'Ingreso' }, total: 5000 },
+      { _id: { paymentMethod: 'Efectivo', type: 'Egreso' }, total: 1200 },
+      { _id: { paymentMethod: 'Transferencia', type: 'Ingreso' }, total: 30000 },
+    ]);
+
+    const res = mockRes();
+    await getMovimientosHandler({ query: {}, user: USER }, res);
+
+    const body = res.json.mock.calls[0][0];
+    expect(body.subtotalesPorMedioPago).toEqual({
+      Efectivo: { Ingreso: 5000, Egreso: 1200 },
+      Transferencia: { Ingreso: 30000, Egreso: 0 },
+    });
   });
 
   it('should filter by search across concept/responsable/socioNombre', async () => {

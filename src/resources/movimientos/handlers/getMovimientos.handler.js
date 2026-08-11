@@ -94,6 +94,13 @@ const buildDetalle = async (movimientos) => {
  *         required: false
  *         description: Buscar por concepto, responsable o nombre de socio (case-insensitive)
  *       - in: query
+ *         name: paymentMethod
+ *         schema:
+ *           type: string
+ *           enum: [Efectivo, Transferencia, MercadoPago]
+ *         required: false
+ *         description: Filtrar por medio de pago
+ *       - in: query
  *         name: desde
  *         schema:
  *           type: string
@@ -116,13 +123,14 @@ const buildDetalle = async (movimientos) => {
 
 export const getMovimientosHandler = async (req, res) => {
   try {
-    const { page = 1, limit = 20, trash, type, socioId, search, desde, hasta } = req.query;
+    const { page = 1, limit = 20, trash, type, paymentMethod, socioId, search, desde, hasta } = req.query;
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
     const showTrash = trash === 'true';
     const filter = { clubId: req.user?.clubId, active: !showTrash };
     if (type && ['Ingreso', 'Egreso'].includes(type)) filter.type = type;
+    if (paymentMethod && ['Efectivo', 'Transferencia', 'MercadoPago'].includes(paymentMethod)) filter.paymentMethod = paymentMethod;
     if (socioId) filter.socioId = socioId;
 
     if (search) {
@@ -136,7 +144,7 @@ export const getMovimientosHandler = async (req, res) => {
       if (hasta) filter.date.$lte = new Date(`${hasta}T23:59:59.999Z`);
     }
 
-    const [total, movimientosRaw] = await Promise.all([
+    const [total, movimientosRaw, subtotalesAgg] = await Promise.all([
       Movimiento.countDocuments(filter),
       Movimiento.find(filter)
         .sort({ date: -1 })
@@ -144,9 +152,23 @@ export const getMovimientosHandler = async (req, res) => {
         .limit(pageSize)
         .populate('sourceId')
         .lean(),
+      // Subtotal por medio de pago sobre TODO lo que matchea el filtro, no
+      // solo la página visible — para auditar caja (ej. "cuánto de esto es
+      // Efectivo vs Transferencia") hace falta el total real, no una muestra.
+      Movimiento.aggregate([
+        { $match: filter },
+        { $group: { _id: { paymentMethod: '$paymentMethod', type: '$type' }, total: { $sum: '$amount' } } },
+      ]),
     ]);
 
     const movimientos = await buildDetalle(movimientosRaw);
+
+    const subtotalesPorMedioPago = {};
+    for (const { _id, total: montoTotal } of subtotalesAgg) {
+      const pm = _id.paymentMethod;
+      subtotalesPorMedioPago[pm] = subtotalesPorMedioPago[pm] || { Ingreso: 0, Egreso: 0 };
+      subtotalesPorMedioPago[pm][_id.type] = montoTotal;
+    }
 
     res.status(200).json({
       page: pageNumber,
@@ -154,6 +176,7 @@ export const getMovimientosHandler = async (req, res) => {
       total,
       totalPages: Math.ceil(total / pageSize),
       movimientos,
+      subtotalesPorMedioPago,
     });
   } catch (error) {
     console.error('Error obteniendo movimientos:', error);
