@@ -104,9 +104,9 @@ describe('Socios handlers (unit)', () => {
     });
   });
 
-  it('getSocioByIdHandler should return socio when found', async () => {
+  it('getSocioByIdHandler should return socio when found, with userId (null si no tiene cuenta)', async () => {
     const fake = { _id: 'id1', apellido: 'Perez' };
-    Socio.findOne.mockResolvedValueOnce(fake);
+    Socio.findOne.mockReturnValueOnce({ lean: vi.fn().mockResolvedValue(fake) });
     const req = { params: { id: 'id1' }, user: { clubId: 'club1' } };
     const res = mockRes();
 
@@ -114,7 +114,19 @@ describe('Socios handlers (unit)', () => {
 
     expect(Socio.findOne).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(fake);
+    expect(res.json).toHaveBeenCalledWith({ ...fake, userId: null });
+  });
+
+  it('getSocioByIdHandler incluye el userId real cuando el socio tiene cuenta asociada', async () => {
+    const fake = { _id: 'id1', apellido: 'Perez' };
+    Socio.findOne.mockReturnValueOnce({ lean: vi.fn().mockResolvedValue(fake) });
+    User.findOne.mockResolvedValueOnce({ _id: 'user-99' });
+    const req = { params: { id: 'id1' }, user: { clubId: 'club1' } };
+    const res = mockRes();
+
+    await getSocioByIdHandler(req, res);
+
+    expect(res.json).toHaveBeenCalledWith({ ...fake, userId: 'user-99' });
   });
 
   it('getSocioByIdHandler should return 403 when socio-only user tries to view another socio', async () => {
@@ -129,14 +141,14 @@ describe('Socios handlers (unit)', () => {
 
   it('getSocioByIdHandler should allow socio to view own profile', async () => {
     const fake = { _id: 'mi-id', apellido: 'Yo' };
-    Socio.findOne.mockResolvedValueOnce(fake);
+    Socio.findOne.mockReturnValueOnce({ lean: vi.fn().mockResolvedValue(fake) });
     const req = { params: { id: 'mi-id' }, user: { clubId: 'club1', roles: ['socio'], socioId: 'mi-id' } };
     const res = mockRes();
 
     await getSocioByIdHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(fake);
+    expect(res.json).toHaveBeenCalledWith({ ...fake, userId: null });
   });
 
   it('updateSocioHandler should update and return socio', async () => {
