@@ -88,12 +88,15 @@ Esto es igual para cualquier rol — se accede desde la solapa `Perfil`, abajo a
 
 - **Foto de perfil:** tocá tu avatar (círculo con tus iniciales) para elegir una foto de tu galería, o para quitarla si ya tenés una puesta.
 - **Mis datos:** tus datos personales (nombre, contacto, etc.).
-- **Configuración → Apariencia:** appClub trae 6 temas de color para elegir, además de "Sistema" (que sigue el modo claro/oscuro del celular).
+- **Configuración:** desde acá accedés a varias secciones en una misma pantalla:
+    - **Apariencia:** appClub trae 5 temas de color para elegir, además de "Sistema" (que sigue el modo claro/oscuro del celular).
+    - **Seguridad** (si tu celular soporta huella o rostro): un interruptor para pedir esa verificación cada vez que abrís la app, en lugar de escribir la contraseña.
+    - **Cuenta** (solo si tenés más de un perfil vinculado, por ejemplo un padre/madre con hijos socios): un botón para cambiar de perfil sin cerrar sesión.
 - **Cambiar contraseña** y **Acerca de** (info de la app y cómo apoyar su desarrollo).
 
 <figure markdown>
-  ![Apariencia: 6 temas de color a elegir](assets/screenshots/perfil-apariencia.png){ width="260" }
-  <figcaption>Apariencia — 6 temas a elegir</figcaption>
+  ![Apariencia: 5 temas de color a elegir](assets/screenshots/perfil-apariencia.png){ width="260" }
+  <figcaption>Apariencia — 5 temas a elegir</figcaption>
 </figure>
 
 ### Cambiar contraseña
