@@ -100,7 +100,7 @@ describe('asignarSocioNumber', () => {
     const result = await asignarSocioNumber('CARC');
 
     expect(Club.findOneAndUpdate).toHaveBeenCalledWith(
-      { slug: 'CARC' },
+      { slug: 'carc' },
       { $inc: { ultimoSocioNumber: 1 } },
       { new: true }
     );

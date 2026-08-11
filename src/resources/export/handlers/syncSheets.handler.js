@@ -29,7 +29,12 @@ import Club from '../../clubs/models/Club.js';
 export const syncSheetsHandler = async (req, res) => {
   try {
     const clubId = req.user.clubId;
-    const club = await Club.findOne({ slug: clubId });
+    // Club.slug tiene lowercase:true en el schema — Mongoose lo aplica al
+    // filtro de la query, no solo al guardar, así que si clubId viene con
+    // otro casing (ej. "CARC") y el slug quedó mal guardado alguna vez sin
+    // pasar por Mongoose, esto nunca matchea. Normalizar acá evita depender
+    // de que el dato en la base esté siempre bien escrito.
+    const club = await Club.findOne({ slug: clubId.toLowerCase() });
 
     if (!club?.modulos?.exportSheets) {
       return res.status(403).json({ message: 'La exportación a Sheets no está habilitada para este club' });
