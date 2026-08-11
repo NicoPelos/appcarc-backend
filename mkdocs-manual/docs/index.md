@@ -106,10 +106,10 @@ Esto es igual para cualquier rol — se accede desde la solapa `Perfil`, abajo a
   <figcaption>Cambiar contraseña, desde Perfil</figcaption>
 </figure>
 
-Se pide la contraseña actual y la nueva (dos veces, para confirmarla). Es el mismo formulario en dos situaciones distintas:
+Se pide la nueva contraseña (dos veces, para confirmarla), y en algunos casos también la actual. Hay dos situaciones distintas, con un formulario levemente distinto en cada una:
 
-- **Voluntario:** desde `Perfil` → `Cambiar contraseña`, cuando quieras.
-- **Obligatorio:** en el primer login con una contraseña inicial (el DNI, para un socio; o la temporal que se genera al crear una cuenta de tutor — ver [vínculo padre-hijo](admin.md#2-vincular-a-un-tutor-padremadre-de-un-socio)), la app te lo pide antes de dejarte usar el resto de las pantallas.
+- **Voluntario:** desde `Perfil` → `Cambiar contraseña`, cuando quieras. Acá sí se pide la contraseña actual, además de la nueva.
+- **Obligatorio:** en el primer login con una contraseña inicial (el DNI, para un socio; o la temporal que se genera al crear una cuenta de tutor — ver [vínculo padre-hijo](admin.md#2-vincular-a-un-tutor-padremadre-de-un-socio)), la app te lo pide antes de dejarte usar el resto de las pantallas. Acá no se pide la contraseña actual (todavía no la cambiaste), solo la nueva dos veces.
 
 !!! tip "¿Ya sos del Club Andino Río Cuarto?"
     No hace falta usar las credenciales de prueba: entrá con tu usuario real y vas a encontrar las mismas pantallas que se explican en cada manual, con los datos reales del club.
