@@ -1,4 +1,4 @@
-import Movimiento from '../models/Movimiento.js';
+import Movimiento, { CATEGORIAS_MOVIMIENTO } from '../models/Movimiento.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
@@ -32,6 +32,8 @@ const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
  *                 type: number
  *               concept:
  *                 type: string
+ *               categoria:
+ *                 type: string
  *               paymentMethod:
  *                 type: string
  *                 enum: [Efectivo, Transferencia]
@@ -53,7 +55,7 @@ const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 export const updateMovimientoHandler = async (req, res) => {
   try {
     const { id } = req.params;
-    const { type, amount, concept, paymentMethod, description, date } = req.body;
+    const { type, amount, concept, categoria, paymentMethod, description, date } = req.body;
 
     const movimiento = await Movimiento.findOne({ _id: id, clubId: req.user?.clubId, active: true });
     if (!movimiento) return res.status(404).json({ message: 'Movimiento no encontrado' });
@@ -71,6 +73,17 @@ export const updateMovimientoHandler = async (req, res) => {
       return res.status(400).json({ message: 'El concepto no puede estar vacío' });
     }
 
+    // Categoría es obligatoria solo para movimientos manuales (los de cobro/muro_libre
+    // nunca la tienen ni la necesitan) — si el movimiento ya tiene una categoría
+    // (o se la están poniendo ahora), se valida contra la lista del type efectivo.
+    const tipoEfectivo = type ?? movimiento.type;
+    if (categoria !== undefined && !CATEGORIAS_MOVIMIENTO[tipoEfectivo].includes(categoria)) {
+      return res.status(400).json({ message: `La categoría debe ser una de: ${CATEGORIAS_MOVIMIENTO[tipoEfectivo].join(', ')}` });
+    }
+    if (movimiento.categoria && categoria === undefined && type !== undefined && type !== movimiento.type) {
+      return res.status(400).json({ message: 'Al cambiar el tipo de un movimiento con categoría, indicá la nueva categoría' });
+    }
+
     if (paymentMethod !== undefined && !VALID_PAYMENT_METHODS.includes(paymentMethod)) {
       return res.status(400).json({ message: 'La forma de pago debe ser Efectivo o Transferencia' });
     }
@@ -86,6 +99,7 @@ export const updateMovimientoHandler = async (req, res) => {
     if (type !== undefined) movimiento.type = type;
     if (amount !== undefined) movimiento.amount = amount;
     if (concept !== undefined) movimiento.concept = concept.trim();
+    if (categoria !== undefined) movimiento.categoria = categoria;
     if (paymentMethod !== undefined) movimiento.paymentMethod = paymentMethod;
     if (description !== undefined) movimiento.description = description;
     movimiento.updatedBy = req.user?.email ?? req.user?.id ?? 'Sistema';

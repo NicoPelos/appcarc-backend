@@ -79,6 +79,30 @@ describe('updateMovimientoHandler', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'La fecha del movimiento es inválida' });
   });
 
+  it('should return 400 when categoria no corresponde al type efectivo', async () => {
+    vi.spyOn(Movimiento, 'findOne').mockResolvedValue(makeMovimiento());
+    const res = mockRes();
+    await updateMovimientoHandler({ params: { id: 'mov1' }, body: { categoria: 'Honorarios' }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('should return 400 when se cambia el type de un movimiento con categoria sin indicar la nueva', async () => {
+    vi.spyOn(Movimiento, 'findOne').mockResolvedValue(makeMovimiento({ categoria: 'Viajes' }));
+    const res = mockRes();
+    await updateMovimientoHandler({ params: { id: 'mov1' }, body: { type: 'Egreso' }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'Al cambiar el tipo de un movimiento con categoría, indicá la nueva categoría' });
+  });
+
+  it('should update categoria along with type when both are provided', async () => {
+    const mov = makeMovimiento({ categoria: 'Viajes' });
+    vi.spyOn(Movimiento, 'findOne').mockResolvedValue(mov);
+    const res = mockRes();
+    await updateMovimientoHandler({ params: { id: 'mov1' }, body: { type: 'Egreso', categoria: 'Varios' }, user: USER }, res);
+    expect(mov.categoria).toBe('Varios');
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it('should update fields and return 200', async () => {
     const mov = makeMovimiento();
     vi.spyOn(Movimiento, 'findOne').mockResolvedValue(mov);

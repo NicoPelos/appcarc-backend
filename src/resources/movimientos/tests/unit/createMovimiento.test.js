@@ -13,6 +13,7 @@ const BASE_BODY = {
   type: 'Ingreso',
   amount: 1000,
   concept: 'Cuota mensual',
+  categoria: 'Otros',
   responsable: 'Secretaría',
   paymentMethod: 'Efectivo',
 };
@@ -53,6 +54,25 @@ describe('createMovimientoHandler', () => {
     await createMovimientoHandler({ body: { ...BASE_BODY, concept: '' }, user: USER }, res);
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ message: 'El concepto es obligatorio' });
+  });
+
+  it('should return 400 when categoria is missing', async () => {
+    const res = mockRes();
+    await createMovimientoHandler({ body: { ...BASE_BODY, categoria: undefined }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'La categoría debe ser una de: Viajes, Eventos, Ventas / Reventa, Subsidios / Donaciones, Otros' });
+  });
+
+  it('should return 400 when categoria no corresponde al type (Honorarios es de Egreso, no de Ingreso)', async () => {
+    const res = mockRes();
+    await createMovimientoHandler({ body: { ...BASE_BODY, type: 'Ingreso', categoria: 'Honorarios' }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('should accept a valid Egreso categoria', async () => {
+    const res = mockRes();
+    await createMovimientoHandler({ body: { ...BASE_BODY, type: 'Egreso', categoria: 'Honorarios' }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(201);
   });
 
   it('should return 400 when responsable is missing', async () => {

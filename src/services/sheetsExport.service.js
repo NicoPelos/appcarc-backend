@@ -4,7 +4,7 @@ import Cuota from '../resources/cuotas/models/Cuota.js';
 import Suscripcion from '../resources/suscripciones/models/Suscripcion.js';
 import Cobro from '../resources/cobros/models/Cobro.js';
 import Escuelita from '../resources/escuelita/models/Escuelita.js';
-import Movimiento from '../resources/movimientos/models/Movimiento.js';
+import Movimiento, { CATEGORIAS_MOVIMIENTO } from '../resources/movimientos/models/Movimiento.js';
 import Horarios from '../resources/horarios/models/Horarios.js';
 import Etiqueta from '../resources/etiquetas/models/Etiqueta.js';
 import Asistencia from '../resources/asistencias/models/Asistencia.js';
@@ -458,12 +458,15 @@ const categoriaIngresoPorEtiqueta = ({ nombre = '', usoSistema = '' }) => {
   return 'Otros';
 };
 
-// Los ingresos cargados a mano (sourceType:'manual', la mayor parte de la
-// plata histórica) no tienen ningún campo estructurado — solo un concepto de
-// texto libre tipeado por secretaría. Se categoriza por palabras clave; no es
-// perfecto (es texto humano, no un enum), pero cubre los patrones reales.
-const categoriaIngresoManual = (concept = '') => {
-  const c = concept.toLowerCase();
+// Los ingresos/egresos cargados a mano (sourceType:'manual') ya tienen un
+// campo Movimiento.categoria real (issue #55) — se usa directo. Estas dos
+// funciones de palabras clave quedan solo como red de seguridad para
+// registros viejos que quedaron sin categoria por algún motivo (no debería
+// pasar después del backfill, pero mejor no perder esa plata del resumen si
+// pasa).
+const categoriaIngresoManual = (m) => {
+  if (m.categoria) return m.categoria;
+  const c = (m.concept || '').toLowerCase();
   if (/trekking|treking|treeking|viaje/.test(c)) return 'Viajes';
   if (/muro|boulder/.test(c)) return 'Muro Libre';
   if (/adulto/.test(c)) return 'Escuela Adultos';
@@ -472,16 +475,19 @@ const categoriaIngresoManual = (concept = '') => {
   return 'Otros';
 };
 
-// Mismo criterio para egresos: palabras clave sobre texto libre.
-const categoriaEgreso = (concept = '') => {
-  const c = concept.toLowerCase();
+const categoriaEgresoManual = (m) => {
+  if (m.categoria) return m.categoria;
+  const c = (m.concept || '').toLowerCase();
   if (/honorario/.test(c)) return 'Honorarios';
   if (/alquiler|epec|federaci[oó]n patronal|federaci[oó]n andinista|impuesto/.test(c)) return 'Costos Fijos';
   return 'Varios';
 };
 
-const CATEGORIAS_INGRESO = ['Cuota Social', 'Escuela Niños', 'Escuela Adultos', 'Muro Libre', 'Viajes', 'Otros'];
-const CATEGORIAS_EGRESO = ['Honorarios', 'Costos Fijos', 'Varios'];
+const CATEGORIAS_INGRESO = [
+  'Cuota Social', 'Escuela Niños', 'Escuela Adultos', 'Muro Libre',
+  ...CATEGORIAS_MOVIMIENTO.Ingreso,
+];
+const CATEGORIAS_EGRESO = [...CATEGORIAS_MOVIMIENTO.Egreso];
 
 const sumarEn = (map, key, monto) => { map[key] = (map[key] || 0) + (monto || 0); };
 
@@ -490,7 +496,7 @@ const buildIngresosEgresosPorCategoria = async ({ clubId, desde, etiquetaMap }) 
   const egresos = Object.fromEntries(CATEGORIAS_EGRESO.map((c) => [c, 0]));
 
   const movimientos = await Movimiento.find({ clubId, active: true, date: { $gte: desde } })
-    .select('type sourceType sourceId concept amount')
+    .select('type sourceType sourceId concept categoria amount')
     .lean();
 
   const cobroIds = movimientos.filter((m) => m.sourceType === 'cobro' && m.sourceId).map((m) => m.sourceId);
@@ -512,10 +518,10 @@ const buildIngresosEgresosPorCategoria = async ({ clubId, desde, etiquetaMap }) 
       } else if (m.sourceType === 'muro_libre') {
         sumarEn(ingresos, 'Muro Libre', m.amount);
       } else {
-        sumarEn(ingresos, categoriaIngresoManual(m.concept), m.amount);
+        sumarEn(ingresos, categoriaIngresoManual(m), m.amount);
       }
     } else if (m.type === 'Egreso') {
-      sumarEn(egresos, categoriaEgreso(m.concept), m.amount);
+      sumarEn(egresos, categoriaEgresoManual(m), m.amount);
     }
   }
 

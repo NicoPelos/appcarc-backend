@@ -1,5 +1,16 @@
 import mongoose from 'mongoose';
 
+// Solo tiene sentido (y es obligatoria) para movimientos cargados a mano
+// (sourceType: 'manual', vía "Registrar Movimiento") — un cobro o un check-in
+// de Muro Libre ya tienen trazabilidad real por etiqueta/asistencia, no
+// necesitan que alguien elija una categoría de texto. Distinta lista según
+// type porque "Honorarios" no tiene sentido para un ingreso, ni "Viajes"
+// para un egreso. Ver issue #55.
+export const CATEGORIAS_MOVIMIENTO = {
+  Ingreso: ['Viajes', 'Eventos', 'Ventas / Reventa', 'Subsidios / Donaciones', 'Otros'],
+  Egreso: ['Honorarios', 'Costos Fijos', 'Varios'],
+};
+
 const MovimientoSchema = new mongoose.Schema({
   clubId: {
     type: String,
@@ -43,6 +54,12 @@ const MovimientoSchema = new mongoose.Schema({
   concept: {
     type: String,
     required: true,
+  },
+  // Ver CATEGORIAS_MOVIMIENTO más arriba — null para movimientos que no vienen
+  // de "Registrar Movimiento" (cobro, muro_libre), obligatoria para los que sí.
+  categoria: {
+    type: String,
+    default: null,
   },
   paymentMethod: {
     type: String,

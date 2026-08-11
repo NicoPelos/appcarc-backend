@@ -11,7 +11,13 @@ vi.mock('../../../resources/cuotas/models/Cuota.js', () => ({ default: { find: v
 vi.mock('../../../resources/suscripciones/models/Suscripcion.js', () => ({ default: { find: vi.fn() } }));
 vi.mock('../../../resources/cobros/models/Cobro.js', () => ({ default: { find: vi.fn() } }));
 vi.mock('../../../resources/escuelita/models/Escuelita.js', () => ({ default: { find: vi.fn() } }));
-vi.mock('../../../resources/movimientos/models/Movimiento.js', () => ({ default: { find: vi.fn() } }));
+vi.mock('../../../resources/movimientos/models/Movimiento.js', () => ({
+  default: { find: vi.fn() },
+  CATEGORIAS_MOVIMIENTO: {
+    Ingreso: ['Viajes', 'Eventos', 'Ventas / Reventa', 'Subsidios / Donaciones', 'Otros'],
+    Egreso: ['Honorarios', 'Costos Fijos', 'Varios'],
+  },
+}));
 vi.mock('../../../resources/horarios/models/Horarios.js', () => ({ default: { find: vi.fn() } }));
 vi.mock('../../../resources/etiquetas/models/Etiqueta.js', () => ({ default: { find: vi.fn(), findOne: vi.fn() } }));
 vi.mock('../../../resources/asistencias/models/Asistencia.js', () => ({ default: { find: vi.fn() } }));

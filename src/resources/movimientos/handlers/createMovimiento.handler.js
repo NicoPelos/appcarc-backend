@@ -1,4 +1,4 @@
-import Movimiento from '../models/Movimiento.js';
+import Movimiento, { CATEGORIAS_MOVIMIENTO } from '../models/Movimiento.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
@@ -31,6 +31,7 @@ const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
  *         - type
  *         - amount
  *         - concept
+ *         - categoria
  *         - responsable
  *         - paymentMethod
  *       properties:
@@ -45,6 +46,9 @@ const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
  *         concept:
  *           type: string
  *           description: Concepto del movimiento
+ *         categoria:
+ *           type: string
+ *           description: 'Categoría — depende de type. Ingreso: Viajes, Eventos, Ventas / Reventa, Subsidios / Donaciones, Otros. Egreso: Honorarios, Costos Fijos, Varios.'
  *         responsable:
  *           type: string
  *           description: Quién gestiona/autoriza el movimiento (no a nombre de quién es el ingreso/egreso)
@@ -70,6 +74,7 @@ export const createMovimientoHandler = async (req, res) => {
       type,
       amount,
       concept,
+      categoria,
       responsable,
       paymentMethod,
       socioNombre,
@@ -87,6 +92,10 @@ export const createMovimientoHandler = async (req, res) => {
 
     if (!concept || typeof concept !== 'string') {
       return res.status(400).json({ message: 'El concepto es obligatorio' });
+    }
+
+    if (!categoria || !CATEGORIAS_MOVIMIENTO[type].includes(categoria)) {
+      return res.status(400).json({ message: `La categoría debe ser una de: ${CATEGORIAS_MOVIMIENTO[type].join(', ')}` });
     }
 
     if (!responsable || typeof responsable !== 'string') {
@@ -109,6 +118,7 @@ export const createMovimientoHandler = async (req, res) => {
       type,
       amount,
       concept,
+      categoria,
       paymentMethod,
       socioNombre: socioNombre || '',
       description: description || '',
