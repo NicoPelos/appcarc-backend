@@ -28,5 +28,10 @@
     "sha": "1abf2065d7ca6948c39eb58ee9db5fb4cafa1083",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-10T07:52:01Z"
+  },
+  "src/resources/vinculos": {
+    "sha": "8db13facf4295a64eb90cbc7376191a4d9f8246d",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-11T07:17:27Z"
   }
 }
