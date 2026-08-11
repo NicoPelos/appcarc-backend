@@ -12,7 +12,6 @@ const horariosSchema = new mongoose.Schema({
   idHorarios:   { type: String, unique: true },
   createdBy:    String,
   updatedBy:    String,
-  tipoTarea:    String,
   active:       { type: Boolean, default: true, index: true },
   deletedAt:    { type: Date, default: null },
   deletedBy:    { type: String, default: null },

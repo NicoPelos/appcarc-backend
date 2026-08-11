@@ -474,7 +474,6 @@ export async function resetDemoClub() {
               fecha: new Date(Date.now() - diasAtras * 24 * 60 * 60 * 1000),
               etiquetaId: etiquetaHoraProfesor._id,
               totalHoras: horas,
-              tipoTarea: 'Clases de escuelita',
               observaciones: 'Horas dictando clases de escuelita.',
               createdBy: BY,
               updatedBy: BY,

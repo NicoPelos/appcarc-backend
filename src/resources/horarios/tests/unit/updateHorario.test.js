@@ -17,7 +17,6 @@ const makeHorario = (overrides = {}) => ({
   horaEntrada: new Date('2026-06-01T19:30:00'),
   horaSalida: new Date('2026-06-01T22:00:00'),
   totalHoras: 2.5,
-  tipoTarea: 'Palestrero',
   observaciones: '',
   active: true,
   updatedBy: '',
@@ -34,7 +33,7 @@ describe('updateHorarioHandler', () => {
   it('should return 404 when horario is not found', async () => {
     vi.spyOn(Horarios, 'findOne').mockResolvedValue(null);
     const res = mockRes();
-    await updateHorarioHandler({ params: { id: 'h1' }, body: { tipoTarea: 'Palestrero' }, user: USER }, res);
+    await updateHorarioHandler({ params: { id: 'h1' }, body: { totalHoras: 3 }, user: USER }, res);
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith({ message: 'Horario no encontrado' });
   });

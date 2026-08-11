@@ -37,8 +37,6 @@ const ROLES_READ_ONLY = ['autoridad', 'superadmin'];
  *                 format: date-time
  *               totalHoras:
  *                 type: number
- *               tipoTarea:
- *                 type: string
  *               observaciones:
  *                 type: string
  *     responses:

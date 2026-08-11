@@ -54,7 +54,6 @@ const rowToHorario = (header, row) => {
     idHorarios:   get('idHorarios'),
     createdBy:    get('CreadoPor'),
     updatedBy:    get('ActualizadoPor'),
-    tipoTarea:    get('Tipo de Tarea'),
   };
 };
 

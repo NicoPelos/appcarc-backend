@@ -26,9 +26,6 @@ const ROLES_VER_TODO = ['admin', 'secretaria', 'autoridad', 'superadmin'];
  *         name: nombre
  *         schema: { type: string }
  *       - in: query
- *         name: tipoTarea
- *         schema: { type: string }
- *       - in: query
  *         name: desde
  *         schema: { type: string, format: date }
  *       - in: query

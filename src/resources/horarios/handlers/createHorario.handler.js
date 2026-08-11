@@ -31,8 +31,6 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *                 format: date-time
  *               totalHoras:
  *                 type: number
- *               tipoTarea:
- *                 type: string
  *               observaciones:
  *                 type: string
  *     responses:

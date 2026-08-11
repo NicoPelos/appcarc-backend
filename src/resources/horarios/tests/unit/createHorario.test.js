@@ -19,7 +19,6 @@ const BASE_BODY = {
   horaEntrada: '2026-06-01T19:30:00',
   horaSalida: '2026-06-01T22:00:00',
   totalHoras: 2.5,
-  tipoTarea: 'Palestrero',
 };
 
 describe('createHorarioHandler', () => {
