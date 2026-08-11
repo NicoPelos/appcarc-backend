@@ -501,5 +501,3 @@ export const changePassword = async (req, res) => {
     res.status(500).json({ message: 'Error en el servidor al cambiar contraseña.' });
   }
 };
-
-export default { register, login, selectProfile, getProfiles, switchProfile, googleLogin, logout, changePassword };
