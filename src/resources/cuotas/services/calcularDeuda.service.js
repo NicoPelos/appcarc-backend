@@ -177,11 +177,19 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
 
       const candidatos = expandPeriodos(desde, hasta);
 
+      // Ojo: se busca por etiquetaId, NO por suscripcionId. Editar la grilla de
+      // meses (setMesesActivos) puede desactivar el tramo viejo y crear uno
+      // nuevo con otro _id para cubrir el mismo rango de fechas — si acá
+      // filtráramos por suscripcionId exacto, todas las Cuota ya pagadas que
+      // quedaron enganchadas al tramo anterior dejarían de reconocerse y la
+      // deuda se recalcularía de golpe como si nunca se hubiera pagado nada
+      // (bug real visto en producción, caso Julieta Tobar 2026-08-11). Una
+      // Cuota pertenece a (socio, etiqueta, período), no a un tramo puntual.
       const [ultimaCuota, pagadas] = await Promise.all([
         Cuota.findOne({
           socioId,
           clubId,
-          suscripcionId: sus._id,
+          etiquetaId: sus.etiquetaId._id,
           estado: 'pagada',
           periodo: { $lte: hoy },
         })
@@ -190,7 +198,7 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
         Cuota.find({
           socioId,
           clubId,
-          suscripcionId: sus._id,
+          etiquetaId: sus.etiquetaId._id,
           estado: 'pagada',
           periodo: { $in: candidatos },
         }).lean(),
