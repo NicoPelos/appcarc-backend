@@ -31,5 +31,3 @@ export const RESOLVERS = {
     return new Map(docs.map((d) => [String(d._id), d.nombre || d.email]));
   },
 };
-
-export const MODELOS_RESOLVIBLES = Object.keys(RESOLVERS);
