@@ -1,8 +1,8 @@
 import Cuota from '../models/Cuota.js';
-import Precios from '../models/Precios.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import CargoPuntual from '../../cargosPuntuales/models/CargoPuntual.js';
+import { findPrecioVigente } from './findPrecioVigente.service.js';
 
 const periodoHoy = () => {
   const now = new Date();
@@ -26,18 +26,6 @@ const expandPeriodos = (desde, hasta) => {
   return periodos;
 };
 
-const getPrecioVigente = async ({ clubId, etiquetaId, fecha }) => {
-  return Precios.findOne({
-    clubId,
-    etiquetaId,
-    active: true,
-    vigenteDesde: { $lte: fecha },
-    $or: [{ vigenteHasta: null }, { vigenteHasta: { $gte: fecha } }],
-  })
-    .sort({ vigenteDesde: -1 })
-    .populate('etiquetaId', 'nombre unidad uso_sistema')
-    .lean();
-};
 
 /**
  * Cargos que no son mensuales/por suscripción: pases DIARIOS de Muro Libre
@@ -207,10 +195,10 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
       const pagadasSet = new Set(pagadas.map((c) => c.periodo));
       const pendientes = candidatos.filter((p) => !pagadasSet.has(p));
 
-      const precio = await getPrecioVigente({
+      const precio = await findPrecioVigente({
         clubId,
         etiquetaId: sus.etiquetaId._id,
-        fecha: ahora,
+        date: ahora,
       });
 
       const precioUnitario = precio?.monto ?? null;

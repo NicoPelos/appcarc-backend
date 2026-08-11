@@ -46,10 +46,14 @@ const mockEtiquetaMuroLibre = (result) => {
 };
 
 const mockPrecioVigente = (result) => {
-  const sessionQuery = { session: vi.fn().mockResolvedValue(result) };
-  const sortQuery = { sort: vi.fn().mockReturnValue(sessionQuery) };
+  // findPrecioVigente hace .sort().lean(), y .lean() devuelve algo awaiteable
+  // directamente (sin session) o encadenable con .session(session) — replica
+  // ambas formas.
+  const leanQuery = Promise.resolve(result);
+  leanQuery.session = vi.fn().mockResolvedValue(result);
+  const sortQuery = { sort: vi.fn().mockReturnValue({ lean: vi.fn().mockReturnValue(leanQuery) }) };
   Precios.findOne = vi.fn().mockReturnValue(sortQuery);
-  return { sortQuery, sessionQuery };
+  return { sortQuery, leanQuery };
 };
 
 const validItem = {

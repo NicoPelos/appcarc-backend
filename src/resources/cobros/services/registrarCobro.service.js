@@ -1,13 +1,13 @@
 import mongoose from 'mongoose';
 import Socio from '../../socios/models/Socio.js';
 import Cuota from '../../cuotas/models/Cuota.js';
-import Precios from '../../cuotas/models/Precios.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import CargoPuntual from '../../cargosPuntuales/models/CargoPuntual.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Cobro from '../models/Cobro.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
+import { findPrecioVigente } from '../../cuotas/services/findPrecioVigente.service.js';
 
 // 'MercadoPago' solo lo asigna el webhook al confirmar un pago online — nunca
 // lo elige un humano a mano (RegistrarCobroScreen solo ofrece Efectivo/Transferencia).
@@ -52,18 +52,6 @@ const getPeriodosFromItem = (item, index) => {
   }
 
   return Array.from({ length: cantidad }, (_, offset) => addMonthsToPeriodo(periodoInicial, offset));
-};
-
-const findPrecioVigente = async ({ clubId, etiquetaId, date, session = null }) => {
-  const query = Precios.findOne({
-    clubId,
-    etiquetaId,
-    active: true,
-    vigenteDesde: { $lte: date },
-    $or: [{ vigenteHasta: null }, { vigenteHasta: { $gte: date } }],
-  }).sort({ vigenteDesde: -1 });
-
-  return session ? query.session(session) : query;
 };
 
 const normalizeItem = async ({ item, index, clubId, date, precioCache, session = null }) => {

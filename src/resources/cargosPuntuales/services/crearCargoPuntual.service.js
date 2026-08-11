@@ -1,7 +1,7 @@
 import Socio from '../../socios/models/Socio.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
-import Precios from '../../cuotas/models/Precios.js';
 import CargoPuntual from '../models/CargoPuntual.js';
+import { findPrecioVigente } from '../../cuotas/services/findPrecioVigente.service.js';
 
 class BusinessError extends Error {
   constructor(message, status = 400) {
@@ -14,16 +14,6 @@ class BusinessError extends Error {
 const periodoActual = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-};
-
-const findPrecioVigente = async ({ clubId, etiquetaId, date }) => {
-  return Precios.findOne({
-    clubId,
-    etiquetaId,
-    active: true,
-    vigenteDesde: { $lte: date },
-    $or: [{ vigenteHasta: null }, { vigenteHasta: { $gte: date } }],
-  }).sort({ vigenteDesde: -1 }).lean();
 };
 
 export const crearCargoPuntual = async ({ clubId, user, body }) => {

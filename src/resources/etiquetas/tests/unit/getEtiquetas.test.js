@@ -4,8 +4,12 @@ import { getEtiquetasHandler } from '../../handlers/getEtiquetas.handler.js';
 vi.mock('../../models/Etiqueta.js', () => ({
   default: { find: vi.fn() },
 }));
+vi.mock('../../../cuotas/models/Precios.js', () => ({
+  default: { find: vi.fn() },
+}));
 
 import Etiqueta from '../../models/Etiqueta.js';
+import Precios from '../../../cuotas/models/Precios.js';
 
 const mockUser = { clubId: 'CARC' };
 
@@ -16,12 +20,21 @@ const mockRes = () => {
   return res;
 };
 
-beforeEach(() => vi.clearAllMocks());
+const mockPrecios = (result = []) => {
+  Precios.find.mockReturnValue({ sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(result) }) });
+};
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockPrecios();
+});
 
 describe('getEtiquetasHandler', () => {
-  it('devuelve lista de etiquetas activas', async () => {
-    const etiquetas = [{ nombre: 'Cuota Social', unidad: 'mes' }];
+  it('devuelve lista de etiquetas activas con precioVigente', async () => {
+    const etiquetaId = '507f1f77bcf86cd799439011';
+    const etiquetas = [{ _id: etiquetaId, nombre: 'Cuota Social', unidad: 'mes' }];
     Etiqueta.find.mockReturnValue({ sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(etiquetas) }) });
+    mockPrecios([{ etiquetaId, monto: 6000 }]);
 
     const req = { user: mockUser, query: {} };
     const res = mockRes();
@@ -30,7 +43,19 @@ describe('getEtiquetasHandler', () => {
 
     expect(Etiqueta.find).toHaveBeenCalledWith(expect.objectContaining({ active: true }));
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith(etiquetas);
+    expect(res.json).toHaveBeenCalledWith([{ ...etiquetas[0], precioVigente: 6000 }]);
+  });
+
+  it('precioVigente queda null si la etiqueta no tiene ningún precio configurado', async () => {
+    const etiquetas = [{ _id: '507f1f77bcf86cd799439011', nombre: 'Sin precio', unidad: 'mes' }];
+    Etiqueta.find.mockReturnValue({ sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(etiquetas) }) });
+
+    const req = { user: mockUser, query: {} };
+    const res = mockRes();
+
+    await getEtiquetasHandler(req, res);
+
+    expect(res.json).toHaveBeenCalledWith([{ ...etiquetas[0], precioVigente: null }]);
   });
 
   it('filtra por uso_sistema', async () => {
