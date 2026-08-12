@@ -3,13 +3,9 @@ import { syncSocioUserFromSocio } from '../../usuarios/services/userSync.js';
 
 // Asigna el próximo socioNumber del club de forma atómica ($inc no pisa
 // incrementos concurrentes de dos altas simultáneas) — ver issue #47.
-// clubId.toLowerCase(): Club.slug tiene lowercase:true en el schema, y si
-// alguna vez el dato quedó guardado con otro casing sin pasar por Mongoose,
-// esta búsqueda por slug exacto no matchea nunca (visto en producción,
-// issue #75 — dejó socios sin socioNumber asignado en silencio).
 export const asignarSocioNumber = async (clubId) => {
   const club = await Club.findOneAndUpdate(
-    { slug: clubId.toLowerCase() },
+    { slug: clubId },
     { $inc: { ultimoSocioNumber: 1 } },
     { new: true }
   );
