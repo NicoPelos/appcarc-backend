@@ -162,11 +162,11 @@ export async function sincronizarEscuelitaPorSuscripcionModificada({ clubId, soc
   }).session(session);
   if (sigueVigente) return;
 
-  const alumno = await Escuelita.findOne({ clubId, socioId, active: true, estado: 'activo' }).session(session);
+  const alumno = await Escuelita.findOne({ clubId, socioId, active: true }).session(session);
   if (!alumno) return;
 
   const before = alumno.toObject();
-  alumno.estado = 'baja';
+  alumno.active = false;
   alumno.updatedBy = req.user.email || req.user.id;
   await alumno.save({ session });
   logAudit({ clubId, req, action: 'UPDATE', resource: 'Escuelita', resourceId: alumno._id, before, after: alumno.toObject() });

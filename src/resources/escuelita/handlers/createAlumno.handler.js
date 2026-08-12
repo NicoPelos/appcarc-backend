@@ -44,10 +44,6 @@ import { sincronizarSuscripcionEscuelita } from '../services/sincronizarSuscripc
  *           type: string
  *           format: date-time
  *           description: Fecha de inscripción del alumno. Si no se envía, se usa la fecha actual.
- *         estado:
- *           type: string
- *           enum: [activo, baja]
- *           description: Estado del alumno en escuelita (activo o baja). Si no se envía, se asume "activo".
  *         observaciones:
  *           type: string
  *           description: Observaciones adicionales sobre el alumno de escuelita (opcional)
@@ -56,14 +52,10 @@ import { sincronizarSuscripcionEscuelita } from '../services/sincronizarSuscripc
 export const createAlumnoHandler = async (req, res) => {
   const session = await mongoose.startSession();
   try {
-    const { socioId, fechaInscripcion, estado = 'activo', observaciones = '', planId } = req.body;
+    const { socioId, fechaInscripcion, observaciones = '', planId } = req.body;
 
     if (!socioId) {
       return res.status(400).json({ message: 'socioId es obligatorio' });
-    }
-
-    if (!['activo', 'baja'].includes(estado)) {
-      return res.status(400).json({ message: 'Estado de alumno inválido' });
     }
 
     const socio = await Socio.findOne({ _id: socioId, clubId: req.user?.clubId, active: true });
@@ -88,7 +80,6 @@ export const createAlumnoHandler = async (req, res) => {
         socioId,
         dni: socio.dni || '',
         fechaInscripcion: inscriptionDate,
-        estado,
         planId: planId || null,
         observaciones,
         createdBy: req.user.email || req.user.id,

@@ -193,14 +193,14 @@ describe('sincronizarEscuelitaPorSuscripcionModificada (appcarc-backend#62)', ()
     expect(Escuelita.findOne).not.toHaveBeenCalled();
   });
 
-  it('da de baja la ficha de escuelita si no queda ninguna suscripción vigente este mes', async () => {
+  it('borra (soft-delete) la ficha de escuelita si no queda ninguna suscripción vigente este mes', async () => {
     Suscripcion.exists = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(null) });
-    const alumno = { _id: 'alumno1', estado: 'activo', toObject: () => ({ estado: 'activo' }), save: vi.fn().mockResolvedValue(undefined) };
+    const alumno = { _id: 'alumno1', active: true, toObject: () => ({ active: true }), save: vi.fn().mockResolvedValue(undefined) };
     Escuelita.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(alumno) });
 
     await sincronizarEscuelitaPorSuscripcionModificada({ clubId: CLUB_ID, socioId: SOCIO_ID, etiquetaId: 'etq-escuelita', req, session });
 
-    expect(alumno.estado).toBe('baja');
+    expect(alumno.active).toBe(false);
     expect(alumno.save).toHaveBeenCalledWith({ session });
     expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({ resource: 'Escuelita', action: 'UPDATE', resourceId: 'alumno1' }));
   });

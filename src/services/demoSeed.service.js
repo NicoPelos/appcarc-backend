@@ -147,7 +147,7 @@ const SOCIOS_DEMO = [
   { dni: '99000010', socioNumber: 'DEMO-010', nombre: 'Demo', apellido: 'Socio', estado: 'Activo', deudaMeses: 1, loginRole: 'socio', muroLibre: true, muroLibreAdvertencia: true },
   { dni: '99000011', socioNumber: 'DEMO-011', nombre: 'Demo', apellido: 'Admin', estado: 'Activo', deudaMeses: 0, loginRole: 'admin' },
   { dni: '99000012', socioNumber: 'DEMO-012', nombre: 'Julia', apellido: 'Adherente Con Deuda', estado: 'Adherente', deudaMeses: 3 },
-  { dni: '99000013', socioNumber: 'DEMO-013', nombre: 'Karina', apellido: 'Escuelita Baja', estado: 'Activo', deudaMeses: 0, escuelitaPlan: 'principiantesX2', escuelitaEstado: 'baja' },
+  { dni: '99000013', socioNumber: 'DEMO-013', nombre: 'Karina', apellido: 'Ex Escuelita', estado: 'Activo', deudaMeses: 0, escuelitaPlan: 'principiantesX2', escuelitaEstado: 'baja' },
   { dni: '99000014', socioNumber: 'DEMO-014', nombre: 'Pedro', apellido: 'Profesor', estado: 'Activo', deudaMeses: 0, esStaffProfesor: true, loginRole: 'profesor' },
   { dni: '99000015', socioNumber: 'DEMO-015', nombre: 'Rocío', apellido: 'Palestrero', estado: 'Activo', deudaMeses: 0, loginRole: 'palestrero' },
   { dni: '99000016', socioNumber: 'DEMO-016', nombre: 'Sofía', apellido: 'Secretaria', estado: 'Activo', deudaMeses: 0, loginRole: 'secretaria' },
@@ -363,7 +363,9 @@ export async function resetDemoClub() {
 
         if (def.escuelitaPlan) {
           const cfg = ESCUELITA_PLANES[def.escuelitaPlan];
-          const escuelitaEstado = def.escuelitaEstado || 'activo';
+          // "Escuelita Baja" ya no es un estado visible — se modela igual que
+          // una baja real (borrar): la ficha y la suscripción quedan inactivas.
+          const alumnoBorrado = def.escuelitaEstado === 'baja';
 
           const suscripcionEscuelita = (await Suscripcion.create([{
             clubId: DEMO_CLUB_ID,
@@ -371,7 +373,7 @@ export async function resetDemoClub() {
             planId: cfg.plan._id,
             etiquetaId: cfg.etiquetaId,
             fechaDesde,
-            active: true,
+            active: !alumnoBorrado,
             createdBy: BY,
             updatedBy: BY,
           }], { session }))[0];
@@ -381,12 +383,11 @@ export async function resetDemoClub() {
             socioId: socio._id,
             dni: socio.dni,
             fechaInscripcion: vigenteDesde,
-            estado: escuelitaEstado,
             planId: cfg.plan._id,
-            observaciones: escuelitaEstado === 'baja'
-              ? 'Alumno dado de baja de la escuelita — no se anota asistencia.'
+            observaciones: alumnoBorrado
+              ? 'Inscripción borrada — no se anota asistencia.'
               : `Alumno de "${cfg.plan.nombre}", ${cfg.frecuencia}x por semana.`,
-            active: true,
+            active: !alumnoBorrado,
             createdBy: BY,
             updatedBy: BY,
           }], { session });
@@ -404,8 +405,8 @@ export async function resetDemoClub() {
           }
 
           // Clases a las que asistió, respetando su frecuencia semanal — un
-          // alumno dado de baja no tiene asistencia reciente.
-          if (escuelitaEstado === 'activo') {
+          // alumno con la inscripción borrada no tiene asistencia reciente.
+          if (!alumnoBorrado) {
             const SEMANAS_HISTORIAL = 4;
             for (let semana = 0; semana < SEMANAS_HISTORIAL; semana++) {
               for (let clase = 0; clase < cfg.frecuencia; clase++) {

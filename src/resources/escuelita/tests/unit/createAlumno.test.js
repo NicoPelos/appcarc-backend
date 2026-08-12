@@ -46,14 +46,6 @@ describe('createAlumnoHandler', () => {
     expect(Socio.findOne).not.toHaveBeenCalled();
   });
 
-  it('should return 400 when estado is invalid', async () => {
-    const res = mockRes();
-    await createAlumnoHandler({ body: { socioId: SOCIO_ID, estado: 'suspendido' }, user: USER }, res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Estado de alumno inválido' });
-    expect(Socio.findOne).not.toHaveBeenCalled();
-  });
-
   it('should return 404 when socio does not exist or is inactive', async () => {
     Socio.findOne.mockResolvedValue(null);
     const res = mockRes();

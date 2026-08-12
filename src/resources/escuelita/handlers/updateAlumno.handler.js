@@ -39,10 +39,6 @@ import { sincronizarSuscripcionEscuelita } from '../services/sincronizarSuscripc
  *     AlumnoUpdateRequest:
  *       type: object
  *       properties:
- *         estado:
- *           type: string
- *           enum: [activo, baja]
- *           description: Estado del alumno en escuelita (activo o baja)
  *         fechaInscripcion:
  *           type: string
  *           format: date-time
@@ -56,14 +52,7 @@ export const updateAlumnoHandler = async (req, res) => {
   const session = await mongoose.startSession();
   try {
     const updates = {};
-    const { estado, fechaInscripcion, observaciones, planId } = req.body;
-
-    if (estado !== undefined) {
-      if (!['activo', 'baja'].includes(estado)) {
-        return res.status(400).json({ message: 'Estado de alumno inválido' });
-      }
-      updates.estado = estado;
-    }
+    const { fechaInscripcion, observaciones, planId } = req.body;
 
     if (fechaInscripcion !== undefined) {
       const inscriptionDate = new Date(fechaInscripcion);

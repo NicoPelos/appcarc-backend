@@ -29,7 +29,7 @@ import Asistencia from '../../../asistencias/models/Asistencia.js';
 const mockUser = { clubId: 'CARC', email: 'admin@carc.com', id: 'u1' };
 const mockSocio = { _id: 'socio1', nombre: 'Ana', apellido: 'García', dni: '12345678' };
 const mockPlan = { _id: 'plan1', nombre: 'PrincipiantesX2', atributos: { frecuenciaSemanal: 2 } };
-const mockAlumno = { estado: 'activo', socioId: 'socio1', planId: mockPlan };
+const mockAlumno = { socioId: 'socio1', planId: mockPlan };
 
 const mockRes = () => {
   const res = {};
@@ -68,18 +68,6 @@ describe('checkinEscuelitaHandler', () => {
     await checkinEscuelitaHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(404);
-  });
-
-  it('retorna 402 si la inscripción está dada de baja', async () => {
-    Escuelita.findOne.mockReturnValue({
-      populate: vi.fn().mockResolvedValue({ ...mockAlumno, estado: 'baja' }),
-    });
-    const req = { user: mockUser, body: { token: 'tok' } };
-    const res = mockRes();
-
-    await checkinEscuelitaHandler(req, res);
-
-    expect(res.status).toHaveBeenCalledWith(402);
   });
 
   it('registra con advertencias si no tiene cuota pagada', async () => {

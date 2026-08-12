@@ -40,13 +40,6 @@ describe('updateAlumnoHandler', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it('devuelve 400 si el estado es inválido', async () => {
-    const res = mockRes();
-    await updateAlumnoHandler({ params: { id: ALUMNO_ID }, body: { estado: 'inexistente' }, user: USER }, res);
-    expect(res.status).toHaveBeenCalledWith(400);
-    expect(Escuelita.findOne).not.toHaveBeenCalled();
-  });
-
   it('devuelve 400 si fechaInscripcion es inválida', async () => {
     const res = mockRes();
     await updateAlumnoHandler({ params: { id: ALUMNO_ID }, body: { fechaInscripcion: 'no-es-fecha' }, user: USER }, res);

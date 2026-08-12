@@ -20,12 +20,6 @@ const escuelitaSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
-  estado: {
-    type: String,
-    enum: ['activo', 'baja'],
-    default: 'activo',
-    index: true,
-  },
   planId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Plan',

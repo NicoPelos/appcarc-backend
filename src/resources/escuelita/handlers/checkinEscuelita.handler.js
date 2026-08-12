@@ -39,8 +39,6 @@ import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC } from '../../../services
  *         description: Asistencia registrada
  *       400:
  *         description: Datos inválidos
- *       402:
- *         description: Sin cuota pagada o límite de clases alcanzado
  *       404:
  *         description: Socio o alumno no encontrado
  *       500:
@@ -72,10 +70,6 @@ export const checkinEscuelitaHandler = async (req, res) => {
 
     if (!alumno) {
       return res.status(404).json({ message: 'El socio no está inscripto en la escuelita' });
-    }
-
-    if (alumno.estado !== 'activo') {
-      return res.status(402).json({ message: `La inscripción está en estado "${alumno.estado}"` });
     }
 
     const plan = alumno.planId;
