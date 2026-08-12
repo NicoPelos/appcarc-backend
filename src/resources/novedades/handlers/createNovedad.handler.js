@@ -64,7 +64,7 @@ export const createNovedadHandler = async (req, res) => {
     notifyClub(req.user?.clubId, {
       title: novedad.titulo,
       body: novedad.cuerpo?.slice(0, 100) || 'Nueva novedad del club',
-      data: { novedadId: String(novedad._id), tipo: 'novedad' },
+      data: { novedadId: String(novedad._id), tipo: 'novedad', url: 'carc://(tabs)/comunidad' },
     }).catch((err) => console.error('Error enviando push de novedad:', err));
 
     res.status(201).json(novedad);

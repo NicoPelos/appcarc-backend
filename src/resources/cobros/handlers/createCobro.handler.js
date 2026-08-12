@@ -150,7 +150,7 @@ export const createCobroHandler = async (req, res) => {
       sendPushNotification([{ userId: user._id, clubId: user.clubId, token: user.expoPushToken }], {
         title: 'Pago registrado',
         body,
-        data: { tipo: 'cobro_registrado', cobroId: result.cobro._id.toString() },
+        data: { tipo: 'cobro_registrado', cobroId: result.cobro._id.toString(), url: 'carc://cuotas' },
       }).catch((err) => console.error('Error enviando push de cobro:', err));
     }
   } catch (error) {

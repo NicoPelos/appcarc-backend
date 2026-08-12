@@ -42,7 +42,7 @@ export const enviarRecordatorios = async () => {
       await sendPushNotification([{ userId: user._id, clubId: user.clubId, token: user.expoPushToken }], {
         title: `Recordatorio de cuotas - ${getMesActual()}`,
         body: buildBody(social, escuelita),
-        data: { tipo: 'recordatorio_cuotas' },
+        data: { tipo: 'recordatorio_cuotas', url: 'carc://cuotas' },
       });
       notificados++;
     } catch (err) {

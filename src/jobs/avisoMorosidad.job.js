@@ -68,7 +68,7 @@ const revisarClub = async (club) => {
     await notifyRoles(clubId, STAFF_ROLES, {
       title: '⚠️ Socios con cuota social atrasada',
       body: `${morosos.length} ${morosos.length === 1 ? 'socio lleva' : 'socios llevan'} 3+ meses sin pagar la cuota social. Revisá el detalle en Advertencias.`,
-      data: { tipo: 'morosidad_cuota_social' },
+      data: { tipo: 'morosidad_cuota_social', url: 'carc://advertencias?tipo=morosidad' },
     });
   }
 

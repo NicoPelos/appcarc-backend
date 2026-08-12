@@ -134,7 +134,7 @@ export const updateSocioHandler = async (req, res) => {
         sendPushNotification([{ userId: user._id, clubId: user.clubId, token: user.expoPushToken }], {
           title: 'Actualización de tu ficha de socio',
           body,
-          data: { tipo: 'socio_update', socioId: id },
+          data: { tipo: 'socio_update', socioId: id, url: 'carc://mis-datos' },
         }).catch((err) => console.error('Error enviando push de socio update:', err));
       }
     }

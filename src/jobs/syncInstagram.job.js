@@ -16,7 +16,7 @@ export const startInstagramSyncJob = () => {
           notifyClub(clubId, {
             title: '📸 Novedad del club',
             body: `Hay ${result.inserted} publicación${result.inserted > 1 ? 'es' : ''} nueva${result.inserted > 1 ? 's' : ''} en Instagram`,
-            data: { tipo: 'instagram_sync' },
+            data: { tipo: 'instagram_sync', url: 'carc://(tabs)/comunidad' },
           }).catch((err) => console.error(`Error enviando push de Instagram sync [${clubId}]:`, err));
         }
       } catch (error) {

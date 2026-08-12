@@ -172,12 +172,12 @@ export const checkinEscuelitaHandler = async (req, res) => {
         notifyRoles(clubId, ['secretaria'], {
           title: '⚠️ Ingreso con advertencias',
           body: `${nombreCompleto} ingresó a escuelita con ${advertencias.length} advertencia(s): ${resumen}`,
-          data: { tipo: 'advertencia_checkin', asistenciaId: String(asistencia._id) },
+          data: { tipo: 'advertencia_checkin', asistenciaId: String(asistencia._id), url: 'carc://advertencias?tipo=escuelita' },
         }),
         notifySocio(socio._id, {
           title: '⚠️ Advertencias en tu ingreso',
           body: resumen,
-          data: { tipo: 'advertencia_socio' },
+          data: { tipo: 'advertencia_socio', url: 'carc://cuotas' },
         }),
       ]).catch((err) => console.error('[Push] Error enviando notificaciones de advertencia:', err.message));
     }

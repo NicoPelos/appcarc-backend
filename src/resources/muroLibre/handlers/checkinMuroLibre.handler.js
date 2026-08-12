@@ -95,12 +95,12 @@ export const checkinMuroLibreHandler = async (req, res) => {
         notifyRoles(req.user?.clubId, ['secretaria'], {
           title: '⚠️ Ingreso con advertencias',
           body: `${nombreCompleto} ingresó a muro libre con ${advertenciasResult.length} advertencia(s): ${resumen}`,
-          data: { tipo: 'advertencia_checkin', asistenciaId: String(result.registro._id) },
+          data: { tipo: 'advertencia_checkin', asistenciaId: String(result.registro._id), url: 'carc://advertencias?tipo=muro_libre' },
         }),
         notifySocio(socio._id, {
           title: '⚠️ Advertencias en tu ingreso',
           body: resumen,
-          data: { tipo: 'advertencia_socio' },
+          data: { tipo: 'advertencia_socio', url: 'carc://cuotas' },
         }),
       ]).catch((err) => console.error('[Push] Error enviando notificaciones de advertencia:', err.message));
     }

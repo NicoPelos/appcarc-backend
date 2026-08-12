@@ -80,7 +80,7 @@ export const createSocioHandler = async (req, res) => {
     notifyRoles(req.user?.clubId, ['autoridad', 'secretaria'], {
       title: '🎉 Nuevo socio en el padrón',
       body: `${socio.nombre} ${socio.apellido} se incorporó como socio`,
-      data: { tipo: 'nuevo_socio', socioId: socio._id.toString() },
+      data: { tipo: 'nuevo_socio', socioId: socio._id.toString(), url: `carc://detalle-socio?id=${socio._id}` },
     }).catch((err) => console.error('Error enviando push de nuevo socio:', err));
   } catch (error) {
     console.error('Error creando socio (handler):', error);
