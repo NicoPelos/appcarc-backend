@@ -73,7 +73,9 @@ export const mercadoPagoWebhookHandler = async (req, res) => {
 
     if (!ok) {
       console.error(`No se pudo obtener el pago ${dataId} de Mercado Pago (club ${clubId}):`, status);
-      return res.status(200).json({ ok: true, retry: true });
+      // MP decide si reintenta según el código HTTP, no según el body — un
+      // 200 acá da la notificación por entregada y el pago no se acredita.
+      return res.status(502).json({ ok: false, retry: true });
     }
 
     const { resultado } = await procesarPagoMercadoPago({ clubId, payment, accessToken: config.accessToken });
@@ -83,7 +85,9 @@ export const mercadoPagoWebhookHandler = async (req, res) => {
     return res.status(200).json({ ok: true });
   } catch (error) {
     console.error('Error procesando webhook de Mercado Pago:', error);
-    return res.status(200).json({ ok: false });
+    // Igual que arriba: un 200 acá da la notificación por entregada y MP
+    // nunca reintenta, aunque el error haya sido transitorio (ej. Mongo).
+    return res.status(500).json({ ok: false });
   }
 };
 

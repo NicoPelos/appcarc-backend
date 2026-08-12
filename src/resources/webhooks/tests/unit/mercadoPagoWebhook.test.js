@@ -114,15 +114,26 @@ describe('mercadoPagoWebhookHandler', () => {
     expect(PagoOnlineIntent.findOne).not.toHaveBeenCalled();
   });
 
-  it('con firma OK pero MP payment fetch falla, responde 200 con retry', async () => {
+  it('con firma OK pero MP payment fetch falla, responde con error para que MP reintente', async () => {
     stubPaymentFetch({}, false);
     const req = baseReq();
     const res = mockRes();
 
     await mercadoPagoWebhookHandler(req, res);
 
-    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.status).toHaveBeenCalledWith(502);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ retry: true }));
+  });
+
+  it('ante una excepción no controlada, responde con error para que MP reintente', async () => {
+    verifyMercadoPagoSignature.mockImplementation(() => { throw new Error('boom'); });
+    const req = baseReq();
+    const res = mockRes();
+
+    await mercadoPagoWebhookHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ok: false }));
   });
 
   it('pago aprobado: transiciona el intent y llama registrarCobro', async () => {

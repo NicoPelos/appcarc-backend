@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import User from '../../usuarios/models/User.js';
 import Socio from '../../socios/models/Socio.js';
@@ -18,18 +19,18 @@ class BusinessError extends Error {
 // cuando se creó una cuenta nueva en este llamado, para que quien está
 // vinculando pueda comunicársela al tutor (no hay ningún otro canal: no es
 // socio, no tiene DNI conocido, y el sistema no manda emails de bienvenida).
-const resolverPadre = async ({ clubId, padreUserId, padreSocioId, padreEmail, padreNombre, actor }) => {
+const resolverPadre = async ({ clubId, padreUserId, padreSocioId, padreEmail, padreNombre, actor, session }) => {
   if (padreUserId) {
-    const user = await User.findOne({ _id: padreUserId, clubId, active: true });
+    const user = await User.findOne({ _id: padreUserId, clubId, active: true }).session(session);
     if (!user) throw new BusinessError('El usuario tutor indicado no existe o pertenece a otro club', 404);
     return { user, passwordTemporal: null };
   }
 
   if (padreSocioId) {
-    const socioPadre = await Socio.findOne({ _id: padreSocioId, clubId, active: true }).lean();
+    const socioPadre = await Socio.findOne({ _id: padreSocioId, clubId, active: true }).session(session).lean();
     if (!socioPadre) throw new BusinessError('El socio tutor indicado no existe o pertenece a otro club', 404);
 
-    const existente = await User.findOne({ socioId: padreSocioId, clubId });
+    const existente = await User.findOne({ socioId: padreSocioId, clubId }).session(session);
     if (existente) return { user: existente, passwordTemporal: null };
 
     const creado = await syncSocioUserFromSocio(socioPadre);
@@ -45,7 +46,7 @@ const resolverPadre = async ({ clubId, padreUserId, padreSocioId, padreEmail, pa
   const nombre = String(padreNombre || '').trim();
   if (!email) throw new BusinessError('Indicá padreUserId, padreSocioId o padreEmail', 400);
 
-  const existente = await User.findOne({ email, clubId });
+  const existente = await User.findOne({ email, clubId }).session(session);
   if (existente) return { user: existente, passwordTemporal: null };
 
   if (!nombre) throw new BusinessError('padreNombre es requerido para crear una cuenta de tutor nueva', 400);
@@ -66,42 +67,63 @@ const resolverPadre = async ({ clubId, padreUserId, padreSocioId, padreEmail, pa
     createdBy: actor,
     updatedBy: actor,
   });
-  await nuevo.save();
+  await nuevo.save({ session });
   return { user: nuevo, passwordTemporal };
 };
 
 export const crearVinculoFamiliar = async ({ clubId, user: actorUser, hijoSocioId, body }) => {
   const actor = actorUser?.email || actorUser?.id;
 
-  const hijo = await Socio.findOne({ _id: hijoSocioId, clubId, active: true }).lean();
-  if (!hijo) throw new BusinessError('El socio hijo no existe o pertenece a otro club', 404);
+  // La cuenta de tutor (cuando se crea nueva vía padreEmail) y el vínculo se
+  // crean atómicamente: si el vinculo.save() falla (ej. carrera con otra
+  // request que creó el mismo vínculo en el medio, choca contra el índice
+  // único), no puede quedar una cuenta de User huérfana con contraseña
+  // temporal ya generada (appcarc-backend#72).
+  const session = await mongoose.startSession();
+  try {
+    const hijo = await Socio.findOne({ _id: hijoSocioId, clubId, active: true }).session(session).lean();
+    if (!hijo) throw new BusinessError('El socio hijo no existe o pertenece a otro club', 404);
 
-  const { user: padre, passwordTemporal } = await resolverPadre({
-    clubId,
-    padreUserId: body?.padreUserId,
-    padreSocioId: body?.padreSocioId,
-    padreEmail: body?.padreEmail,
-    padreNombre: body?.padreNombre,
-    actor,
-  });
+    let vinculo, padre, passwordTemporal;
 
-  if (padre.socioId && String(padre.socioId) === String(hijoSocioId)) {
-    throw new BusinessError('Un socio no puede ser su propio tutor', 400);
+    await session.withTransaction(async () => {
+      ({ user: padre, passwordTemporal } = await resolverPadre({
+        clubId,
+        padreUserId: body?.padreUserId,
+        padreSocioId: body?.padreSocioId,
+        padreEmail: body?.padreEmail,
+        padreNombre: body?.padreNombre,
+        actor,
+        session,
+      }));
+
+      if (padre.socioId && String(padre.socioId) === String(hijoSocioId)) {
+        throw new BusinessError('Un socio no puede ser su propio tutor', 400);
+      }
+
+      const existente = await VinculoFamiliar.findOne({ clubId, padreUserId: padre._id, hijoSocioId, active: true }).session(session);
+      if (existente) throw new BusinessError('Ese vínculo ya existe', 409);
+
+      vinculo = new VinculoFamiliar({
+        clubId,
+        padreUserId: padre._id,
+        hijoSocioId,
+        createdBy: actor,
+        updatedBy: actor,
+      });
+
+      try {
+        await vinculo.save({ session });
+      } catch (err) {
+        if (err.code === 11000) throw new BusinessError('Ese vínculo ya existe', 409);
+        throw err;
+      }
+    });
+
+    return { vinculo, padre, passwordTemporal };
+  } finally {
+    session.endSession();
   }
-
-  const existente = await VinculoFamiliar.findOne({ clubId, padreUserId: padre._id, hijoSocioId, active: true });
-  if (existente) throw new BusinessError('Ese vínculo ya existe', 409);
-
-  const vinculo = new VinculoFamiliar({
-    clubId,
-    padreUserId: padre._id,
-    hijoSocioId,
-    createdBy: actor,
-    updatedBy: actor,
-  });
-  await vinculo.save();
-
-  return { vinculo, padre, passwordTemporal };
 };
 
 export { BusinessError };
