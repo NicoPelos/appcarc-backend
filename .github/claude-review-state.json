@@ -33,5 +33,10 @@
     "sha": "8db13facf4295a64eb90cbc7376191a4d9f8246d",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-11T07:17:27Z"
+  },
+  "src/resources/webhooks": {
+    "sha": "d8894c8e70947294383d8e8da27ea9c129863943",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-12T07:40:47Z"
   }
 }
