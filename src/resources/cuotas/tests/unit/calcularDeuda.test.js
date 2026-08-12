@@ -138,14 +138,14 @@ describe('calcularDeuda', () => {
     expect(result.suscripciones[0].periodosPagados).toEqual(['2026-01', '2026-02']);
   });
 
-  it('periodosPagados es un array vacío para una suscripción exenta, sin consultar Cuota', async () => {
+  it('una suscripción exenta sin pagos previos devuelve periodosPagados vacío', async () => {
     const sus = mockSuscripcion({ fechaDesde: '2026-06', exento: true });
     mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
+    mockCuotaFind.mockReturnValue(chainableCuota([]));
 
     const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
 
     expect(result.suscripciones[0].periodosPagados).toEqual([]);
-    expect(mockCuotaFind).not.toHaveBeenCalled();
   });
 
   it('incluye suscripcionId y etiqueta en el resultado', async () => {
@@ -216,9 +216,13 @@ describe('calcularDeuda', () => {
     expect(result.suscripciones[1].suscripcionId).toBe('sus_002');
   });
 
-  it('exento: mesesDeuda y totalDeuda en 0 sin consultar Cuota', async () => {
+  it('exento: mesesDeuda y totalDeuda en 0, pero sigue devolviendo periodosPagados', async () => {
+    // Un tramo exento (ej. plan Staff) puede convivir con meses ya pagados
+    // de antes de pasar a exento — la grilla de edición de meses necesita
+    // ese dato para pintarlos en verde (caso real: Viola).
     const sus = mockSuscripcion({ fechaDesde: '2020-01', exento: true });
     mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
+    mockCuotaFind.mockReturnValue(chainableCuota([{ periodo: '2026-01' }, { periodo: '2026-02' }]));
     mockPreciosFindOne.mockReturnValue(chainablePrecio({ monto: 15000 }));
 
     const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
@@ -226,8 +230,8 @@ describe('calcularDeuda', () => {
     expect(result.suscripciones[0].mesesDeuda).toBe(0);
     expect(result.suscripciones[0].totalDeuda).toBe(0);
     expect(result.suscripciones[0].periodos).toEqual([]);
+    expect(result.suscripciones[0].periodosPagados).toEqual(['2026-01', '2026-02']);
     expect(result.suscripciones[0].exento).toBe(true);
-    expect(mockCuotaFind).not.toHaveBeenCalled();
     expect(mockCuotaFindOne).not.toHaveBeenCalled();
   });
 

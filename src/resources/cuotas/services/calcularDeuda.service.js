@@ -123,6 +123,16 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
       const desde = sus.fechaDesde;
       const hasta = sus.fechaHasta || hoy;
 
+      // Períodos ya pagados de esta etiqueta en toda la historia del socio
+      // (no solo dentro del tramo vigente) — la grilla de edición de meses
+      // los necesita para no dejar destildar un mes ya cobrado. Se calcula
+      // antes del branch de exento: un tramo exento (ej. plan Staff) puede
+      // convivir con meses ya pagados de antes de pasar a exento, y la
+      // grilla necesita poder pintarlos igual (appcarc-backend, caso Viola).
+      const periodosPagados = (await Cuota.find({
+        socioId, clubId, etiquetaId: sus.etiquetaId._id, estado: 'pagada',
+      }).lean()).map((c) => c.periodo);
+
       if (sus.exento) {
         return {
           suscripcionId: sus._id,
@@ -134,19 +144,12 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
           periodoActual: hoy,
           mesesDeuda: 0,
           periodos: [],
-          periodosPagados: [],
+          periodosPagados,
           precioUnitario: null,
           totalDeuda: 0,
           exento: true,
         };
       }
-
-      // Períodos ya pagados de esta etiqueta en toda la historia del socio
-      // (no solo dentro del tramo vigente) — la grilla de edición de meses
-      // los necesita para no dejar destildar un mes ya cobrado.
-      const periodosPagados = (await Cuota.find({
-        socioId, clubId, etiquetaId: sus.etiquetaId._id, estado: 'pagada',
-      }).lean()).map((c) => c.periodo);
 
       if (desde > hoy) {
         return {
