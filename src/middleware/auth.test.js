@@ -4,8 +4,28 @@ vi.mock('../services/permisosCache.js', () => ({
   tienePermiso: vi.fn(),
 }));
 
-import { authorizeSelfSocioOr, authorizeSelfSocioQueryOr } from './auth.js';
+vi.mock('jsonwebtoken', () => ({
+  default: { verify: vi.fn() },
+}));
+
+vi.mock('../services/tokenBlacklistService.js', () => ({
+  default: { hasToken: vi.fn().mockResolvedValue(false) },
+}));
+
+vi.mock('../resources/usuarios/models/User.js', () => ({
+  default: { findById: vi.fn() },
+}));
+
+vi.mock('../resources/vinculos/models/VinculoFamiliar.js', () => ({
+  default: { exists: vi.fn() },
+}));
+
+import jwt from 'jsonwebtoken';
+import { authorizeSelfSocioOr, authorizeSelfSocioQueryOr, protect } from './auth.js';
 import { tienePermiso } from '../services/permisosCache.js';
+import tokenService from '../services/tokenBlacklistService.js';
+import User from '../resources/usuarios/models/User.js';
+import VinculoFamiliar from '../resources/vinculos/models/VinculoFamiliar.js';
 
 const mockRes = () => {
   const res = {};
@@ -110,5 +130,70 @@ describe('authorizeSelfSocioQueryOr', () => {
     await authorizeSelfSocioQueryOr('escuelita:read')(req, res, next);
 
     expect(next).toHaveBeenCalled();
+  });
+});
+
+describe('protect', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    tokenService.hasToken.mockResolvedValue(false);
+  });
+
+  const mockReq = () => ({ headers: { authorization: 'Bearer tok123' } });
+
+  it('deja pasar cuando el socioId del token es el propio del User, sin consultar VinculoFamiliar', async () => {
+    jwt.verify.mockReturnValue({ id: 'u1', clubId: 'CARC', socioId: 'socio1', iat: 1000 });
+    User.findById.mockReturnValue({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ active: true, socioId: 'socio1' }) }) });
+    const req = mockReq();
+    const res = mockRes();
+    const next = vi.fn();
+
+    await protect(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(VinculoFamiliar.exists).not.toHaveBeenCalled();
+  });
+
+  it('deja pasar cuando el token no trae socioId (staff), sin consultar VinculoFamiliar', async () => {
+    jwt.verify.mockReturnValue({ id: 'u1', clubId: 'CARC', socioId: null, iat: 1000 });
+    User.findById.mockReturnValue({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ active: true, socioId: null }) }) });
+    const req = mockReq();
+    const res = mockRes();
+    const next = vi.fn();
+
+    await protect(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(VinculoFamiliar.exists).not.toHaveBeenCalled();
+  });
+
+  it('deja pasar cuando actúa vía un perfil vinculado y el vínculo sigue activo', async () => {
+    jwt.verify.mockReturnValue({ id: 'padre1', clubId: 'CARC', socioId: 'hijo1', iat: 1000 });
+    User.findById.mockReturnValue({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ active: true, socioId: 'socioPropioPadre' }) }) });
+    VinculoFamiliar.exists.mockResolvedValue(true);
+    const req = mockReq();
+    const res = mockRes();
+    const next = vi.fn();
+
+    await protect(req, res, next);
+
+    expect(VinculoFamiliar.exists).toHaveBeenCalledWith({
+      clubId: 'CARC', padreUserId: 'padre1', hijoSocioId: 'hijo1', active: true,
+    });
+    expect(next).toHaveBeenCalled();
+  });
+
+  it('rechaza con 401 si el vínculo fue anulado (appcarc-backend#71)', async () => {
+    jwt.verify.mockReturnValue({ id: 'padre1', clubId: 'CARC', socioId: 'hijo1', iat: 1000 });
+    User.findById.mockReturnValue({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ active: true, socioId: 'socioPropioPadre' }) }) });
+    VinculoFamiliar.exists.mockResolvedValue(null);
+    const req = mockReq();
+    const res = mockRes();
+    const next = vi.fn();
+
+    await protect(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
   });
 });

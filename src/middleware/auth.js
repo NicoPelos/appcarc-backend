@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import tokenService from '../services/tokenBlacklistService.js';
 import User from '../resources/usuarios/models/User.js';
+import VinculoFamiliar from '../resources/vinculos/models/VinculoFamiliar.js';
 import { tienePermiso } from '../services/permisosCache.js';
 
 export const protect = async (req, res, next) => {
@@ -17,12 +18,29 @@ export const protect = async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await User.findById(decoded.id).select('passwordChangedAt active').lean();
+    const user = await User.findById(decoded.id).select('passwordChangedAt active socioId').lean();
     if (!user || !user.active) {
       return res.status(401).json({ message: 'Usuario no encontrado o desactivado' });
     }
     if (user.passwordChangedAt && decoded.iat * 1000 < user.passwordChangedAt.getTime()) {
       return res.status(401).json({ message: 'Sesión expirada, la contraseña fue cambiada' });
+    }
+
+    // El JWT es stateless y dura 8h: si el socioId activo no es el propio del
+    // User, está actuando "como" un perfil vinculado (switchProfile, ver
+    // buildAuthResponse en auth.handler.js) y hay que revalidar en cada
+    // request que ese VinculoFamiliar siga vigente — si no, anular un vínculo
+    // no corta el acceso ya emitido hasta que expire el token (appcarc-backend#71).
+    if (decoded.socioId && decoded.socioId !== String(user.socioId ?? '')) {
+      const vinculoVigente = await VinculoFamiliar.exists({
+        clubId: decoded.clubId,
+        padreUserId: decoded.id,
+        hijoSocioId: decoded.socioId,
+        active: true,
+      });
+      if (!vinculoVigente) {
+        return res.status(401).json({ message: 'El vínculo con este perfil ya no está vigente' });
+      }
     }
 
     req.user = decoded;
