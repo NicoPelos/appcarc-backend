@@ -105,7 +105,6 @@ describe('Consistencia de permisos entre rutas y permisos.js', () => {
       'audit:revert',
       'precios:write',
       'precios:delete',
-      'escuelita:purgar',
       'roles:write',
       'roles:delete',
       'socios:create',
