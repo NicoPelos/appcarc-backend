@@ -27,6 +27,10 @@ vi.mock('../../../etiquetas/models/Etiqueta.js', () => ({
   default: { findOne: vi.fn() },
 }));
 
+vi.mock('../../../planes/models/Plan.js', () => ({
+  default: { find: vi.fn() },
+}));
+
 vi.mock('../../../escuelita/services/sincronizarSuscripcionPlan.service.js', () => ({
   sincronizarEscuelitaPorSuscripcionModificada: vi.fn(),
 }));
@@ -35,6 +39,7 @@ import Suscripcion from '../../models/Suscripcion.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
 import Socio from '../../../socios/models/Socio.js';
 import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
+import Plan from '../../../planes/models/Plan.js';
 import { sincronizarEscuelitaPorSuscripcionModificada } from '../../../escuelita/services/sincronizarSuscripcionPlan.service.js';
 
 const mockUser = { clubId: 'CARC', email: 'admin@carc.com' };
@@ -66,6 +71,7 @@ beforeEach(() => {
   Cuota.find.mockReturnValue({ select: () => ({ session: () => Promise.resolve([]) }) });
   mockFind.mockReturnValue({ session: () => Promise.resolve([]) });
   mockFindOne.mockReturnValue({ session: () => Promise.resolve(null) });
+  Plan.find.mockReturnValue({ session: () => ({ lean: () => Promise.resolve([{ _id: 'plan1', noGeneraDeuda: false }]) }) });
   mockSave.mockResolvedValue();
   sincronizarEscuelitaPorSuscripcionModificada.mockResolvedValue(undefined);
   vi.spyOn(mongoose, 'startSession').mockResolvedValue({
@@ -204,6 +210,61 @@ describe('setMesesActivosHandler', () => {
     expect(inactivo.save).toHaveBeenCalled();
     expect(Suscripcion).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('crea un tramo con un plan propio (exento) sin tocar los demás tramos', async () => {
+    const existente = buildExistente({ fechaDesde: '2026-01', fechaHasta: null, planId: 'plan1' });
+    mockFind.mockReturnValue({ session: () => Promise.resolve([existente]) });
+    Plan.find.mockReturnValue({
+      session: () => ({ lean: () => Promise.resolve([{ _id: 'plan1', noGeneraDeuda: false }, { _id: 'plan-staff', noGeneraDeuda: true }]) }),
+    });
+    const res = mockRes();
+
+    await setMesesActivosHandler(req({
+      tramos: [
+        { fechaDesde: '2026-01', fechaHasta: '2026-03' },
+        { fechaDesde: '2026-04', fechaHasta: '2026-06', planId: 'plan-staff' },
+        { fechaDesde: '2026-07', fechaHasta: null },
+      ],
+    }), res);
+
+    expect(Suscripcion).toHaveBeenCalledWith(expect.objectContaining({ fechaDesde: '2026-04', fechaHasta: '2026-06', planId: 'plan-staff', exento: true }));
+    expect(Suscripcion).toHaveBeenCalledWith(expect.objectContaining({ fechaDesde: '2026-07', fechaHasta: null, planId: 'plan1', exento: false }));
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('cierra el tramo existente y crea uno nuevo si solo cambió el plan (mismas fechas)', async () => {
+    const existente = buildExistente({ fechaDesde: '2026-04', fechaHasta: '2026-06', planId: 'plan1', exento: false });
+    mockFind.mockReturnValue({ session: () => Promise.resolve([existente]) });
+    Plan.find.mockReturnValue({
+      session: () => ({ lean: () => Promise.resolve([{ _id: 'plan-staff', noGeneraDeuda: true }]) }),
+    });
+    const res = mockRes();
+
+    await setMesesActivosHandler(req({
+      tramos: [{ fechaDesde: '2026-04', fechaHasta: '2026-06', planId: 'plan-staff' }],
+    }), res);
+
+    // Mismo patrón que el resto del handler: no muta el tramo viejo in-place,
+    // lo cierra y crea uno nuevo — el cambio de plan no es la excepción.
+    expect(existente.active).toBe(false);
+    expect(existente.save).toHaveBeenCalled();
+    expect(Suscripcion).toHaveBeenCalledWith(expect.objectContaining({
+      fechaDesde: '2026-04', fechaHasta: '2026-06', planId: 'plan-staff', exento: true,
+    }));
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('retorna 400 si el planId no existe o no pertenece a esta etiqueta', async () => {
+    Plan.find.mockReturnValue({ session: () => ({ lean: () => Promise.resolve([]) }) });
+    const res = mockRes();
+
+    await setMesesActivosHandler(req({
+      tramos: [{ fechaDesde: '2026-04', fechaHasta: null, planId: 'plan-inexistente' }],
+    }), res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('plan-inexistente') }));
   });
 
   it('retorna 500 si hay un error de base de datos', async () => {

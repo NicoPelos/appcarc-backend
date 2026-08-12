@@ -3,6 +3,7 @@ import Suscripcion from '../models/Suscripcion.js';
 import Cuota from '../../cuotas/models/Cuota.js';
 import Socio from '../../socios/models/Socio.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
+import Plan from '../../planes/models/Plan.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { sincronizarEscuelitaPorSuscripcionModificada } from '../../escuelita/services/sincronizarSuscripcionPlan.service.js';
 
@@ -44,11 +45,15 @@ const cubrePeriodo = (tramos, periodo) =>
  *                   properties:
  *                     fechaDesde: { type: string, example: "2026-04" }
  *                     fechaHasta: { type: string, nullable: true, example: null }
+ *                     planId:
+ *                       type: string
+ *                       nullable: true
+ *                       description: Plan de este tramo específico. Si se omite, hereda el plan vigente del tramo de referencia (comportamiento previo) — permite reasignar retroactivamente solo algunos meses a otro plan (ej. Staff/exento) sin tocar el resto.
  *     responses:
  *       200:
  *         description: Tramos actualizados
  *       400:
- *         description: Datos inválidos o tramos superpuestos
+ *         description: Datos inválidos, tramos superpuestos, o algún planId no existe/no pertenece a esta etiqueta
  *       404:
  *         description: Socio o etiqueta no encontrada
  *       409:
@@ -77,7 +82,7 @@ export const setMesesActivosHandler = async (req, res) => {
   }
 
   const nuevosTramos = tramos
-    .map((t) => ({ fechaDesde: t.fechaDesde, fechaHasta: t.fechaHasta ?? null }))
+    .map((t) => ({ fechaDesde: t.fechaDesde, fechaHasta: t.fechaHasta ?? null, planId: t.planId || null }))
     .sort((a, b) => a.fechaDesde.localeCompare(b.fechaDesde));
 
   for (let i = 1; i < nuevosTramos.length; i++) {
@@ -125,11 +130,36 @@ export const setMesesActivosHandler = async (req, res) => {
       }
 
       const referencia = existentes[0] ?? null;
+
+      // Cada tramo puede pedir explícitamente un plan propio (para reasignar
+      // retroactivamente solo algunos meses a otro plan, ej. Staff/exento,
+      // sin tocar el resto) — si no lo pide, hereda el plan vigente del
+      // tramo de referencia, igual que antes de poder elegir por tramo.
+      for (const t of nuevosTramos) {
+        if (!t.planId && referencia?.planId) t.planId = String(referencia.planId);
+      }
+
+      const planIdsDistintos = [...new Set(nuevosTramos.map((t) => t.planId).filter(Boolean))];
+      let exentoPorPlan = new Map();
+      if (planIdsDistintos.length) {
+        const planesValidos = await Plan.find({
+          _id: { $in: planIdsDistintos }, clubId: req.user.clubId, etiquetaId, active: true,
+        }).session(session).lean();
+        if (planesValidos.length !== planIdsDistintos.length) {
+          const encontrados = new Set(planesValidos.map((p) => String(p._id)));
+          const faltante = planIdsDistintos.find((id) => !encontrados.has(id));
+          status = 400;
+          errorMessage = `El plan ${faltante} no existe, no pertenece a esta etiqueta, o está inactivo`;
+          return;
+        }
+        exentoPorPlan = new Map(planesValidos.map((p) => [String(p._id), Boolean(p.noGeneraDeuda)]));
+      }
+
       const usadas = new Set();
 
       for (const s of existentes) {
         const match = nuevosTramos.find((t) => t.fechaDesde === s.fechaDesde);
-        if (match && s.fechaHasta === match.fechaHasta) {
+        if (match && s.fechaHasta === match.fechaHasta && String(s.planId ?? '') === String(match.planId ?? '')) {
           usadas.add(match.fechaDesde);
           continue;
         }
@@ -147,6 +177,8 @@ export const setMesesActivosHandler = async (req, res) => {
           continue;
         }
 
+        const exento = t.planId ? (exentoPorPlan.get(t.planId) ?? false) : false;
+
         // Puede existir un documento soft-deleted con el mismo fechaDesde (el
         // índice único no libera el slot con active:false) — reactivarlo en
         // vez de chocar al crear uno nuevo.
@@ -158,8 +190,8 @@ export const setMesesActivosHandler = async (req, res) => {
           const before = existenteInactivo.toObject();
           existenteInactivo.active = true;
           existenteInactivo.fechaHasta = t.fechaHasta;
-          existenteInactivo.planId = referencia?.planId ?? existenteInactivo.planId ?? null;
-          existenteInactivo.exento = referencia?.exento ?? existenteInactivo.exento ?? false;
+          existenteInactivo.planId = t.planId;
+          existenteInactivo.exento = exento;
           existenteInactivo.updatedBy = actor;
           await existenteInactivo.save({ session });
           logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Suscripcion', resourceId: existenteInactivo._id, before, after: existenteInactivo.toObject() });
@@ -169,8 +201,8 @@ export const setMesesActivosHandler = async (req, res) => {
             clubId: req.user.clubId,
             socioId,
             etiquetaId,
-            planId: referencia?.planId ?? null,
-            exento: referencia?.exento ?? false,
+            planId: t.planId,
+            exento,
             fechaDesde: t.fechaDesde,
             fechaHasta: t.fechaHasta,
             createdBy: actor,

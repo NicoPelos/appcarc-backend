@@ -127,6 +127,7 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
         return {
           suscripcionId: sus._id,
           etiqueta: sus.etiquetaId,
+          planId: sus.planId ?? null,
           fechaDesde: sus.fechaDesde,
           fechaHasta: sus.fechaHasta,
           ultimoPeriodoPagado: null,
@@ -151,6 +152,7 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
         return {
           suscripcionId: sus._id,
           etiqueta: sus.etiquetaId,
+          planId: sus.planId ?? null,
           fechaDesde: sus.fechaDesde,
           fechaHasta: sus.fechaHasta,
           ultimoPeriodoPagado: null,
@@ -206,6 +208,7 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
       return {
         suscripcionId: sus._id,
         etiqueta: sus.etiquetaId,
+        planId: sus.planId ?? null,
         fechaDesde: sus.fechaDesde,
         fechaHasta: sus.fechaHasta,
         ultimoPeriodoPagado: ultimaCuota?.periodo ?? null,
