@@ -64,14 +64,20 @@ Cada clase a la que asiste un alumno queda registrada. Esto es lo que después l
 </figure>
 
 <figure markdown>
-  ![Buscar alumno o escanear su QR](assets/screenshots/secretaria-escuelita-tomar-asistencia-resultado.png){ width="260" }
-  <figcaption>Buscar alumno (o escanear su QR)</figcaption>
+  ![Buscar alumno](assets/screenshots/secretaria-escuelita-tomar-asistencia-resultado.png){ width="260" }
+  <figcaption>Buscar alumno para registrar su asistencia a mano</figcaption>
 </figure>
 
+La mayoría de las asistencias las carga el alumno solo: en la pared del club hay un cartel fijo con un código QR de Escuelita, y lo escanea con la cámara de su propio celular (no hace falta abrir la app antes). Si el que escanea es el alumno, la asistencia queda registrada al toque; si es un tutor con más de un hijo inscripto en escuelita, la app le pregunta "¿A quién marcamos?" antes de confirmar.
+
+Como respaldo, o para cargar una asistencia vos mismo/a:
+
 1. Andá a `Escuelita` → solapa `Asistencia`.
-2. Tocá el botón para registrar asistencia y buscá al alumno por DNI (o escaneá su credencial QR).
+2. Tocá la lupa (arriba a la derecha) y buscá al alumno por nombre o DNI.
 3. Al confirmarlo, la app muestra cuántas clases lleva esa semana sobre el total que le corresponde según su plan (por ejemplo "2/2 esta semana").
 4. Si ya superó el límite de su plan, o tiene una advertencia pendiente (por ejemplo cuota vencida), te avisa en el momento.
+
+Si no tenés el cartel a mano (se rompió, se lo llevaron, etc.), tocá el ícono de QR (junto a la lupa, arriba a la derecha) para generarlo e imprimirlo de nuevo.
 
 ## 4. Check-in de muro libre
 
@@ -87,12 +93,18 @@ Registra cada visita al muro de escalada, sea de un socio o de alguien externo, 
   <figcaption>Cargar el check-in</figcaption>
 </figure>
 
+La mayoría de los check-ins de socios se cargan solos: en la pared del club hay un cartel fijo con un código QR de Muro Libre, y el socio lo escanea con la cámara de su propio celular (no hace falta abrir la app antes). Si tiene pase mensual vigente no se le genera ningún cargo; si no, queda pendiente de pago y lo cobrás vos en el mostrador cuando corresponda.
+
+Para gente externa (que no es socio) o si preferís cargar el check-in vos mismo/a:
+
 1. Andá a `Muro Libre` y tocá el botón de agregar (+).
 2. Buscá a la persona por nombre o DNI (si ya es socio, aparece en los resultados).
 3. Elegí el tipo de pase: `diario` o `mensual`. Si ya tiene un pase mensual vigente, la app te lo muestra antes de cobrar de más.
 4. Elegí el estado de pago: `pagado` o `pendiente`.
 5. Si está pagado, elegí la forma de pago (`Efectivo` / `Transferencia`).
 6. Confirmá — queda el check-in registrado con fecha y hora.
+
+Si no tenés el cartel a mano, tocá el ícono de QR en el header de `Muro Libre` para generarlo e imprimirlo de nuevo.
 
 ## 5. Movimientos de caja
 
