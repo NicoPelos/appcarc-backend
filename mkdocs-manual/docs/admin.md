@@ -195,14 +195,18 @@ Es el registro de caja del club: ingresos y egresos que **no** vienen de un cobr
 2. Elegí si es `Ingreso` o `Egreso`.
 3. Elegí la forma de pago (`Efectivo` o `Transferencia`).
 4. Cargá el monto, un concepto corto y, si hace falta, una descripción más larga.
-5. Confirmá — queda en la lista, filtrable por tipo con las solapas `Todos / Ingreso / Egreso`.
+5. Confirmá — queda en la lista.
 
 <figure markdown>
   ![Buscador y filtro de período](assets/screenshots/admin-movimientos-buscador.png){ width="260" }
   <figcaption>Buscador y filtro de período</figcaption>
 </figure>
 
-Con el buscador podés filtrar por concepto o responsable, y con los chips de período acotar a `Este mes`, `Mes anterior` o `Todo`. La lista carga de a tandas: al llegar al final se trae más automáticamente.
+El buscador (arriba) filtra por concepto o responsable a medida que escribís. Los demás filtros — tipo (`Todos` / `Ingreso` / `Egreso`), período (`Este mes` / `Mes anterior` / `Todo`) y medio de pago — están agrupados detrás del botón `Filtros`, al lado del buscador; un numerito sobre el botón muestra cuántos filtros tenés activos en ese momento. La lista carga de a tandas: al llegar al final se trae más automáticamente.
+
+**Resumen de Movimientos**
+
+Tocando el ícono de gráfico de barras en el header de `Movimientos` se abre una pantalla con tres gráficos: ingresos vs. egresos por mes, saldo acumulado, y egresos por categoría — para ver de un vistazo cómo viene la caja del club sin tener que sumar movimiento por movimiento.
 
 ## 9. Horas del staff — deuda a pagar
 
