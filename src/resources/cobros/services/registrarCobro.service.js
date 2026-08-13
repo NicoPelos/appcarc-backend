@@ -181,13 +181,20 @@ const normalizeItem = async ({ item, index, clubId, date, precioCache, session =
 
   const description = String(item?.description || '').trim();
 
+  // Cuando el front manda `amount`, es el TOTAL a repartir entre todos los
+  // períodos de este item (ver RegistrarCobroScreen: "Monto total" ya viene
+  // multiplicado por la cantidad de meses) — hay que dividirlo entre la
+  // cantidad de períodos para obtener el importe por mes. Si no vino `amount`,
+  // `unitAmount` ya es el precio vigente por mes y se aplica tal cual.
+  const amountPorPeriodo = amount != null ? amount / periodos.length : unitAmount;
+
   return periodos.map((periodo) => ({
     socioId,
     suscripcionId,
     cargoPuntualId: null,
     etiquetaId,
     periodo,
-    amount: unitAmount,
+    amount: amountPorPeriodo,
     precioSugeridoSnapshot,
     description,
   }));

@@ -296,6 +296,28 @@ describe('registrarCobro service (unit)', () => {
     expect(result.cuotas).toHaveLength(2);
   });
 
+  it('should split an explicit amount across periods instead of applying it to each one', async () => {
+    mockSuscripcionVigente({ _id: SUSCRIPCION_ID, etiquetaId: ETIQUETA_ID });
+    Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+    Cuota.find.mockReturnValue(buildSessionQuery([]));
+
+    const result = await registrarCobro({
+      clubId: CLUB_ID, user: USER,
+      body: {
+        paymentMethod: 'Efectivo',
+        items: [{
+          socioId: SOCIO_ID,
+          suscripcionId: SUSCRIPCION_ID,
+          periodos: ['2026-06', '2026-07'],
+          amount: 12000,
+        }],
+      },
+    });
+
+    expect(savedMovimientos[0]).toMatchObject({ amount: 12000 });
+    expect(result.cuotas.map((c) => c.montoPagadoSnapshot)).toEqual([6000, 6000]);
+  });
+
   it('should update existing pending cuota instead of creating a new one', async () => {
     mockSuscripcionVigente({ _id: SUSCRIPCION_ID, etiquetaId: ETIQUETA_ID });
     Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
