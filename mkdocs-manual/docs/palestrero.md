@@ -25,7 +25,11 @@ Cada visita al muro (sea de un socio o de alguien externo) se registra acá, jun
 
 Arriba de la lista hay chips para filtrar lo que se muestra (`Hoy`, `3 días`, `7 días`, `30 días`), con el total de check-ins del período a la derecha.
 
-1. Andá a `Muro Libre` y tocá el botón de agregar (+). Si el socio tiene su credencial QR a mano, en vez del + podés tocar el ícono de QR (arriba a la derecha) y escanearla: queda el check-in al instante como pase diario con el pago en estado pendiente, sin pasar por el formulario — después hay que cobrarlo o dejarlo pendiente según corresponda.
+La mayoría de los check-ins de socios se cargan solos: en la pared del club hay un cartel fijo con un código QR de Muro Libre, y el socio lo escanea con la cámara de su propio celular (no hace falta que abra la app primero). Si tiene pase mensual vigente no se le genera ningún cargo; si no, queda pendiente de pago y lo cobrás vos en el mostrador cuando corresponda.
+
+Para gente externa (que no es socio) o si preferís cargar el check-in vos mismo/a:
+
+1. Andá a `Muro Libre` y tocá el botón de agregar (+).
 2. Buscá a la persona por nombre o DNI. Si ya es socio, va a aparecer en los resultados con su estado. Si no aparece nadie, tocá "¿No es socio? Registrar como visitante externo" y cargá nombre (obligatorio), apellido y DNI (opcionales).
 3. Elegí la fecha del check-in.
 4. Elegí el tipo de pase: `diario` o `mensual`. El pase mensual solo está disponible para socios — a una persona externa solo se le puede cobrar el diario. Si al elegir el socio ya tiene un pase mensual vigente, la app muestra esa info junto a su nombre para que no se lo cobres de nuevo.
@@ -35,6 +39,8 @@ Arriba de la lista hay chips para filtrar lo que se muestra (`Hoy`, `3 días`, `
 8. Confirmá — queda el check-in con fecha y hora.
 
 Para corregir un check-in ya cargado (por ejemplo si te equivocaste de tipo de pase o forma de pago), tocá el lápiz en su fila de la lista; el tacho de al lado lo elimina.
+
+Si no tenés el cartel QR a mano (se rompió, se lo llevaron, etc.), tocá el ícono de QR (arriba a la derecha) para generarlo e imprimirlo de nuevo.
 
 ## 2. Cargar tus horas trabajadas
 
