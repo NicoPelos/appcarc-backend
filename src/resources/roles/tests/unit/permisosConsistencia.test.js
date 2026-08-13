@@ -22,10 +22,17 @@ const routesFiles = fs.readdirSync(RESOURCES_DIR, { recursive: true })
   .filter((p) => /routes\.js$/i.test(p))
   .map((p) => path.join(RESOURCES_DIR, p));
 
-// Matchea authorize(PERMISOS.X), authorizeSelfSocioOr(PERMISOS.X) y
-// authorizeSelfSocioQueryOr(PERMISOS.X) — las tres formas en que una ruta
-// declara qué permiso necesita.
-const AUTHORIZE_CALL_RE = /authorize(?:SelfSocioOr|SelfSocioQueryOr)?\(\s*PERMISOS\.([A-Z0-9_]+)/g;
+// Matchea authorize(PERMISOS.X), authorizeSelfSocioOr(PERMISOS.X),
+// authorizeSelfSocioQueryOr(PERMISOS.X) y authorizeSelfPadreQueryOr(PERMISOS.X)
+// — las formas en que una ruta declara un único permiso requerido.
+const AUTHORIZE_CALL_RE = /authorize(?:SelfSocioOr|SelfSocioQueryOr|SelfPadreQueryOr)?\(\s*PERMISOS\.([A-Z0-9_]+)/g;
+
+// authorizeAny([PERMISOS.X, PERMISOS.Y]) — deja pasar con cualquiera de varios
+// permisos (ver muroLibre:checkin_propio / escuelita:checkin_propio,
+// appCARC-mobile#60). Se matchea el array completo y después cada PERMISOS.X
+// suelto adentro, porque el regex de arriba solo captura un permiso por match.
+const AUTHORIZE_ANY_CALL_RE = /authorizeAny\(\s*\[([^\]]+)\]/g;
+const PERMISO_REF_RE = /PERMISOS\.([A-Z0-9_]+)/g;
 
 // { permisoKey, permisoValue, archivo }[] — una entrada por cada uso real en
 // una ruta (puede haber más de un uso del mismo permiso, se listan todos
@@ -37,6 +44,12 @@ const usosEnRutas = routesFiles.flatMap((archivo) => {
   for (const match of contenido.matchAll(AUTHORIZE_CALL_RE)) {
     const permisoKey = match[1];
     usos.push({ permisoKey, permisoValue: PERMISOS[permisoKey], archivo: relativo });
+  }
+  for (const arrayMatch of contenido.matchAll(AUTHORIZE_ANY_CALL_RE)) {
+    for (const match of arrayMatch[1].matchAll(PERMISO_REF_RE)) {
+      const permisoKey = match[1];
+      usos.push({ permisoKey, permisoValue: PERMISOS[permisoKey], archivo: relativo });
+    }
   }
   return usos;
 });

@@ -2,10 +2,13 @@ import Escuelita from '../models/Escuelita.js';
 import Cuota from '../../cuotas/models/Cuota.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
-import { resolveSocioFromQrTokenOrDni, BusinessError } from '../../socios/services/socioQr.service.js';
+import VinculoFamiliar from '../../vinculos/models/VinculoFamiliar.js';
+import { resolveSocioFromQrTokenOrDni, findActiveSocioById, BusinessError } from '../../socios/services/socioQr.service.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 import { notifyRoles, notifySocio } from '../../../services/pushNotification.service.js';
 import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC } from '../../../services/fechaArgentina.js';
+import { tienePermiso } from '../../../services/permisosCache.js';
+import { PERMISOS } from '../../../constants/permisos.js';
 
 /**
  * @openapi
@@ -28,6 +31,9 @@ import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC } from '../../../services
  *               dni:
  *                 type: string
  *                 description: DNI del socio
+ *               hijoSocioId:
+ *                 type: string
+ *                 description: Solo para autoescaneo (escuelita:checkin_propio) — id del hijo vinculado a marcar en vez del propio usuario. Requiere VinculoFamiliar activo.
  *               observaciones:
  *                 type: string
  *               fecha:
@@ -46,7 +52,7 @@ import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC } from '../../../services
  */
 export const checkinEscuelitaHandler = async (req, res) => {
   try {
-    const { token, dni, observaciones, fecha: fechaRaw } = req.body;
+    const { token, dni, hijoSocioId, observaciones, fecha: fechaRaw } = req.body;
     const { clubId } = req.user;
     const actor = req.user.email || req.user.id;
 
@@ -55,14 +61,43 @@ export const checkinEscuelitaHandler = async (req, res) => {
       return res.status(400).json({ message: 'La fecha es inválida' });
     }
 
-    // 1. Identificar socio por QR o DNI
-    const { socio, method } = await resolveSocioFromQrTokenOrDni({
-      token,
-      dni,
-      clubId,
-      missingMessage: 'Se requiere token QR o DNI',
-      dniNotFoundMessage: 'Socio no encontrado por DNI',
-    });
+    const roles = req.user.roles ?? [];
+    const esStaff = roles.includes('superadmin')
+      || await tienePermiso(clubId, roles, PERMISOS.ESCUELITA_CHECKIN);
+
+    // 1. Identificar socio: staff por QR/DNI de cualquiera; autoescaneo del
+    // QR de pared (appCARC-mobile#60) solo puede apuntar al propio usuario o
+    // a un hijo vinculado (VinculoFamiliar activo) — nunca a un socio libre.
+    let socio;
+    let method;
+
+    if (esStaff) {
+      ({ socio, method } = await resolveSocioFromQrTokenOrDni({
+        token,
+        dni,
+        clubId,
+        missingMessage: 'Se requiere token QR o DNI',
+        dniNotFoundMessage: 'Socio no encontrado por DNI',
+      }));
+    } else {
+      const targetSocioId = hijoSocioId || req.user.socioId;
+      if (!targetSocioId) {
+        return res.status(403).json({ message: 'Tu usuario no tiene un socio asociado ni indicaste un hijo vinculado' });
+      }
+      if (hijoSocioId && hijoSocioId !== req.user.socioId) {
+        const vinculo = await VinculoFamiliar.exists({
+          clubId, padreUserId: req.user.id, hijoSocioId, active: true,
+        });
+        if (!vinculo) {
+          return res.status(403).json({ message: 'Ese socio no está vinculado a tu cuenta' });
+        }
+      }
+      socio = await findActiveSocioById(targetSocioId, clubId);
+      if (!socio) {
+        return res.status(404).json({ message: 'Socio no encontrado o inactivo' });
+      }
+      method = 'SELF';
+    }
 
     // 2. Buscar inscripción activa en escuelita
     const alumno = await Escuelita.findOne({ clubId, socioId: socio._id, active: true })

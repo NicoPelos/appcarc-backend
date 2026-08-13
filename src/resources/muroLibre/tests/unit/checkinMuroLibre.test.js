@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { checkinMuroLibreHandler } from '../../handlers/checkinMuroLibre.handler.js';
 import * as socioQrService from '../../../socios/services/socioQr.service.js';
 import * as muroLibreService from '../../services/registrarMuroLibre.service.js';
+import * as permisosCache from '../../../../services/permisosCache.js';
 
 const mockRes = () => {
   const res = {};
@@ -14,6 +15,7 @@ describe('checkinMuroLibreHandler', () => {
   beforeEach(() => {
     vi.spyOn(muroLibreService, 'registrarMuroLibre').mockResolvedValue({ registro: { _id: 'ml1' }, movimiento: null });
     vi.spyOn(socioQrService, 'resolveSocioFromQrTokenOrDni').mockResolvedValue({ socio: { _id: 'socio1' }, method: 'QR' });
+    vi.spyOn(permisosCache, 'tienePermiso').mockResolvedValue(true); // staff por defecto en estos tests
   });
 
   afterEach(() => {
@@ -23,7 +25,7 @@ describe('checkinMuroLibreHandler', () => {
   it('should checkin via QR token and return 201', async () => {
     const req = {
       body: { token: 'qr-token', tipoPase: 'diario', estadoPago: 'pendiente' },
-      user: { clubId: 'club1', id: 'staff1' },
+      user: { clubId: 'club1', id: 'staff1', roles: ['secretaria'] },
     };
     const res = mockRes();
 
@@ -92,5 +94,56 @@ describe('checkinMuroLibreHandler', () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ message: 'Se requiere token QR o DNI para identificar el socio' });
+  });
+
+  describe('autoescaneo (checkin_propio, sin permiso de staff)', () => {
+    beforeEach(() => {
+      permisosCache.tienePermiso.mockResolvedValue(false);
+      vi.spyOn(socioQrService, 'findActiveSocioById').mockResolvedValue({ _id: 'socio1' });
+    });
+
+    it('ignora token/dni del body y usa el socio del usuario logueado', async () => {
+      vi.spyOn(socioQrService, 'getPaseMuroLibreVigente').mockResolvedValue({ suscripto: false, vigente: null });
+      const req = {
+        body: { token: 'algo-que-no-deberia-usarse', dni: '999', tipoPase: 'mensual', estadoPago: 'pagado' },
+        user: { clubId: 'club1', id: 'user1', socioId: 'socio1', roles: ['socio'] },
+      };
+      const res = mockRes();
+
+      await checkinMuroLibreHandler(req, res);
+
+      expect(socioQrService.resolveSocioFromQrTokenOrDni).not.toHaveBeenCalled();
+      expect(socioQrService.findActiveSocioById).toHaveBeenCalledWith('socio1', 'club1');
+      expect(muroLibreService.registrarMuroLibre).toHaveBeenCalledWith(expect.objectContaining({
+        body: expect.objectContaining({ socioId: 'socio1', tipoPase: 'diario', estadoPago: 'pendiente', paymentMethod: undefined }),
+        checkinMethod: 'SELF',
+      }));
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
+
+    it('usa tipoPase mensual cuando el socio ya está suscripto al pase mensual', async () => {
+      vi.spyOn(socioQrService, 'getPaseMuroLibreVigente').mockResolvedValue({ suscripto: true, vigente: true });
+      const req = {
+        body: {},
+        user: { clubId: 'club1', id: 'user1', socioId: 'socio1', roles: ['socio'] },
+      };
+      const res = mockRes();
+
+      await checkinMuroLibreHandler(req, res);
+
+      expect(muroLibreService.registrarMuroLibre).toHaveBeenCalledWith(expect.objectContaining({
+        body: expect.objectContaining({ tipoPase: 'mensual', estadoPago: 'pendiente' }),
+      }));
+    });
+
+    it('devuelve 403 si el usuario no tiene socio asociado', async () => {
+      const req = { body: {}, user: { clubId: 'club1', id: 'user1', roles: ['algunRolSinSocio'] } };
+      const res = mockRes();
+
+      await checkinMuroLibreHandler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(muroLibreService.registrarMuroLibre).not.toHaveBeenCalled();
+    });
   });
 });

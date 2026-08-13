@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect, authorize, authorizeSelfSocioQueryOr } from '../../middleware/auth.js';
+import { protect, authorize, authorizeAny, authorizeSelfSocioQueryOr } from '../../middleware/auth.js';
 import { PERMISOS } from '../../constants/permisos.js';
 import { getAlumnosHandler } from './handlers/getAlumnos.handler.js';
 import { createAlumnoHandler } from './handlers/createAlumno.handler.js';
@@ -9,7 +9,7 @@ import { checkinEscuelitaHandler } from './handlers/checkinEscuelita.handler.js'
 
 const router = express.Router();
 
-router.post('/checkin', protect, authorize(PERMISOS.ESCUELITA_CHECKIN), checkinEscuelitaHandler);
+router.post('/checkin', protect, authorizeAny([PERMISOS.ESCUELITA_CHECKIN, PERMISOS.ESCUELITA_CHECKIN_PROPIO]), checkinEscuelitaHandler);
 router.get('/', protect, authorizeSelfSocioQueryOr(PERMISOS.ESCUELITA_READ), getAlumnosHandler);
 router.post('/', protect, authorize(PERMISOS.ESCUELITA_WRITE), createAlumnoHandler);
 router.put('/:id', protect, authorize(PERMISOS.ESCUELITA_WRITE), updateAlumnoHandler);

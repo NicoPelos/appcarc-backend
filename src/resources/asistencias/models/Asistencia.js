@@ -27,7 +27,7 @@ const asistenciaSchema = new mongoose.Schema({
 
   // check-in
   scannedBy: { type: String, default: null },
-  checkinMethod: { type: String, enum: ['QR', 'DNI', 'MANUAL'], default: 'MANUAL' },
+  checkinMethod: { type: String, enum: ['QR', 'DNI', 'MANUAL', 'SELF'], default: 'MANUAL' },
 
   advertencias: {
     type: [{

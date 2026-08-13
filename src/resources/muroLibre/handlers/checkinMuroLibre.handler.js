@@ -1,6 +1,8 @@
 import { BusinessError, registrarMuroLibre } from '../services/registrarMuroLibre.service.js';
-import { resolveSocioFromQrTokenOrDni } from '../../socios/services/socioQr.service.js';
+import { resolveSocioFromQrTokenOrDni, findActiveSocioById, getPaseMuroLibreVigente } from '../../socios/services/socioQr.service.js';
 import { notifyRoles, notifySocio } from '../../../services/pushNotification.service.js';
+import { tienePermiso } from '../../../services/permisosCache.js';
+import { PERMISOS } from '../../../constants/permisos.js';
 
 /**
  * @openapi
@@ -62,12 +64,45 @@ export const checkinMuroLibreHandler = async (req, res) => {
   try {
     const { token, dni, tipoPase, estadoPago, paymentMethod, enviarComprobanteWp, observaciones, fecha } = req.body;
 
-    const { socio, method } = await resolveSocioFromQrTokenOrDni({
-      token,
-      dni,
-      clubId: req.user?.clubId,
-      missingMessage: 'Se requiere token QR o DNI para identificar el socio',
-    });
+    const roles = req.user?.roles ?? [];
+    const esStaff = roles.includes('superadmin')
+      || await tienePermiso(req.user?.clubId, roles, PERMISOS.MURO_LIBRE_CHECKIN);
+
+    // Autoescaneo del QR de pared (appCARC-mobile#60): quien llama solo tiene
+    // el permiso "propio", no el de staff — se ignora cualquier token/dni que
+    // venga en el body y se fuerza la identidad a la del usuario logueado.
+    // También se auto-detecta si tiene pase mensual vigente (en vez de asumir
+    // "diario" y crear una deuda que ya está cubierta, ver issue #81) en vez
+    // de tomar tipoPase/estadoPago del body.
+    let socio;
+    let method;
+    let tipoPaseFinal = tipoPase;
+    let estadoPagoFinal = estadoPago;
+
+    if (esStaff) {
+      ({ socio, method } = await resolveSocioFromQrTokenOrDni({
+        token,
+        dni,
+        clubId: req.user?.clubId,
+        missingMessage: 'Se requiere token QR o DNI para identificar el socio',
+      }));
+    } else {
+      if (!req.user?.socioId) {
+        throw new BusinessError('Tu usuario no tiene un socio asociado', 403);
+      }
+      socio = await findActiveSocioById(req.user.socioId, req.user.clubId);
+      if (!socio) {
+        throw new BusinessError('Socio no encontrado o inactivo', 404);
+      }
+      method = 'SELF';
+
+      // Solo hace falta saber si está suscripto al pase mensual — si lo está
+      // pero no pagó el período actual, registrarMuroLibre ya se encarga de
+      // avisarlo (advertencia PASE_MENSUAL_IMPAGO) sin bloquear el check-in.
+      const pase = await getPaseMuroLibreVigente(socio._id, req.user.clubId);
+      tipoPaseFinal = pase.suscripto ? 'mensual' : 'diario';
+      estadoPagoFinal = 'pendiente';
+    }
 
     const advertencias = [];
     const result = await registrarMuroLibre({
@@ -75,9 +110,9 @@ export const checkinMuroLibreHandler = async (req, res) => {
       user: req.user,
       body: {
         socioId: String(socio._id),
-        tipoPase,
-        estadoPago,
-        paymentMethod,
+        tipoPase: tipoPaseFinal,
+        estadoPago: estadoPagoFinal,
+        paymentMethod: esStaff ? paymentMethod : undefined,
         enviarComprobanteWp,
         observaciones,
         fecha,

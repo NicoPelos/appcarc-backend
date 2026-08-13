@@ -105,3 +105,36 @@ export const authorizeSelfSocioQueryOr = (permiso) => {
     return authorize(permiso)(req, res, next);
   };
 };
+
+// authorizeAny([permisoA, permisoB]) — deja pasar si el usuario tiene CUALQUIERA
+// de los permisos indicados. Para rutas donde staff y "el propio socio" comparten
+// el mismo endpoint pero con permisos distintos (ver muroLibre:checkin_propio /
+// escuelita:checkin_propio, appCARC-mobile#60).
+export const authorizeAny = (permisos) => {
+  return async (req, res, next) => {
+    try {
+      const userRoles = req.user.roles ?? [];
+      if (userRoles.includes('superadmin')) return next();
+
+      const clubId = req.user.clubId;
+      for (const permiso of permisos) {
+        if (await tienePermiso(clubId, userRoles, permiso)) return next();
+      }
+      return res.status(403).json({ message: 'No tenés permiso para esta acción' });
+    } catch (error) {
+      console.error('[authorizeAny] Error verificando permisos:', error.message);
+      return res.status(500).json({ message: 'Error verificando permisos' });
+    }
+  };
+};
+
+// authorizeSelfPadreQueryOr('socios:read') — igual que authorizeSelfSocioQueryOr
+// pero para tutores: deja pasar sin el permiso de staff cuando ?padreUserId=
+// coincide con el propio usuario logueado (para que un tutor liste sus propios
+// vínculos familiares sin heredar socios:read).
+export const authorizeSelfPadreQueryOr = (permiso) => {
+  return async (req, res, next) => {
+    if (req.query?.padreUserId && req.query.padreUserId === req.user?.id) return next();
+    return authorize(permiso)(req, res, next);
+  };
+};

@@ -3,6 +3,7 @@ import { checkinEscuelitaHandler } from '../../handlers/checkinEscuelita.handler
 
 vi.mock('../../../socios/services/socioQr.service.js', () => ({
   resolveSocioFromQrTokenOrDni: vi.fn(),
+  findActiveSocioById: vi.fn(),
   BusinessError: class BusinessError extends Error {
     constructor(message, status = 400) { super(message); this.status = status; }
   },
@@ -19,14 +20,22 @@ vi.mock('../../../etiquetas/models/Etiqueta.js', () => ({
 vi.mock('../../../asistencias/models/Asistencia.js', () => ({
   default: { countDocuments: vi.fn(), findOne: vi.fn(), create: vi.fn() },
 }));
+vi.mock('../../../vinculos/models/VinculoFamiliar.js', () => ({
+  default: { exists: vi.fn() },
+}));
+vi.mock('../../../../services/permisosCache.js', () => ({
+  tienePermiso: vi.fn(),
+}));
 
-import { resolveSocioFromQrTokenOrDni, BusinessError } from '../../../socios/services/socioQr.service.js';
+import { resolveSocioFromQrTokenOrDni, findActiveSocioById, BusinessError } from '../../../socios/services/socioQr.service.js';
 import Escuelita from '../../models/Escuelita.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
 import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 import Asistencia from '../../../asistencias/models/Asistencia.js';
+import VinculoFamiliar from '../../../vinculos/models/VinculoFamiliar.js';
+import { tienePermiso } from '../../../../services/permisosCache.js';
 
-const mockUser = { clubId: 'CARC', email: 'admin@carc.com', id: 'u1' };
+const mockUser = { clubId: 'CARC', email: 'admin@carc.com', id: 'u1', roles: ['secretaria'] };
 const mockSocio = { _id: 'socio1', nombre: 'Ana', apellido: 'García', dni: '12345678' };
 const mockPlan = { _id: 'plan1', nombre: 'PrincipiantesX2', atributos: { frecuenciaSemanal: 2 } };
 const mockAlumno = { socioId: 'socio1', planId: mockPlan };
@@ -40,6 +49,7 @@ const mockRes = () => {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  tienePermiso.mockResolvedValue(true); // staff por defecto en estos tests
   resolveSocioFromQrTokenOrDni.mockResolvedValue({ socio: mockSocio, method: 'QR' });
   Escuelita.findOne.mockReturnValue({ populate: vi.fn().mockResolvedValue(mockAlumno) });
   Etiqueta.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'etiqueta1' }) });
@@ -145,5 +155,60 @@ describe('checkinEscuelitaHandler', () => {
     await checkinEscuelitaHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  describe('autoescaneo (checkin_propio, sin permiso de staff)', () => {
+    const tutorUser = { clubId: 'CARC', email: 'tutor@carc.com', id: 'tutor1', socioId: 'socioTutor', roles: ['socio'] };
+
+    beforeEach(() => {
+      tienePermiso.mockResolvedValue(false);
+      findActiveSocioById.mockResolvedValue(mockSocio);
+    });
+
+    it('usa el propio socio del usuario cuando no manda hijoSocioId', async () => {
+      const req = { user: tutorUser, body: {} };
+      const res = mockRes();
+
+      await checkinEscuelitaHandler(req, res);
+
+      expect(resolveSocioFromQrTokenOrDni).not.toHaveBeenCalled();
+      expect(findActiveSocioById).toHaveBeenCalledWith('socioTutor', 'CARC');
+      expect(VinculoFamiliar.exists).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
+
+    it('permite marcar a un hijo vinculado si el VinculoFamiliar está activo', async () => {
+      VinculoFamiliar.exists.mockResolvedValue(true);
+      const req = { user: tutorUser, body: { hijoSocioId: 'hijo1' } };
+      const res = mockRes();
+
+      await checkinEscuelitaHandler(req, res);
+
+      expect(VinculoFamiliar.exists).toHaveBeenCalledWith({
+        clubId: 'CARC', padreUserId: 'tutor1', hijoSocioId: 'hijo1', active: true,
+      });
+      expect(findActiveSocioById).toHaveBeenCalledWith('hijo1', 'CARC');
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
+
+    it('rechaza con 403 si el hijoSocioId no está vinculado al usuario', async () => {
+      VinculoFamiliar.exists.mockResolvedValue(false);
+      const req = { user: tutorUser, body: { hijoSocioId: 'hijo-ajeno' } };
+      const res = mockRes();
+
+      await checkinEscuelitaHandler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(Asistencia.create).not.toHaveBeenCalled();
+    });
+
+    it('rechaza con 403 si no hay socioId propio ni hijoSocioId', async () => {
+      const req = { user: { clubId: 'CARC', id: 'tutor1', roles: ['socio'] }, body: {} };
+      const res = mockRes();
+
+      await checkinEscuelitaHandler(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+    });
   });
 });

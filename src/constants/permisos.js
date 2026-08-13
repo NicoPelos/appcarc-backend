@@ -21,12 +21,17 @@ export const PERMISOS = {
   ESCUELITA_WRITE:   'escuelita:write',
   ESCUELITA_DELETE:  'escuelita:delete',
   ESCUELITA_CHECKIN: 'escuelita:checkin',
+  // Check-in de un socio sobre sí mismo (o un hijo vinculado), vía QR de
+  // pared — distinto de escuelita:checkin (staff registrando a cualquiera).
+  ESCUELITA_CHECKIN_PROPIO: 'escuelita:checkin_propio',
 
   // Muro Libre
   MURO_LIBRE_READ:    'muroLibre:read',
   MURO_LIBRE_WRITE:   'muroLibre:write',
   MURO_LIBRE_DELETE:  'muroLibre:delete',
   MURO_LIBRE_CHECKIN: 'muroLibre:checkin',
+  // Check-in de un socio sobre sí mismo vía QR de pared — ver ESCUELITA_CHECKIN_PROPIO.
+  MURO_LIBRE_CHECKIN_PROPIO: 'muroLibre:checkin_propio',
 
   // Horarios
   HORARIOS_READ:   'horarios:read',
@@ -95,8 +100,8 @@ export const PERMISOS_POR_CATEGORIA = [
   { categoria: 'Socios', permisos: [PERMISOS.SOCIOS_READ, PERMISOS.SOCIOS_CREATE, PERMISOS.SOCIOS_WRITE, PERMISOS.SOCIOS_DELETE, PERMISOS.SOCIOS_RESTORE] },
   { categoria: 'Cobros', permisos: [PERMISOS.COBROS_READ, PERMISOS.COBROS_WRITE, PERMISOS.COBROS_DELETE] },
   { categoria: 'Movimientos', permisos: [PERMISOS.MOVIMIENTOS_READ, PERMISOS.MOVIMIENTOS_WRITE, PERMISOS.MOVIMIENTOS_DELETE] },
-  { categoria: 'Escuelita', permisos: [PERMISOS.ESCUELITA_READ, PERMISOS.ESCUELITA_WRITE, PERMISOS.ESCUELITA_DELETE, PERMISOS.ESCUELITA_CHECKIN] },
-  { categoria: 'Muro Libre', permisos: [PERMISOS.MURO_LIBRE_READ, PERMISOS.MURO_LIBRE_WRITE, PERMISOS.MURO_LIBRE_DELETE, PERMISOS.MURO_LIBRE_CHECKIN] },
+  { categoria: 'Escuelita', permisos: [PERMISOS.ESCUELITA_READ, PERMISOS.ESCUELITA_WRITE, PERMISOS.ESCUELITA_DELETE, PERMISOS.ESCUELITA_CHECKIN, PERMISOS.ESCUELITA_CHECKIN_PROPIO] },
+  { categoria: 'Muro Libre', permisos: [PERMISOS.MURO_LIBRE_READ, PERMISOS.MURO_LIBRE_WRITE, PERMISOS.MURO_LIBRE_DELETE, PERMISOS.MURO_LIBRE_CHECKIN, PERMISOS.MURO_LIBRE_CHECKIN_PROPIO] },
   { categoria: 'Horarios', permisos: [PERMISOS.HORARIOS_READ, PERMISOS.HORARIOS_WRITE, PERMISOS.HORARIOS_DELETE, PERMISOS.HORARIOS_DEUDA] },
   { categoria: 'Etiquetas', permisos: [PERMISOS.ETIQUETAS_READ, PERMISOS.ETIQUETAS_WRITE, PERMISOS.ETIQUETAS_DELETE] },
   { categoria: 'Precios', permisos: [PERMISOS.PRECIOS_READ, PERMISOS.PRECIOS_WRITE, PERMISOS.PRECIOS_DELETE] },
