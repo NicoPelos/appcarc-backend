@@ -11,12 +11,14 @@ admin@demo.appclub.ar / DemoAdmin2026!
 
 ## 1. Socios — alta, baja y ficha
 
-La ficha de cada persona del club: datos personales, estado (Activo / Adherente / Baja), deuda de cuota social, y accesos directos a registrar un cobro o ver su historial de escuelita / muro libre.
+La ficha de cada persona del club: datos personales, estado (Activo / Adherente / Baja), deuda de cuota social, y accesos directos a registrar un cobro o asignarle un plan.
 
 <figure markdown>
   ![Lista de socios](assets/screenshots/admin-socios-lista.png){ width="260" }
   <figcaption>Lista de socios</figcaption>
 </figure>
+
+Más abajo en la ficha (para roles con permiso — admin y secretaría) hay dos secciones de solo lectura con lo último de esa persona: `Visitas`, con sus últimas 10 asistencias a muro libre y escuelita (tipo, fecha y tipo de pase), y `Pagos`, con sus últimos 10 cobros (fecha, forma de pago y monto).
 
 **Dar de alta un socio nuevo**
 
@@ -254,7 +256,7 @@ Actualiza un Google Sheet con los datos del club (socios, cuotas sociales y de e
 
 ## 12. Notificaciones
 
-Además de las notificaciones personales (ver el [manual de Socio](socio.md#8-notificaciones)), admin y secretaría reciben avisos proactivos del club: alta de un socio nuevo, una solicitud completada por formulario, o un check-in (escuelita/muro libre) con advertencias.
+Además de las notificaciones personales (ver el [manual de Socio](socio.md#9-notificaciones)), admin y secretaría reciben avisos proactivos del club: alta de un socio nuevo, una solicitud completada por formulario, o un check-in (escuelita/muro libre) con advertencias.
 
 <figure markdown>
   ![Notificaciones](assets/screenshots/socio-notificaciones.png){ width="260" }
