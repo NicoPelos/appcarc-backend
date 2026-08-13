@@ -61,17 +61,28 @@ export const checkinEscuelitaHandler = async (req, res) => {
       return res.status(400).json({ message: 'La fecha es inválida' });
     }
 
-    const roles = req.user.roles ?? [];
-    const esStaff = roles.includes('superadmin')
-      || await tienePermiso(clubId, roles, PERMISOS.ESCUELITA_CHECKIN);
+    // La decisión de qué flujo usar depende de si LA REQUEST trae token/dni
+    // explícito, no de qué permisos tiene quien llama — un miembro del staff
+    // que además tiene un hijo en la escuelita y escanea el cartel de pared
+    // para autoescanearlo tiene que poder hacerlo igual (appCARC-mobile#60,
+    // mismo bug que en checkinMuroLibre.handler.js: esStaff daba true y
+    // forzaba siempre el flujo de "identificar por QR/DNI de otro socio").
+    const identificacionExplicita = Boolean(token || dni);
 
-    // 1. Identificar socio: staff por QR/DNI de cualquiera; autoescaneo del
-    // QR de pared (appCARC-mobile#60) solo puede apuntar al propio usuario o
-    // a un hijo vinculado (VinculoFamiliar activo) — nunca a un socio libre.
+    // 1. Identificar socio: por QR/DNI de cualquiera (requiere permiso de
+    // staff); autoescaneo del QR de pared solo puede apuntar al propio
+    // usuario o a un hijo vinculado (VinculoFamiliar activo) — nunca a un
+    // socio libre.
     let socio;
     let method;
 
-    if (esStaff) {
+    if (identificacionExplicita) {
+      const roles = req.user.roles ?? [];
+      const esStaff = roles.includes('superadmin')
+        || await tienePermiso(clubId, roles, PERMISOS.ESCUELITA_CHECKIN);
+      if (!esStaff) {
+        return res.status(403).json({ message: 'No tenés permiso para registrar la asistencia de otro socio' });
+      }
       ({ socio, method } = await resolveSocioFromQrTokenOrDni({
         token,
         dni,

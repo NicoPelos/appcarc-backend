@@ -64,22 +64,31 @@ export const checkinMuroLibreHandler = async (req, res) => {
   try {
     const { token, dni, tipoPase, estadoPago, paymentMethod, enviarComprobanteWp, observaciones, fecha } = req.body;
 
-    const roles = req.user?.roles ?? [];
-    const esStaff = roles.includes('superadmin')
-      || await tienePermiso(req.user?.clubId, roles, PERMISOS.MURO_LIBRE_CHECKIN);
+    // La decisión de qué flujo usar depende de si LA REQUEST trae token/dni
+    // explícito, no de qué permisos tiene quien llama — un miembro del staff
+    // que además es socio y escanea el cartel de pared para sí mismo tiene que
+    // poder autoescanearse igual (appCARC-mobile#60, bug encontrado en vivo:
+    // el admin/secretaria quedaba forzado siempre al flujo de staff porque
+    // esStaff daba true, aunque el body viniera vacío).
+    const identificacionExplicita = Boolean(token || dni);
 
-    // Autoescaneo del QR de pared (appCARC-mobile#60): quien llama solo tiene
-    // el permiso "propio", no el de staff — se ignora cualquier token/dni que
-    // venga en el body y se fuerza la identidad a la del usuario logueado.
-    // También se auto-detecta si tiene pase mensual vigente (en vez de asumir
-    // "diario" y crear una deuda que ya está cubierta, ver issue #81) en vez
-    // de tomar tipoPase/estadoPago del body.
+    // Autoescaneo del QR de pared: se ignora cualquier permiso de staff que
+    // tenga quien llama y se fuerza la identidad al usuario logueado (o a un
+    // hijo vinculado, si aplicara). También se auto-detecta si tiene pase
+    // mensual vigente (en vez de asumir "diario" y crear una deuda que ya
+    // está cubierta, ver issue #81) en vez de tomar tipoPase/estadoPago del body.
     let socio;
     let method;
     let tipoPaseFinal = tipoPase;
     let estadoPagoFinal = estadoPago;
 
-    if (esStaff) {
+    if (identificacionExplicita) {
+      const roles = req.user?.roles ?? [];
+      const esStaff = roles.includes('superadmin')
+        || await tienePermiso(req.user?.clubId, roles, PERMISOS.MURO_LIBRE_CHECKIN);
+      if (!esStaff) {
+        throw new BusinessError('No tenés permiso para registrar el check-in de otro socio', 403);
+      }
       ({ socio, method } = await resolveSocioFromQrTokenOrDni({
         token,
         dni,
@@ -112,7 +121,7 @@ export const checkinMuroLibreHandler = async (req, res) => {
         socioId: String(socio._id),
         tipoPase: tipoPaseFinal,
         estadoPago: estadoPagoFinal,
-        paymentMethod: esStaff ? paymentMethod : undefined,
+        paymentMethod: identificacionExplicita ? paymentMethod : undefined,
         enviarComprobanteWp,
         observaciones,
         fecha,

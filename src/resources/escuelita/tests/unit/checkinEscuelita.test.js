@@ -211,4 +211,21 @@ describe('checkinEscuelitaHandler', () => {
       expect(res.status).toHaveBeenCalledWith(403);
     });
   });
+
+  describe('autoescaneo (checkin_propio, usuario CON permiso de staff — bug appCARC-mobile#60)', () => {
+    it('un staff que escanea el cartel para su propio hijo vinculado (body sin token/dni) hace autoescaneo en vez de que se le exija token/dni', async () => {
+      tienePermiso.mockResolvedValue(true); // staff, además de tener un hijo en la escuelita
+      findActiveSocioById.mockResolvedValue(mockSocio);
+      VinculoFamiliar.exists.mockResolvedValue(true);
+      const staffConHijo = { clubId: 'CARC', id: 'staff1', socioId: 'socioStaff', roles: ['secretaria'] };
+      const req = { user: staffConHijo, body: { hijoSocioId: 'hijo1' } };
+      const res = mockRes();
+
+      await checkinEscuelitaHandler(req, res);
+
+      expect(resolveSocioFromQrTokenOrDni).not.toHaveBeenCalled();
+      expect(findActiveSocioById).toHaveBeenCalledWith('hijo1', 'CARC');
+      expect(res.status).toHaveBeenCalledWith(201);
+    });
+  });
 });

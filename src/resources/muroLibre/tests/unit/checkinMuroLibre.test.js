@@ -83,8 +83,8 @@ describe('checkinMuroLibreHandler', () => {
     }));
   });
 
-  it('should return 400 when neither token nor DNI is provided', async () => {
-    const req = { body: { tipoPase: 'diario' }, user: { clubId: 'club1', id: 'staff1' } };
+  it('should return 400 when resolveSocioFromQrTokenOrDni rejects an explicit token', async () => {
+    const req = { body: { token: 'qr-invalido', tipoPase: 'diario' }, user: { clubId: 'club1', id: 'staff1', roles: ['secretaria'] } };
     const res = mockRes();
 
     socioQrService.resolveSocioFromQrTokenOrDni.mockRejectedValueOnce(
@@ -102,10 +102,10 @@ describe('checkinMuroLibreHandler', () => {
       vi.spyOn(socioQrService, 'findActiveSocioById').mockResolvedValue({ _id: 'socio1' });
     });
 
-    it('ignora token/dni del body y usa el socio del usuario logueado', async () => {
+    it('usa el socio del usuario logueado cuando el body no trae token/dni', async () => {
       vi.spyOn(socioQrService, 'getPaseMuroLibreVigente').mockResolvedValue({ suscripto: false, vigente: null });
       const req = {
-        body: { token: 'algo-que-no-deberia-usarse', dni: '999', tipoPase: 'mensual', estadoPago: 'pagado' },
+        body: { tipoPase: 'mensual', estadoPago: 'pagado' },
         user: { clubId: 'club1', id: 'user1', socioId: 'socio1', roles: ['socio'] },
       };
       const res = mockRes();
@@ -119,6 +119,20 @@ describe('checkinMuroLibreHandler', () => {
         checkinMethod: 'SELF',
       }));
       expect(res.status).toHaveBeenCalledWith(201);
+    });
+
+    it('rechaza con 403 si el body trae token/dni pero el usuario no tiene permiso de staff (no ignora silenciosamente)', async () => {
+      const req = {
+        body: { token: 'algo-que-no-deberia-usarse', dni: '999', tipoPase: 'mensual', estadoPago: 'pagado' },
+        user: { clubId: 'club1', id: 'user1', socioId: 'socio1', roles: ['socio'] },
+      };
+      const res = mockRes();
+
+      await checkinMuroLibreHandler(req, res);
+
+      expect(socioQrService.findActiveSocioById).not.toHaveBeenCalled();
+      expect(muroLibreService.registrarMuroLibre).not.toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(403);
     });
 
     it('usa tipoPase mensual cuando el socio ya está suscripto al pase mensual', async () => {
@@ -144,6 +158,29 @@ describe('checkinMuroLibreHandler', () => {
 
       expect(res.status).toHaveBeenCalledWith(403);
       expect(muroLibreService.registrarMuroLibre).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('autoescaneo (checkin_propio, usuario CON permiso de staff — bug appCARC-mobile#60)', () => {
+    it('un staff que escanea el cartel para sí mismo (body vacío) hace self-checkin en vez de que se le exija token/dni', async () => {
+      permisosCache.tienePermiso.mockResolvedValue(true); // staff
+      vi.spyOn(socioQrService, 'findActiveSocioById').mockResolvedValue({ _id: 'socio1' });
+      vi.spyOn(socioQrService, 'getPaseMuroLibreVigente').mockResolvedValue({ suscripto: false, vigente: null });
+      const req = {
+        body: {},
+        user: { clubId: 'club1', id: 'staff1', socioId: 'socio1', roles: ['secretaria'] },
+      };
+      const res = mockRes();
+
+      await checkinMuroLibreHandler(req, res);
+
+      expect(socioQrService.resolveSocioFromQrTokenOrDni).not.toHaveBeenCalled();
+      expect(socioQrService.findActiveSocioById).toHaveBeenCalledWith('socio1', 'club1');
+      expect(muroLibreService.registrarMuroLibre).toHaveBeenCalledWith(expect.objectContaining({
+        body: expect.objectContaining({ socioId: 'socio1' }),
+        checkinMethod: 'SELF',
+      }));
+      expect(res.status).toHaveBeenCalledWith(201);
     });
   });
 });
