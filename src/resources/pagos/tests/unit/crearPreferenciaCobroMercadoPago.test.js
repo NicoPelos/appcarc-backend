@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 const { mockIntentSave } = vi.hoisted(() => ({ mockIntentSave: vi.fn() }));
 
 vi.mock('../../../socios/models/Socio.js', () => ({
-  default: { findOne: vi.fn() },
+  default: { find: vi.fn() },
 }));
 vi.mock('../../models/MercadoPagoConfig.js', () => ({
   default: { findOne: vi.fn() },
@@ -43,7 +43,7 @@ const stubMpFetch = (body, ok = true, status = 200) => {
 beforeEach(() => {
   vi.clearAllMocks();
   MercadoPagoConfig.findOne = vi.fn().mockResolvedValue({ clubId: CLUB_ID, accessToken: 'TEST-token', active: true });
-  Socio.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', correoElectronico: 'ana@test.com' }) });
+  Socio.find = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([{ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', correoElectronico: 'ana@test.com' }]) });
   mockIntentSave.mockResolvedValue(undefined);
   stubMpFetch({ id: 'pref-1', init_point: 'https://mp.test/checkout/pref-1' });
 });
@@ -118,7 +118,7 @@ describe('crearPreferenciaCobroMercadoPago', () => {
   });
 
   it('rechaza si el socio no existe', async () => {
-    Socio.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
+    Socio.find = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) });
 
     await expect(crearPreferenciaCobroMercadoPago(baseArgs())).rejects.toMatchObject({ status: 404 });
   });

@@ -1,18 +1,7 @@
-import mongoose from 'mongoose';
-import Socio from '../../socios/models/Socio.js';
-import MercadoPagoConfig from '../models/MercadoPagoConfig.js';
-import PagoOnlineIntent from '../models/PagoOnlineIntent.js';
+import { BusinessError } from './crearPreferenciaCobroMercadoPago.errors.js';
+import { crearPreferenciaYGuardarIntent } from './guardarPreferenciaMercadoPago.js';
 
-const BACKEND_PUBLIC_URL = process.env.BACKEND_PUBLIC_URL || 'https://raspberrypi.tail703951.ts.net';
-const MP_API_BASE = 'https://api.mercadopago.com';
-
-export class BusinessError extends Error {
-  constructor(message, status = 400) {
-    super(message);
-    this.name = 'BusinessError';
-    this.status = status;
-  }
-}
+export { BusinessError };
 
 // A diferencia del cobro manual (que puede resolver el precio vigente en el
 // servidor si no viene "amount"), acá se exige un monto concreto por item:
@@ -69,69 +58,13 @@ export const crearPreferenciaCobroMercadoPago = async ({
   if (!socioId) throw new BusinessError('socioId es requerido');
   if (!Array.isArray(items) || !items.length) throw new BusinessError('Elegí al menos un ítem para generar el link de pago');
 
-  const config = await MercadoPagoConfig.findOne({ clubId, active: true });
-  if (!config) throw new BusinessError('Este club todavía no configuró Mercado Pago');
-
   const procesados = items.map((item, index) => normalizeItemParaLink(item, index, socioId));
   const normalizedItems = procesados.map((p) => p.normalizado);
   const totalAmount = procesados.reduce((total, p) => total + p.montoItem, 0);
-  if (totalAmount <= 0) throw new BusinessError('El monto a cobrar debe ser mayor a cero');
 
-  const socio = await Socio.findOne({ _id: socioId, clubId, active: true }).lean();
-  if (!socio) throw new BusinessError('Socio no encontrado', 404);
-
-  const intentId = new mongoose.Types.ObjectId();
-  const externalReference = intentId.toString();
-
-  const preferenceBody = {
-    items: [{
-      title: `Cobro ${socio.nombre} ${socio.apellido}${description ? ` — ${description}` : ''}`,
-      quantity: 1,
-      unit_price: totalAmount,
-      currency_id: 'ARS',
-    }],
-    external_reference: externalReference,
-    notification_url: `${BACKEND_PUBLIC_URL}/api/webhooks/mercadopago/${clubId}`,
-    back_urls: {
-      success: BACKEND_PUBLIC_URL,
-      failure: BACKEND_PUBLIC_URL,
-      pending: BACKEND_PUBLIC_URL,
-    },
-    auto_return: 'approved',
-    payer: socio.correoElectronico ? { email: socio.correoElectronico } : undefined,
-  };
-
-  const mpResponse = await fetch(`${MP_API_BASE}/checkout/preferences`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${config.accessToken}`,
-    },
-    body: JSON.stringify(preferenceBody),
+  return crearPreferenciaYGuardarIntent({
+    clubId, requestedByUserId, requestedByEmail, primarySocioId: socioId, normalizedItems, totalAmount, description,
   });
-
-  if (!mpResponse.ok) {
-    const errBody = await mpResponse.text().catch(() => '');
-    console.error('Error creando preferencia en Mercado Pago:', mpResponse.status, errBody);
-    throw new BusinessError('No se pudo generar el link de pago con Mercado Pago', 502);
-  }
-
-  const mpData = await mpResponse.json();
-
-  const intent = new PagoOnlineIntent({
-    _id: intentId,
-    clubId,
-    socioId,
-    requestedByUserId,
-    requestedByEmail,
-    items: normalizedItems,
-    totalAmount,
-    preferenceId: mpData.id,
-    externalReference,
-  });
-  await intent.save();
-
-  return { initPoint: mpData.init_point, preferenceId: mpData.id, intentId: externalReference };
 };
 
 export default crearPreferenciaCobroMercadoPago;
