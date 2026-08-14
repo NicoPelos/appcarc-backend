@@ -43,5 +43,10 @@
     "sha": "8c861975734085dbe80453c2ddb5bddbd0f58bf2",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-13T07:41:46Z"
+  },
+  "src/resources/asistencias": {
+    "sha": "724a935f5eb25e8c96cede3dad437270cacd7116",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-14T07:39:32Z"
   }
 }
