@@ -11,18 +11,25 @@ export async function revertirMuroLibre(log, { actor, session }) {
   const Movimiento = mongoose.model('Movimiento');
 
   if (log.action === 'CREATE') {
-    await Asistencia.findByIdAndUpdate(
-      log.resourceId,
+    const asistenciaActualizada = await Asistencia.findOneAndUpdate(
+      { _id: log.resourceId, clubId: log.clubId },
       { $set: { active: false, updatedBy: actor } },
       { session },
     );
+    if (!asistenciaActualizada) {
+      console.error(`revertirMuroLibre: Asistencia ${log.resourceId} no encontrada en el club ${log.clubId}`);
+      return;
+    }
 
     if (log.after?.movimientoId) {
-      await Movimiento.findByIdAndUpdate(
-        log.after.movimientoId,
+      const movimientoActualizado = await Movimiento.findOneAndUpdate(
+        { _id: log.after.movimientoId, clubId: log.clubId },
         { active: false, updatedBy: actor },
         { session },
       );
+      if (!movimientoActualizado) {
+        console.error(`revertirMuroLibre: Movimiento ${log.after.movimientoId} no encontrado en el club ${log.clubId}`);
+      }
     }
     return;
   }
@@ -36,17 +43,28 @@ export async function revertirMuroLibre(log, { actor, session }) {
 
     const restored = restoreFields(log.before);
     restored.updatedBy = actor;
-    await Asistencia.findByIdAndUpdate(log.resourceId, { $set: restored }, { session });
+    const asistenciaActualizada = await Asistencia.findOneAndUpdate(
+      { _id: log.resourceId, clubId: log.clubId },
+      { $set: restored },
+      { session },
+    );
+    if (!asistenciaActualizada) {
+      console.error(`revertirMuroLibre: Asistencia ${log.resourceId} no encontrada en el club ${log.clubId}`);
+      return;
+    }
 
     const movimientoId = log.before.movimientoId;
     if (!movimientoId) return;
 
     if (log.action === 'DELETE') {
-      await Movimiento.findByIdAndUpdate(
-        movimientoId,
+      const movimientoActualizado = await Movimiento.findOneAndUpdate(
+        { _id: movimientoId, clubId: log.clubId },
         { active: true, updatedBy: actor },
         { session },
       );
+      if (!movimientoActualizado) {
+        console.error(`revertirMuroLibre: Movimiento ${movimientoId} no encontrado en el club ${log.clubId}`);
+      }
       return;
     }
 
@@ -59,7 +77,14 @@ export async function revertirMuroLibre(log, { actor, session }) {
     if (log.before.formaPago !== undefined) camposMovimiento.paymentMethod = log.before.formaPago;
     if (Object.keys(camposMovimiento).length) {
       camposMovimiento.updatedBy = actor;
-      await Movimiento.findByIdAndUpdate(movimientoId, { $set: camposMovimiento }, { session });
+      const movimientoActualizado = await Movimiento.findOneAndUpdate(
+        { _id: movimientoId, clubId: log.clubId },
+        { $set: camposMovimiento },
+        { session },
+      );
+      if (!movimientoActualizado) {
+        console.error(`revertirMuroLibre: Movimiento ${movimientoId} no encontrado en el club ${log.clubId}`);
+      }
     }
   }
 }

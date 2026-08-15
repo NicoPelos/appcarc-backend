@@ -10,11 +10,14 @@ export async function revertirMovimiento(log, { actor, session }) {
   const Movimiento = mongoose.model('Movimiento');
 
   if (log.action === 'CREATE') {
-    await Movimiento.findByIdAndUpdate(
-      log.resourceId,
+    const actualizado = await Movimiento.findOneAndUpdate(
+      { _id: log.resourceId, clubId: log.clubId },
       { $set: { active: false, updatedBy: actor } },
       { session },
     );
+    if (!actualizado) {
+      console.error(`revertirMovimiento: Movimiento ${log.resourceId} no encontrado en el club ${log.clubId}`);
+    }
     return;
   }
 
@@ -27,7 +30,15 @@ export async function revertirMovimiento(log, { actor, session }) {
 
     const restored = restoreFields(log.before);
     restored.updatedBy = actor;
-    await Movimiento.findByIdAndUpdate(log.resourceId, { $set: restored }, { session });
+    const actualizado = await Movimiento.findOneAndUpdate(
+      { _id: log.resourceId, clubId: log.clubId },
+      { $set: restored },
+      { session },
+    );
+    if (!actualizado) {
+      console.error(`revertirMovimiento: Movimiento ${log.resourceId} no encontrado en el club ${log.clubId}`);
+      return;
+    }
 
     if (log.action !== 'DELETE') return;
 

@@ -2,8 +2,7 @@ import mongoose from 'mongoose';
 import AuditLog from '../models/AuditLog.js';
 import { logAudit } from '../services/audit.service.js';
 import { REVERSERS } from '../services/reversers/index.js';
-
-const OMIT_FIELDS = ['_id', '__v', 'createdAt', 'updatedAt'];
+import { restoreFields } from '../services/reversers/shared.js';
 
 /**
  * @openapi
@@ -58,20 +57,36 @@ export const revertAuditLogHandler = async (req, res) => {
       const Model = mongoose.model(log.resource);
 
       if (log.action === 'CREATE') {
-        // Revertir un CREATE → soft-delete el documento creado
-        await Model.findByIdAndUpdate(log.resourceId, { $set: { active: false, updatedBy: actor } }, { upsert: false });
+        // Revertir un CREATE → soft-delete el documento creado. Filtrar por
+        // clubId (igual que la búsqueda del log más arriba) es una capa de
+        // defensa extra: el resourceId ya viene de un log scopeado a este
+        // club, pero si algún día no lo estuviera, esto evita tocar un
+        // documento de otro club (appcarc-backend#91).
+        const actualizado = await Model.findOneAndUpdate(
+          { _id: log.resourceId, clubId: log.clubId },
+          { $set: { active: false, updatedBy: actor } },
+        );
+        if (!actualizado) {
+          console.error(`revertAuditLog: ${log.resource} ${log.resourceId} no encontrado en el club ${log.clubId} — no se revirtió nada`);
+          return res.status(422).json({ message: 'No se encontró el documento a revertir en este club' });
+        }
       } else if (log.action === 'UPDATE' || log.action === 'DELETE') {
         // Revertir UPDATE o DELETE → restaurar el snapshot before
         if (!log.before) {
           return res.status(422).json({ message: 'No hay snapshot anterior para revertir' });
         }
 
-        const restoredData = Object.fromEntries(
-          Object.entries(log.before).filter(([k]) => !OMIT_FIELDS.includes(k)),
-        );
+        const restoredData = restoreFields(log.before);
         restoredData.updatedBy = actor;
 
-        await Model.findByIdAndUpdate(log.resourceId, { $set: restoredData }, { upsert: false });
+        const actualizado = await Model.findOneAndUpdate(
+          { _id: log.resourceId, clubId: log.clubId },
+          { $set: restoredData },
+        );
+        if (!actualizado) {
+          console.error(`revertAuditLog: ${log.resource} ${log.resourceId} no encontrado en el club ${log.clubId} — no se revirtió nada`);
+          return res.status(422).json({ message: 'No se encontró el documento a revertir en este club' });
+        }
       }
     }
 

@@ -12,8 +12,8 @@ describe('revertirCobro', () => {
   let CuotaModel;
 
   beforeEach(() => {
-    CobroModel = { findOne: vi.fn(), findByIdAndUpdate: vi.fn() };
-    MovimientoModel = { findByIdAndUpdate: vi.fn().mockResolvedValue(undefined) };
+    CobroModel = { findOne: vi.fn(), findOneAndUpdate: vi.fn().mockResolvedValue({ _id: 'cobro1' }) };
+    MovimientoModel = { findOneAndUpdate: vi.fn().mockResolvedValue({ _id: 'mov1' }) };
     CuotaModel = { updateMany: vi.fn().mockResolvedValue(undefined) };
 
     vi.spyOn(mongoose, 'model').mockImplementation((name) => {
@@ -41,7 +41,11 @@ describe('revertirCobro', () => {
     expect(cobro.active).toBe(false);
     expect(cobro.anuladoPor).toBe(ACTOR);
     expect(cobro.save).toHaveBeenCalledWith({ session });
-    expect(MovimientoModel.findByIdAndUpdate).toHaveBeenCalledWith('mov1', { active: false, updatedBy: ACTOR }, { session });
+    expect(MovimientoModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'mov1', clubId: CLUB_ID },
+      { active: false, updatedBy: ACTOR },
+      { session },
+    );
     expect(CuotaModel.updateMany).toHaveBeenCalledWith(
       { cobroId: 'cobro1', clubId: CLUB_ID },
       { estado: 'anulada', updatedBy: ACTOR },
@@ -57,7 +61,7 @@ describe('revertirCobro', () => {
     await revertirCobro(log, { actor: ACTOR, session });
 
     expect(cobro.save).not.toHaveBeenCalled();
-    expect(MovimientoModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(MovimientoModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
   it('DELETE: restaura el cobro, reactiva el movimiento y las cuotas anuladas', async () => {
@@ -70,13 +74,17 @@ describe('revertirCobro', () => {
 
     await revertirCobro(log, { actor: ACTOR, session });
 
-    expect(CobroModel.findByIdAndUpdate).toHaveBeenCalledWith(
-      'cobro1',
+    expect(CobroModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'cobro1', clubId: CLUB_ID },
       { $set: expect.objectContaining({ active: true, anuladoAt: null, updatedBy: ACTOR }) },
       { session },
     );
-    expect(CobroModel.findByIdAndUpdate.mock.calls[0][1].$set).not.toHaveProperty('_id');
-    expect(MovimientoModel.findByIdAndUpdate).toHaveBeenCalledWith('mov1', { active: true, updatedBy: ACTOR }, { session });
+    expect(CobroModel.findOneAndUpdate.mock.calls[0][1].$set).not.toHaveProperty('_id');
+    expect(MovimientoModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'mov1', clubId: CLUB_ID },
+      { active: true, updatedBy: ACTOR },
+      { session },
+    );
     expect(CuotaModel.updateMany).toHaveBeenCalledWith(
       { cobroId: 'cobro1', clubId: CLUB_ID, estado: 'anulada' },
       { estado: 'pagada', updatedBy: ACTOR },
@@ -88,5 +96,20 @@ describe('revertirCobro', () => {
     const log = { clubId: CLUB_ID, resourceId: 'cobro1', action: 'DELETE', before: null };
 
     await expect(revertirCobro(log, { actor: ACTOR, session })).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('DELETE: no toca el movimiento ni las cuotas si el cobro no pertenece a este club (appcarc-backend#91)', async () => {
+    CobroModel.findOneAndUpdate.mockResolvedValue(null);
+    const log = {
+      clubId: CLUB_ID,
+      resourceId: 'cobro1',
+      action: 'DELETE',
+      before: { movimientoId: 'mov1', active: true, anuladoAt: null, _id: 'cobro1', updatedAt: new Date() },
+    };
+
+    await revertirCobro(log, { actor: ACTOR, session });
+
+    expect(MovimientoModel.findOneAndUpdate).not.toHaveBeenCalled();
+    expect(CuotaModel.updateMany).not.toHaveBeenCalled();
   });
 });

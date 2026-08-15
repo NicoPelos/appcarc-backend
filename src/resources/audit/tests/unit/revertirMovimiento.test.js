@@ -13,7 +13,7 @@ describe('revertirMovimiento', () => {
   let AsistenciaModel;
 
   beforeEach(() => {
-    MovimientoModel = { findByIdAndUpdate: vi.fn().mockResolvedValue(undefined) };
+    MovimientoModel = { findOneAndUpdate: vi.fn().mockResolvedValue({ _id: 'mov1' }) };
     CobroModel = { findOne: vi.fn() };
     CuotaModel = { updateMany: vi.fn().mockResolvedValue(undefined) };
     AsistenciaModel = { findOneAndUpdate: vi.fn().mockResolvedValue(undefined) };
@@ -33,8 +33,8 @@ describe('revertirMovimiento', () => {
     const log = { clubId: CLUB_ID, resourceId: 'mov1', action: 'CREATE' };
     await revertirMovimiento(log, { actor: ACTOR, session });
 
-    expect(MovimientoModel.findByIdAndUpdate).toHaveBeenCalledWith(
-      'mov1',
+    expect(MovimientoModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'mov1', clubId: CLUB_ID },
       { $set: { active: false, updatedBy: ACTOR } },
       { session },
     );
@@ -51,8 +51,8 @@ describe('revertirMovimiento', () => {
 
     await revertirMovimiento(log, { actor: ACTOR, session });
 
-    expect(MovimientoModel.findByIdAndUpdate).toHaveBeenCalledWith(
-      'mov1',
+    expect(MovimientoModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'mov1', clubId: CLUB_ID },
       { $set: expect.objectContaining({ amount: 100, updatedBy: ACTOR }) },
       { session },
     );
@@ -119,5 +119,19 @@ describe('revertirMovimiento', () => {
   it('DELETE: lanza error con status 422 si no hay snapshot before', async () => {
     const log = { clubId: CLUB_ID, resourceId: 'mov1', action: 'DELETE', before: null };
     await expect(revertirMovimiento(log, { actor: ACTOR, session })).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('DELETE: no reactiva el origen si el movimiento no pertenece a este club (appcarc-backend#91)', async () => {
+    MovimientoModel.findOneAndUpdate.mockResolvedValue(null);
+    const log = {
+      clubId: CLUB_ID,
+      resourceId: 'mov1',
+      action: 'DELETE',
+      before: { active: true, sourceModel: 'Asistencia', sourceId: 'asis1' },
+    };
+
+    await revertirMovimiento(log, { actor: ACTOR, session });
+
+    expect(AsistenciaModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
 });

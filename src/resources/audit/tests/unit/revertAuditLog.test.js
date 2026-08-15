@@ -79,14 +79,17 @@ describe('revertAuditLogHandler', () => {
     const log = buildLog({ action: 'UPDATE', before: { nombre: 'Antes', active: true } });
     AuditLog.findOne.mockResolvedValue(log);
 
-    const mockUpdate = vi.fn().mockResolvedValue({});
-    vi.spyOn(mongoose, 'model').mockReturnValue({ findByIdAndUpdate: mockUpdate });
+    const mockUpdate = vi.fn().mockResolvedValue({ _id: VALID_ID });
+    vi.spyOn(mongoose, 'model').mockReturnValue({ findOneAndUpdate: mockUpdate });
 
     const req = { params: { id: VALID_ID }, user: USER };
     const res = mockRes();
     await revertAuditLogHandler(req, res);
 
-    expect(mockUpdate).toHaveBeenCalledWith(VALID_ID, { $set: expect.objectContaining({ nombre: 'Antes', active: true }) }, { upsert: false });
+    expect(mockUpdate).toHaveBeenCalledWith(
+      { _id: VALID_ID, clubId: log.clubId },
+      { $set: expect.objectContaining({ nombre: 'Antes', active: true }) },
+    );
     expect(log.save).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
   });
@@ -95,14 +98,17 @@ describe('revertAuditLogHandler', () => {
     const log = buildLog({ action: 'DELETE', before: { nombre: 'Antes', active: true, deletedAt: null }, after: null });
     AuditLog.findOne.mockResolvedValue(log);
 
-    const mockUpdate = vi.fn().mockResolvedValue({});
-    vi.spyOn(mongoose, 'model').mockReturnValue({ findByIdAndUpdate: mockUpdate });
+    const mockUpdate = vi.fn().mockResolvedValue({ _id: VALID_ID });
+    vi.spyOn(mongoose, 'model').mockReturnValue({ findOneAndUpdate: mockUpdate });
 
     const req = { params: { id: VALID_ID }, user: USER };
     const res = mockRes();
     await revertAuditLogHandler(req, res);
 
-    expect(mockUpdate).toHaveBeenCalledWith(VALID_ID, { $set: expect.objectContaining({ active: true, deletedAt: null }) }, { upsert: false });
+    expect(mockUpdate).toHaveBeenCalledWith(
+      { _id: VALID_ID, clubId: log.clubId },
+      { $set: expect.objectContaining({ active: true, deletedAt: null }) },
+    );
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
@@ -110,14 +116,17 @@ describe('revertAuditLogHandler', () => {
     const log = buildLog({ action: 'CREATE', before: null });
     AuditLog.findOne.mockResolvedValue(log);
 
-    const mockUpdate = vi.fn().mockResolvedValue({});
-    vi.spyOn(mongoose, 'model').mockReturnValue({ findByIdAndUpdate: mockUpdate });
+    const mockUpdate = vi.fn().mockResolvedValue({ _id: VALID_ID });
+    vi.spyOn(mongoose, 'model').mockReturnValue({ findOneAndUpdate: mockUpdate });
 
     const req = { params: { id: VALID_ID }, user: USER };
     const res = mockRes();
     await revertAuditLogHandler(req, res);
 
-    expect(mockUpdate).toHaveBeenCalledWith(VALID_ID, { $set: expect.objectContaining({ active: false }) }, { upsert: false });
+    expect(mockUpdate).toHaveBeenCalledWith(
+      { _id: VALID_ID, clubId: log.clubId },
+      { $set: expect.objectContaining({ active: false }) },
+    );
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
@@ -131,6 +140,21 @@ describe('revertAuditLogHandler', () => {
     const res = mockRes();
     await revertAuditLogHandler(req, res);
     expect(res.status).toHaveBeenCalledWith(422);
+  });
+
+  it('devuelve 422 y no guarda el log si el documento no pertenece a este club (appcarc-backend#91)', async () => {
+    const log = buildLog({ action: 'UPDATE', before: { nombre: 'Antes' } });
+    AuditLog.findOne.mockResolvedValue(log);
+
+    const mockUpdate = vi.fn().mockResolvedValue(null);
+    vi.spyOn(mongoose, 'model').mockReturnValue({ findOneAndUpdate: mockUpdate });
+
+    const req = { params: { id: VALID_ID }, user: USER };
+    const res = mockRes();
+    await revertAuditLogHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(log.save).not.toHaveBeenCalled();
   });
 
   it('delega en el reverser registrado en vez del genérico, para recursos con cascada', async () => {

@@ -26,8 +26,9 @@ export const getCargosPuntualesHandler = async (req, res) => {
   try {
     const filter = { clubId: req.user?.clubId, active: true };
 
-    if (req.user?.roles?.includes('socio') && req.user?.socioId) {
-      filter.socioId = req.user.socioId;
+    if (req.accessibleSocioIds) {
+      // Autoservicio (ver authorizeSelfYVinculadosOr): propio perfil + hijos vinculados.
+      filter.socioId = { $in: [...req.accessibleSocioIds] };
     } else if (req.query.socioId) {
       filter.socioId = req.query.socioId;
     }

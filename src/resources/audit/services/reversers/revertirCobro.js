@@ -23,11 +23,14 @@ export async function revertirCobro(log, { actor, session }) {
     await cobro.save({ session });
 
     if (cobro.movimientoId) {
-      await Movimiento.findByIdAndUpdate(
-        cobro.movimientoId,
+      const movimientoActualizado = await Movimiento.findOneAndUpdate(
+        { _id: cobro.movimientoId, clubId: log.clubId },
         { active: false, updatedBy: actor },
         { session },
       );
+      if (!movimientoActualizado) {
+        console.error(`revertirCobro: Movimiento ${cobro.movimientoId} no encontrado en el club ${log.clubId}`);
+      }
     }
 
     await Cuota.updateMany(
@@ -47,14 +50,25 @@ export async function revertirCobro(log, { actor, session }) {
 
     const restored = restoreFields(log.before);
     restored.updatedBy = actor;
-    await Cobro.findByIdAndUpdate(log.resourceId, { $set: restored }, { session });
+    const cobroActualizado = await Cobro.findOneAndUpdate(
+      { _id: log.resourceId, clubId: log.clubId },
+      { $set: restored },
+      { session },
+    );
+    if (!cobroActualizado) {
+      console.error(`revertirCobro: Cobro ${log.resourceId} no encontrado en el club ${log.clubId}`);
+      return;
+    }
 
     if (log.before.movimientoId) {
-      await Movimiento.findByIdAndUpdate(
-        log.before.movimientoId,
+      const movimientoActualizado = await Movimiento.findOneAndUpdate(
+        { _id: log.before.movimientoId, clubId: log.clubId },
         { active: true, updatedBy: actor },
         { session },
       );
+      if (!movimientoActualizado) {
+        console.error(`revertirCobro: Movimiento ${log.before.movimientoId} no encontrado en el club ${log.clubId}`);
+      }
     }
 
     await Cuota.updateMany(

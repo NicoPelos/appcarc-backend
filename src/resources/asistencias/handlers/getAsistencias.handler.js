@@ -68,7 +68,16 @@ export const getAsistenciasHandler = async (req, res) => {
       if (!mongoose.isValidObjectId(socioId)) {
         return res.status(400).json({ message: 'El socioId no es válido' });
       }
-      filter.socioId = new mongoose.Types.ObjectId(socioId);
+      // Un usuario solo-socio no puede pisar su propio filtro pidiendo el
+      // socioId de otro (appcarc-backend#88) — solo se le permite si coincide
+      // con el suyo (no-op), cualquier otro valor es 403.
+      if (isSocioOnly) {
+        if (String(socioId) !== String(req.user.socioId)) {
+          return res.status(403).json({ message: 'No autorizado' });
+        }
+      } else {
+        filter.socioId = new mongoose.Types.ObjectId(socioId);
+      }
     }
 
     if (from || to) {

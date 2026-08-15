@@ -88,6 +88,54 @@ describe('getAsistenciasHandler', () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
   });
+
+  it('should filter by own socioId when user role is only socio', async () => {
+    const socioUser = { id: 'u1', roles: ['socio'], clubId: 'club1', socioId: '507f1f77bcf86cd799439011' };
+    const req = { query: {}, user: socioUser };
+    const res = mockRes();
+
+    await getAsistenciasHandler(req, res);
+
+    expect(Asistencia.find).toHaveBeenCalledWith(expect.objectContaining({
+      socioId: new mongoose.Types.ObjectId('507f1f77bcf86cd799439011'),
+    }));
+  });
+
+  it('should reject with 403 when a socio-only user requests another socio\'s socioId (appcarc-backend#88)', async () => {
+    const socioUser = { id: 'u1', roles: ['socio'], clubId: 'club1', socioId: '507f1f77bcf86cd799439011' };
+    const req = { query: { socioId: '507f1f77bcf86cd799439099' }, user: socioUser };
+    const res = mockRes();
+
+    await getAsistenciasHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(Asistencia.find).not.toHaveBeenCalled();
+  });
+
+  it('should allow a socio-only user to request their own socioId explicitly', async () => {
+    const socioUser = { id: 'u1', roles: ['socio'], clubId: 'club1', socioId: '507f1f77bcf86cd799439011' };
+    const req = { query: { socioId: '507f1f77bcf86cd799439011' }, user: socioUser };
+    const res = mockRes();
+
+    await getAsistenciasHandler(req, res);
+
+    expect(Asistencia.find).toHaveBeenCalledWith(expect.objectContaining({
+      socioId: new mongoose.Types.ObjectId('507f1f77bcf86cd799439011'),
+    }));
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('should let staff (non-socio-only) filter by any socioId', async () => {
+    const req = { query: { socioId: '507f1f77bcf86cd799439099' }, user: USER };
+    const res = mockRes();
+
+    await getAsistenciasHandler(req, res);
+
+    expect(Asistencia.find).toHaveBeenCalledWith(expect.objectContaining({
+      socioId: new mongoose.Types.ObjectId('507f1f77bcf86cd799439099'),
+    }));
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
 });
 
 describe('createAsistenciaEscuelitaHandler', () => {

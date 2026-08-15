@@ -11,8 +11,8 @@ describe('revertirMuroLibre', () => {
   let MovimientoModel;
 
   beforeEach(() => {
-    AsistenciaModel = { findByIdAndUpdate: vi.fn().mockResolvedValue(undefined) };
-    MovimientoModel = { findByIdAndUpdate: vi.fn().mockResolvedValue(undefined) };
+    AsistenciaModel = { findOneAndUpdate: vi.fn().mockResolvedValue({ _id: 'asis1' }) };
+    MovimientoModel = { findOneAndUpdate: vi.fn().mockResolvedValue({ _id: 'mov1' }) };
 
     vi.spyOn(mongoose, 'model').mockImplementation((name) => {
       if (name === 'Asistencia') return AsistenciaModel;
@@ -27,19 +27,31 @@ describe('revertirMuroLibre', () => {
     const log = { clubId: CLUB_ID, resourceId: 'asis1', action: 'CREATE', after: { movimientoId: 'mov1' } };
     await revertirMuroLibre(log, { actor: ACTOR, session });
 
-    expect(AsistenciaModel.findByIdAndUpdate).toHaveBeenCalledWith(
-      'asis1',
+    expect(AsistenciaModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'asis1', clubId: CLUB_ID },
       { $set: { active: false, updatedBy: ACTOR } },
       { session },
     );
-    expect(MovimientoModel.findByIdAndUpdate).toHaveBeenCalledWith('mov1', { active: false, updatedBy: ACTOR }, { session });
+    expect(MovimientoModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'mov1', clubId: CLUB_ID },
+      { active: false, updatedBy: ACTOR },
+      { session },
+    );
   });
 
   it('CREATE: sin movimiento vinculado (pase no pagado), no toca Movimiento', async () => {
     const log = { clubId: CLUB_ID, resourceId: 'asis1', action: 'CREATE', after: { movimientoId: null } };
     await revertirMuroLibre(log, { actor: ACTOR, session });
 
-    expect(MovimientoModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(MovimientoModel.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('CREATE: no toca el movimiento si la asistencia no pertenece a este club (appcarc-backend#91)', async () => {
+    AsistenciaModel.findOneAndUpdate.mockResolvedValue(null);
+    const log = { clubId: CLUB_ID, resourceId: 'asis1', action: 'CREATE', after: { movimientoId: 'mov1' } };
+    await revertirMuroLibre(log, { actor: ACTOR, session });
+
+    expect(MovimientoModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
   it('UPDATE: restaura el registro y sincroniza monto/formaPago en el movimiento vinculado', async () => {
@@ -52,13 +64,13 @@ describe('revertirMuroLibre', () => {
 
     await revertirMuroLibre(log, { actor: ACTOR, session });
 
-    expect(AsistenciaModel.findByIdAndUpdate).toHaveBeenCalledWith(
-      'asis1',
+    expect(AsistenciaModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'asis1', clubId: CLUB_ID },
       { $set: expect.objectContaining({ monto: 500, formaPago: 'Efectivo', updatedBy: ACTOR }) },
       { session },
     );
-    expect(MovimientoModel.findByIdAndUpdate).toHaveBeenCalledWith(
-      'mov1',
+    expect(MovimientoModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'mov1', clubId: CLUB_ID },
       { $set: { amount: 500, paymentMethod: 'Efectivo', updatedBy: ACTOR } },
       { session },
     );
@@ -74,18 +86,36 @@ describe('revertirMuroLibre', () => {
 
     await revertirMuroLibre(log, { actor: ACTOR, session });
 
-    expect(MovimientoModel.findByIdAndUpdate).toHaveBeenCalledWith('mov1', { active: true, updatedBy: ACTOR }, { session });
+    expect(MovimientoModel.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: 'mov1', clubId: CLUB_ID },
+      { active: true, updatedBy: ACTOR },
+      { session },
+    );
   });
 
   it('DELETE: sin movimiento vinculado, no intenta tocar Movimiento', async () => {
     const log = { clubId: CLUB_ID, resourceId: 'asis1', action: 'DELETE', before: { active: true, movimientoId: null } };
     await revertirMuroLibre(log, { actor: ACTOR, session });
 
-    expect(MovimientoModel.findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(MovimientoModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
   it('UPDATE/DELETE: lanza error con status 422 si no hay snapshot before', async () => {
     const log = { clubId: CLUB_ID, resourceId: 'asis1', action: 'UPDATE', before: null };
     await expect(revertirMuroLibre(log, { actor: ACTOR, session })).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('UPDATE: no toca el movimiento si la asistencia no pertenece a este club (appcarc-backend#91)', async () => {
+    AsistenciaModel.findOneAndUpdate.mockResolvedValue(null);
+    const log = {
+      clubId: CLUB_ID,
+      resourceId: 'asis1',
+      action: 'UPDATE',
+      before: { monto: 500, formaPago: 'Efectivo', movimientoId: 'mov1' },
+    };
+
+    await revertirMuroLibre(log, { actor: ACTOR, session });
+
+    expect(MovimientoModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
 });
