@@ -3,6 +3,7 @@ import tokenService from '../services/tokenBlacklistService.js';
 import User from '../resources/usuarios/models/User.js';
 import VinculoFamiliar from '../resources/vinculos/models/VinculoFamiliar.js';
 import { tienePermiso } from '../services/permisosCache.js';
+import { getSocioIdsAccesibles } from '../resources/vinculos/services/getSocioIdsAccesibles.service.js';
 
 export const protect = async (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
@@ -102,6 +103,26 @@ export const authorizeSelfSocioOr = (permiso) => {
 export const authorizeSelfSocioQueryOr = (permiso) => {
   return async (req, res, next) => {
     if (req.user?.socioId && req.query?.socioId && req.user.socioId === req.query.socioId) return next();
+    return authorize(permiso)(req, res, next);
+  };
+};
+
+// authorizeSelfYVinculadosOr('cobros:read') — deja pasar sin el permiso de staff
+// cuando la ruta NO pide un socioId puntual por query (listado "de todos los
+// míos"): en ese caso se resuelve el propio socio del usuario + sus hijos
+// vinculados (ver getSocioIdsAccesibles) y se guarda en req.accessibleSocioIds
+// para que el handler filtre con eso, sin volver a golpear la base. Si el
+// query SÍ trae un socioId puntual (consulta de staff sobre un socio
+// cualquiera), no aplica este atajo y cae al chequeo de permiso normal.
+export const authorizeSelfYVinculadosOr = (permiso) => {
+  return async (req, res, next) => {
+    if (!req.query?.socioId && req.user?.id) {
+      const { accessibleIds } = await getSocioIdsAccesibles({ clubId: req.user.clubId, userId: req.user.id });
+      if (accessibleIds.size > 0) {
+        req.accessibleSocioIds = accessibleIds;
+        return next();
+      }
+    }
     return authorize(permiso)(req, res, next);
   };
 };

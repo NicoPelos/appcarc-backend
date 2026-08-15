@@ -20,12 +20,17 @@ vi.mock('../resources/vinculos/models/VinculoFamiliar.js', () => ({
   default: { exists: vi.fn() },
 }));
 
+vi.mock('../resources/vinculos/services/getSocioIdsAccesibles.service.js', () => ({
+  getSocioIdsAccesibles: vi.fn(),
+}));
+
 import jwt from 'jsonwebtoken';
-import { authorizeSelfSocioOr, authorizeSelfSocioQueryOr, protect } from './auth.js';
+import { authorizeSelfSocioOr, authorizeSelfSocioQueryOr, authorizeSelfYVinculadosOr, protect } from './auth.js';
 import { tienePermiso } from '../services/permisosCache.js';
 import tokenService from '../services/tokenBlacklistService.js';
 import User from '../resources/usuarios/models/User.js';
 import VinculoFamiliar from '../resources/vinculos/models/VinculoFamiliar.js';
+import { getSocioIdsAccesibles } from '../resources/vinculos/services/getSocioIdsAccesibles.service.js';
 
 const mockRes = () => {
   const res = {};
@@ -130,6 +135,61 @@ describe('authorizeSelfSocioQueryOr', () => {
     await authorizeSelfSocioQueryOr('escuelita:read')(req, res, next);
 
     expect(next).toHaveBeenCalled();
+  });
+});
+
+describe('authorizeSelfYVinculadosOr', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('sin query.socioId y con perfiles accesibles, deja pasar y guarda req.accessibleSocioIds', async () => {
+    getSocioIdsAccesibles.mockResolvedValue({ ownSocioId: 'socio1', accessibleIds: new Set(['socio1', 'hijo1']) });
+    const req = { user: { id: 'u1', roles: ['socio'], clubId: 'CARC' }, query: {} };
+    const res = mockRes();
+    const next = vi.fn();
+
+    await authorizeSelfYVinculadosOr('cobros:read')(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(tienePermiso).not.toHaveBeenCalled();
+    expect(req.accessibleSocioIds).toEqual(new Set(['socio1', 'hijo1']));
+  });
+
+  it('sin query.socioId pero sin ningún perfil accesible, cae al chequeo de permiso normal', async () => {
+    getSocioIdsAccesibles.mockResolvedValue({ ownSocioId: null, accessibleIds: new Set() });
+    tienePermiso.mockResolvedValue(false);
+    const req = { user: { id: 'u1', roles: ['staffSinPermiso'], clubId: 'CARC' }, query: {} };
+    const res = mockRes();
+    const next = vi.fn();
+
+    await authorizeSelfYVinculadosOr('cobros:read')(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
+  it('con query.socioId puntual (consulta de staff), no usa el atajo y exige el permiso', async () => {
+    tienePermiso.mockResolvedValue(true);
+    const req = { user: { id: 'u1', roles: ['secretaria'], clubId: 'CARC' }, query: { socioId: 'otroSocio' } };
+    const res = mockRes();
+    const next = vi.fn();
+
+    await authorizeSelfYVinculadosOr('cobros:read')(req, res, next);
+
+    expect(next).toHaveBeenCalled();
+    expect(getSocioIdsAccesibles).not.toHaveBeenCalled();
+    expect(tienePermiso).toHaveBeenCalled();
+  });
+
+  it('rechaza con 403 si trae query.socioId y no tiene el permiso de staff', async () => {
+    tienePermiso.mockResolvedValue(false);
+    const req = { user: { id: 'u1', roles: ['socio'], clubId: 'CARC' }, query: { socioId: 'otroSocio' } };
+    const res = mockRes();
+    const next = vi.fn();
+
+    await authorizeSelfYVinculadosOr('cobros:read')(req, res, next);
+
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(403);
   });
 });
 

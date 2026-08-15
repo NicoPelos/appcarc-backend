@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect, authorize } from '../../middleware/auth.js';
+import { protect, authorize, authorizeSelfYVinculadosOr } from '../../middleware/auth.js';
 import { PERMISOS } from '../../constants/permisos.js';
 import { createCobroHandler } from './handlers/createCobro.handler.js';
 import { getCobrosHandler } from './handlers/getCobros.handler.js';
@@ -21,12 +21,12 @@ const router = express.Router();
  *         schema:
  *           type: string
  *         required: false
- *         description: Filtrar cobros que incluyan cuotas de este socio
+ *         description: Filtrar cobros que incluyan cuotas de este socio. Si se omite, un usuario sin permiso de staff ve los suyos propios (los del su perfil y los de sus hijos vinculados).
  *     responses:
  *       200:
  *         description: Lista de cobros disponible
  */
-router.get('/', protect, authorize(PERMISOS.COBROS_READ), getCobrosHandler);
+router.get('/', protect, authorizeSelfYVinculadosOr(PERMISOS.COBROS_READ), getCobrosHandler);
 
 /**
  * @openapi

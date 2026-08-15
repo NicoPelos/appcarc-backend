@@ -23,9 +23,10 @@ const routesFiles = fs.readdirSync(RESOURCES_DIR, { recursive: true })
   .map((p) => path.join(RESOURCES_DIR, p));
 
 // Matchea authorize(PERMISOS.X), authorizeSelfSocioOr(PERMISOS.X),
-// authorizeSelfSocioQueryOr(PERMISOS.X) y authorizeSelfPadreQueryOr(PERMISOS.X)
-// — las formas en que una ruta declara un único permiso requerido.
-const AUTHORIZE_CALL_RE = /authorize(?:SelfSocioOr|SelfSocioQueryOr|SelfPadreQueryOr)?\(\s*PERMISOS\.([A-Z0-9_]+)/g;
+// authorizeSelfSocioQueryOr(PERMISOS.X), authorizeSelfPadreQueryOr(PERMISOS.X)
+// y authorizeSelfYVinculadosOr(PERMISOS.X) — las formas en que una ruta
+// declara un único permiso requerido.
+const AUTHORIZE_CALL_RE = /authorize(?:SelfSocioOr|SelfSocioQueryOr|SelfPadreQueryOr|SelfYVinculadosOr)?\(\s*PERMISOS\.([A-Z0-9_]+)/g;
 
 // authorizeAny([PERMISOS.X, PERMISOS.Y]) — deja pasar con cualquiera de varios
 // permisos (ver muroLibre:checkin_propio / escuelita:checkin_propio,

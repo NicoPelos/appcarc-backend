@@ -84,8 +84,9 @@ export const getCobrosHandler = async (req, res) => {
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
     const filter = { clubId: req.user?.clubId, active: true };
-    if (req.user?.roles?.includes('socio') && req.user?.socioId) {
-      filter['items.socioId'] = req.user.socioId;
+    if (req.accessibleSocioIds) {
+      // Autoservicio (ver authorizeSelfYVinculadosOr): propio perfil + hijos vinculados.
+      filter['items.socioId'] = { $in: [...req.accessibleSocioIds] };
     } else if (req.query.socioId) {
       filter['items.socioId'] = req.query.socioId;
     }
