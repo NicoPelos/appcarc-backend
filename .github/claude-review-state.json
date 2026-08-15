@@ -53,5 +53,10 @@
     "sha": "51795be3867963b41a9804862c109078cd140b48",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-15T06:46:51Z"
+  },
+  "src/resources/cargosPuntuales": {
+    "sha": "389314657061af1f2587b344abe5c41af80f08e0",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-15T21:53:33Z"
   }
 }
