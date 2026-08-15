@@ -48,5 +48,10 @@
     "sha": "724a935f5eb25e8c96cede3dad437270cacd7116",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-14T07:39:32Z"
+  },
+  "src/resources/audit": {
+    "sha": "51795be3867963b41a9804862c109078cd140b48",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-15T06:46:51Z"
   }
 }
