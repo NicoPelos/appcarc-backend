@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import { calcularDeuda } from '../../cuotas/services/calcularDeuda.service.js';
+import { getSocioIdsAccesibles } from '../../vinculos/services/getSocioIdsAccesibles.service.js';
 
 /**
  * @openapi
@@ -66,8 +67,15 @@ export const getSocioDeudaHandler = async (req, res) => {
 
   const ROLES_PRIVILEGED = ['admin', 'secretaria', 'autoridad', 'superadmin'];
   const canViewAll = req.user.roles?.some(r => ROLES_PRIVILEGED.includes(r));
-  if (!canViewAll && req.user.socioId !== id) {
-    return res.status(403).json({ message: 'No tenés permiso para ver la deuda de este socio' });
+  if (!canViewAll) {
+    // No alcanza con "el propio perfil activo" (req.user.socioId) — un tutor
+    // tiene que poder consultar la deuda de sus hijos vinculados también,
+    // sin necesidad de cambiar de perfil (ver CuotasScreen.tsx, que pide la
+    // deuda de todos los perfiles accesibles de una sola vez).
+    const { accessibleIds } = await getSocioIdsAccesibles({ clubId: req.user.clubId, userId: req.user.id });
+    if (!accessibleIds.has(id)) {
+      return res.status(403).json({ message: 'No tenés permiso para ver la deuda de este socio' });
+    }
   }
 
   try {
