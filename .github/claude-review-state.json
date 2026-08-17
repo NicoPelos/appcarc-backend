@@ -58,5 +58,10 @@
     "sha": "f94b6f31573ef12c0d5494491539342ac5158203",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-16T06:47:12Z"
+  },
+  "src/resources/clubs": {
+    "sha": "0968e28ef4f6838928036e96272adf8331f06776",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-17T07:03:57Z"
   }
 }
