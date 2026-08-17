@@ -198,15 +198,25 @@ Es el registro de caja del club: ingresos y egresos que **no** vienen de un cobr
 5. Confirmá — queda en la lista.
 
 <figure markdown>
-  ![Buscador y filtro de período](assets/screenshots/admin-movimientos-buscador.png){ width="260" }
-  <figcaption>Buscador y filtro de período</figcaption>
+  ![Buscador](assets/screenshots/admin-movimientos-buscador.png){ width="260" }
+  <figcaption>Buscador, filtra por concepto o responsable a medida que escribís</figcaption>
 </figure>
 
 El buscador (arriba) filtra por concepto o responsable a medida que escribís. Los demás filtros — tipo (`Todos` / `Ingreso` / `Egreso`), período (`Este mes` / `Mes anterior` / `Todo`) y medio de pago — están agrupados detrás del botón `Filtros`, al lado del buscador; un numerito sobre el botón muestra cuántos filtros tenés activos en ese momento. La lista carga de a tandas: al llegar al final se trae más automáticamente.
 
+<figure markdown>
+  ![Panel de filtros](assets/screenshots/admin-movimientos-filtros.png){ width="260" }
+  <figcaption>Panel de filtros</figcaption>
+</figure>
+
 **Resumen de Movimientos**
 
 Tocando el ícono de gráfico de barras en el header de `Movimientos` se abre una pantalla con tres gráficos: ingresos vs. egresos por mes, saldo acumulado, y egresos por categoría — para ver de un vistazo cómo viene la caja del club sin tener que sumar movimiento por movimiento.
+
+<figure markdown>
+  ![Resumen de Movimientos](assets/screenshots/admin-movimientos-resumen.png){ width="260" }
+  <figcaption>Resumen de Movimientos</figcaption>
+</figure>
 
 ## 9. Horas del staff — deuda a pagar
 

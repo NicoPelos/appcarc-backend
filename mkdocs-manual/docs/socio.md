@@ -52,7 +52,18 @@ Tu identificación como socio, sin necesidad de carnet físico. El personal del 
 Para marcar tu asistencia ya no hace falta que te escaneen la credencial: en la pared del club hay un cartel fijo con un código QR (uno para Muro Libre, otro para Escuelita). Lo escaneás con la cámara normal de tu celular — ni siquiera hace falta abrir la app antes — y te lleva directo a una pantalla para confirmar el check-in.
 
 - **Muro Libre:** el check-in queda registrado al toque. Si tenés un pase mensual vigente no se te genera ningún cargo; si no, queda pendiente de pago para abonarlo en el mostrador.
+
+<figure markdown>
+  ![Check-in registrado](assets/screenshots/socio-checkin-propio-exito.png){ width="260" }
+  <figcaption>Check-in registrado</figcaption>
+</figure>
+
 - **Escuelita:** si entrás con tu propia cuenta, se registra directo tu asistencia. Si sos tutor de más de un hijo inscripto en escuelita, la app te pregunta "¿A quién marcamos?" antes de confirmar.
+
+<figure markdown>
+  ![¿A quién marcamos?](assets/screenshots/socio-checkin-propio-a-quien-marcamos.png){ width="260" }
+  <figcaption>Si sos tutor de más de un hijo inscripto, elegís a quién marcar</figcaption>
+</figure>
 
 Si por algo el cartel no está disponible, el personal del club siempre puede cargar tu asistencia a mano buscándote por nombre o DNI.
 
