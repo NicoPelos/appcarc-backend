@@ -881,12 +881,13 @@
 <p>Entrá con tu usuario real desde <a href="https://raspberrypi.tail703951.ts.net/app/login">/app/login</a> y vas a ver exactamente estas mismas pantallas, con los datos reales del club.</p>
 </div>
 <h2 id="1-socios-alta-baja-y-ficha">1. Socios — alta, baja y ficha<a class="headerlink" href="#1-socios-alta-baja-y-ficha" title="Permanent link">&para;</a></h2>
-<p>La ficha de cada persona del club: datos personales, estado (Activo / Adherente / Baja), deuda de cuota social, y accesos directos a registrar un cobro o ver su historial de escuelita / muro libre.</p>
+<p>La ficha de cada persona del club: datos personales, estado (Activo / Adherente / Baja), deuda de cuota social, y accesos directos a registrar un cobro o asignarle un plan.</p>
 <figure>
 <p><img alt="Lista de socios" src="../assets/screenshots/admin-socios-lista.png" width="260" />
   </p>
 <figcaption>Lista de socios</figcaption>
 </figure>
+<p>Más abajo en la ficha (para roles con permiso — admin y secretaría) hay dos secciones de solo lectura con lo último de esa persona: <code>Visitas</code>, con sus últimas 10 asistencias a muro libre y escuelita (tipo, fecha y tipo de pase), y <code>Pagos</code>, con sus últimos 10 cobros (fecha, forma de pago y monto).</p>
 <p><strong>Dar de alta un socio nuevo</strong></p>
 <ol>
 <li>Andá a <code>Socios</code> y tocá el botón de agregar (+).</li>
@@ -909,7 +910,11 @@
 <p><strong>Vincular un tutor</strong></p>
 <ol>
 <li>Abrí la ficha del socio (el "hijo") y tocá <code>Vincular a un tutor</code>.</li>
-<li>Cargá el email del tutor y, si todavía no tiene cuenta en el club, su nombre.</li>
+<li>Elegí el modo, según si el tutor ya es socio del club o no:<ul>
+<li><code>Es socio del club</code> (modo por defecto): tocá <code>Buscar socio</code> y elegilo de la lista — queda vinculado al confirmar la búsqueda, sin más pasos.</li>
+<li><code>No es socio</code>: cargá el email del tutor y, si todavía no tiene cuenta en el club, su nombre.</li>
+</ul>
+</li>
 </ol>
 <figure>
 <p><img alt="Formulario para vincular un tutor" src="../assets/screenshots/admin-socio-vincular-tutor-form.png" width="260" />
@@ -917,7 +922,7 @@
 <figcaption>Formulario para vincular un tutor</figcaption>
 </figure>
 <ol>
-<li>Guardá.<ul>
+<li>Si elegiste <code>No es socio</code>, guardá.<ul>
 <li>Si el email ya pertenece a una cuenta existente (sea socio o no), se usa esa cuenta.</li>
 <li>Si es un email nuevo, se crea una cuenta de tutor y la app te muestra una contraseña temporal — comunicásela a mano, es la única vez que se muestra.</li>
 </ul>
@@ -944,6 +949,7 @@
 <ol>
 <li>Andá a <code>Planes</code> y tocá el botón de agregar (+).</li>
 <li>Elegí el tipo de plan (social, escuelita o muro libre).</li>
+<li>Elegí la modalidad: <code>Mensual</code> (genera una cuota recurrente todos los meses, como Cuota Social o Escuelita) o <code>Por uso</code> (se cobra por uso puntual, como un pase Diario de Muro Libre, sin generar una cuota fija cada mes).</li>
 <li>Ponele un nombre claro y una descripción — se usa en toda la app para que el resto del equipo sepa qué incluye.</li>
 <li>Asociale la etiqueta de cobro correspondiente (ver <a href="#4-precios-y-etiquetas">Precios y etiquetas</a>) — de ahí sale el precio.</li>
 <li>Si es de escuelita, definí cuántas clases por semana incluye — eso es lo que controla el límite al tomar asistencia.</li>
@@ -957,7 +963,7 @@
   </p>
 <figcaption>Lista de precios — el monto vigente de cada concepto</figcaption>
 </figure>
-<p>Tocando el nombre de un concepto se despliega su histórico (precios anteriores) o los que ya están cargados a futuro. El lápiz de al lado abre directamente la edición del precio vigente.</p>
+<p>Tocando el nombre de un concepto se despliega su histórico (precios anteriores) o los que ya están cargados a futuro; ahí podés tocar cualquier precio de la lista (el vigente incluido) para editar su monto o vigencia. El lápiz de al lado, en cambio, edita el concepto en sí — nombre y unidad de cobro — no el monto.</p>
 <p><strong>Crear un concepto nuevo (precio nuevo)</strong></p>
 <ol>
 <li>Andá a <code>Precios</code> y tocá el botón de agregar (+).</li>
@@ -1050,14 +1056,26 @@
 <li>Elegí si es <code>Ingreso</code> o <code>Egreso</code>.</li>
 <li>Elegí la forma de pago (<code>Efectivo</code> o <code>Transferencia</code>).</li>
 <li>Cargá el monto, un concepto corto y, si hace falta, una descripción más larga.</li>
-<li>Confirmá — queda en la lista, filtrable por tipo con las solapas <code>Todos / Ingreso / Egreso</code>.</li>
+<li>Confirmá — queda en la lista.</li>
 </ol>
 <figure>
-<p><img alt="Buscador y filtro de período" src="../assets/screenshots/admin-movimientos-buscador.png" width="260" />
+<p><img alt="Buscador" src="../assets/screenshots/admin-movimientos-buscador.png" width="260" />
   </p>
-<figcaption>Buscador y filtro de período</figcaption>
+<figcaption>Buscador, filtra por concepto o responsable a medida que escribís</figcaption>
 </figure>
-<p>Con el buscador podés filtrar por concepto o responsable, y con los chips de período acotar a <code>Este mes</code>, <code>Mes anterior</code> o <code>Todo</code>. La lista carga de a tandas: al llegar al final se trae más automáticamente.</p>
+<p>El buscador (arriba) filtra por concepto o responsable a medida que escribís. Los demás filtros — tipo (<code>Todos</code> / <code>Ingreso</code> / <code>Egreso</code>), período (<code>Este mes</code> / <code>Mes anterior</code> / <code>Todo</code>) y medio de pago — están agrupados detrás del botón <code>Filtros</code>, al lado del buscador; un numerito sobre el botón muestra cuántos filtros tenés activos en ese momento. La lista carga de a tandas: al llegar al final se trae más automáticamente.</p>
+<figure>
+<p><img alt="Panel de filtros" src="../assets/screenshots/admin-movimientos-filtros.png" width="260" />
+  </p>
+<figcaption>Panel de filtros</figcaption>
+</figure>
+<p><strong>Resumen de Movimientos</strong></p>
+<p>Tocando el ícono de gráfico de barras en el header de <code>Movimientos</code> se abre una pantalla con tres gráficos: ingresos vs. egresos por mes, saldo acumulado, y egresos por categoría — para ver de un vistazo cómo viene la caja del club sin tener que sumar movimiento por movimiento.</p>
+<figure>
+<p><img alt="Resumen de Movimientos" src="../assets/screenshots/admin-movimientos-resumen.png" width="260" />
+  </p>
+<figcaption>Resumen de Movimientos</figcaption>
+</figure>
 <h2 id="9-horas-del-staff-deuda-a-pagar">9. Horas del staff — deuda a pagar<a class="headerlink" href="#9-horas-del-staff-deuda-a-pagar" title="Permanent link">&para;</a></h2>
 <p>Profesores y palestreros cargan sus propias horas trabajadas (ver sus manuales). Cada hora se paga según una etiqueta ("Hora Profesor", "Hora Palestrero") con un precio propio — esto es, en la práctica, cómo se calcula qué hay que pagarle al staff cada mes.</p>
 <figure>
@@ -1103,7 +1121,7 @@
 <p>No es una exportación descartable: pisa el contenido de las pestañas del Google Sheet del club cada vez que se corre. Es seguro correrlo cuando haga falta actualizar el panel, pero no es algo para probar "a ver qué hace" sin querer usarlo.</p>
 </div>
 <h2 id="12-notificaciones">12. Notificaciones<a class="headerlink" href="#12-notificaciones" title="Permanent link">&para;</a></h2>
-<p>Además de las notificaciones personales (ver el <a href="../socio/#8-notificaciones">manual de Socio</a>), admin y secretaría reciben avisos proactivos del club: alta de un socio nuevo, una solicitud completada por formulario, o un check-in (escuelita/muro libre) con advertencias.</p>
+<p>Además de las notificaciones personales (ver el <a href="../socio/#9-notificaciones">manual de Socio</a>), admin y secretaría reciben avisos proactivos del club: alta de un socio nuevo, una solicitud completada por formulario, o un check-in (escuelita/muro libre) con advertencias.</p>
 <figure>
 <p><img alt="Notificaciones" src="../assets/screenshots/socio-notificaciones.png" width="260" />
   </p>

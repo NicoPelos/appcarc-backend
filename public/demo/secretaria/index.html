@@ -827,11 +827,12 @@
 <li>Buscá al socio (por nombre o DNI) y entrá a su ficha.</li>
 <li>Tocá "Registrar cobro" — vas a ver una lista con cada cuota que tiene activa (social, escuelita, etc.) y cuánto adeuda de cada una.</li>
 <li>Activá las cuotas que está pagando ahora.</li>
-<li>Para cada una, revisá el período (<code>AAAA-MM</code>) desde el que empieza a pagar y cuántos meses cubre.</li>
+<li>Para cada una, tildá los períodos que corresponda entre los chips de meses adeudados — vienen todos tildados por defecto, pero podés destildar cualquiera; no hace falta que sean consecutivos.</li>
 <li>Si paga un monto distinto al sugerido, podés ajustarlo a mano.</li>
-<li>Elegí la forma de pago (<code>Efectivo</code> o <code>Transferencia</code>).</li>
-<li>Confirmá — se genera el cobro, y automáticamente el movimiento de caja correspondiente.</li>
+<li>Revisá la "Fecha del cobro" (por defecto hoy, editable si necesitás cargar un cobro retroactivo).</li>
+<li>Elegí la forma de pago (<code>Efectivo</code> o <code>Transferencia</code>) y confirmá — se genera el cobro, y automáticamente el movimiento de caja correspondiente.</li>
 </ol>
+<p><strong>Alternativa: cobrar por Mercado Pago.</strong> En vez de confirmar el cobro manual, podés tocar "Generar link de pago" — arma un link de Mercado Pago con los mismos ítems tildados, para mandarle al socio. El cobro se registra solo, automáticamente, cuando el socio efectivamente paga.</p>
 <h2 id="2-inscribir-un-alumno-a-la-escuelita">2. Inscribir un alumno a la escuelita<a class="headerlink" href="#2-inscribir-un-alumno-a-la-escuelita" title="Permanent link">&para;</a></h2>
 <p>Al inscribir a alguien en un plan de escuelita, appClub crea automáticamente su suscripción — es el único caso hoy en que esto pasa solo (para otros planes, ver el <a href="../admin/#7-suscribir-un-socio-a-un-plan">manual de Admin</a>).</p>
 <figure>
@@ -862,16 +863,19 @@
 <figcaption>Asistencias del día</figcaption>
 </figure>
 <figure>
-<p><img alt="Buscar alumno o escanear su QR" src="../assets/screenshots/secretaria-escuelita-tomar-asistencia-resultado.png" width="260" />
+<p><img alt="Buscar alumno" src="../assets/screenshots/secretaria-escuelita-tomar-asistencia-resultado.png" width="260" />
   </p>
-<figcaption>Buscar alumno (o escanear su QR)</figcaption>
+<figcaption>Buscar alumno para registrar su asistencia a mano</figcaption>
 </figure>
+<p>La mayoría de las asistencias las carga el alumno solo: en la pared del club hay un cartel fijo con un código QR de Escuelita, y lo escanea con la cámara de su propio celular (no hace falta abrir la app antes). Si el que escanea es el alumno, la asistencia queda registrada al toque; si es un tutor con más de un hijo inscripto en escuelita, la app le pregunta "¿A quién marcamos?" antes de confirmar.</p>
+<p>Como respaldo, o para cargar una asistencia vos mismo/a:</p>
 <ol>
 <li>Andá a <code>Escuelita</code> → solapa <code>Asistencia</code>.</li>
-<li>Tocá el botón para registrar asistencia y buscá al alumno por DNI (o escaneá su credencial QR).</li>
+<li>Tocá la lupa (arriba a la derecha) y buscá al alumno por nombre o DNI.</li>
 <li>Al confirmarlo, la app muestra cuántas clases lleva esa semana sobre el total que le corresponde según su plan (por ejemplo "2/2 esta semana").</li>
 <li>Si ya superó el límite de su plan, o tiene una advertencia pendiente (por ejemplo cuota vencida), te avisa en el momento.</li>
 </ol>
+<p>Si no tenés el cartel a mano (se rompió, se lo llevaron, etc.), tocá el ícono de QR (junto a la lupa, arriba a la derecha) para generarlo e imprimirlo de nuevo.</p>
 <h2 id="4-check-in-de-muro-libre">4. Check-in de muro libre<a class="headerlink" href="#4-check-in-de-muro-libre" title="Permanent link">&para;</a></h2>
 <p>Registra cada visita al muro de escalada, sea de un socio o de alguien externo, y si corresponde, cobra el pase en el momento.</p>
 <figure>
@@ -884,6 +888,8 @@
   </p>
 <figcaption>Cargar el check-in</figcaption>
 </figure>
+<p>La mayoría de los check-ins de socios se cargan solos: en la pared del club hay un cartel fijo con un código QR de Muro Libre, y el socio lo escanea con la cámara de su propio celular (no hace falta abrir la app antes). Si tiene pase mensual vigente no se le genera ningún cargo; si no, queda pendiente de pago y lo cobrás vos en el mostrador cuando corresponda.</p>
+<p>Para gente externa (que no es socio) o si preferís cargar el check-in vos mismo/a:</p>
 <ol>
 <li>Andá a <code>Muro Libre</code> y tocá el botón de agregar (+).</li>
 <li>Buscá a la persona por nombre o DNI (si ya es socio, aparece en los resultados).</li>
@@ -892,6 +898,7 @@
 <li>Si está pagado, elegí la forma de pago (<code>Efectivo</code> / <code>Transferencia</code>).</li>
 <li>Confirmá — queda el check-in registrado con fecha y hora.</li>
 </ol>
+<p>Si no tenés el cartel a mano, tocá el ícono de QR en el header de <code>Muro Libre</code> para generarlo e imprimirlo de nuevo.</p>
 <h2 id="5-movimientos-de-caja">5. Movimientos de caja<a class="headerlink" href="#5-movimientos-de-caja" title="Permanent link">&para;</a></h2>
 <p>Para ingresos o egresos que no vienen de un cobro (compras, gastos varios). Los pasos son idénticos a los del <a href="../admin/#8-movimientos-caja-del-club">manual de Admin</a>.</p>
 <h2 id="6-vincular-un-tutor-y-atribuir-cargos-puntuales">6. Vincular un tutor y atribuir cargos puntuales<a class="headerlink" href="#6-vincular-un-tutor-y-atribuir-cargos-puntuales" title="Permanent link">&para;</a></h2>
