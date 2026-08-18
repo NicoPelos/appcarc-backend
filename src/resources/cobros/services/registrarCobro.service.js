@@ -33,8 +33,16 @@ const buildPeriodoFromFecha = (fecha) => {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 };
 
+// Tope defensivo: cinco años de cuotas mensuales por item. Sin esto, un
+// `cantidad` (o `periodos`) desmedido hace que Array.from intente crear un
+// array gigante dentro de la transacción de Mongo (DoS de bajo esfuerzo).
+const MAX_PERIODOS_POR_ITEM = 60;
+
 const getPeriodosFromItem = (item, index) => {
   if (Array.isArray(item?.periodos) && item.periodos.length) {
+    if (item.periodos.length > MAX_PERIODOS_POR_ITEM) {
+      throw new BusinessError(`El item ${index + 1} no puede tener más de ${MAX_PERIODOS_POR_ITEM} períodos`);
+    }
     const periodos = item.periodos.map((p) => String(p || '').trim());
     const invalid = periodos.find((p) => !PERIODO_PATTERN.test(p));
     if (invalid) throw new BusinessError(`El item ${index + 1} contiene un período inválido`);
@@ -47,8 +55,8 @@ const getPeriodosFromItem = (item, index) => {
   }
 
   const cantidad = item?.cantidad == null ? 1 : Number(item.cantidad);
-  if (!Number.isInteger(cantidad) || cantidad <= 0) {
-    throw new BusinessError(`El item ${index + 1} debe tener una cantidad entera mayor que cero`);
+  if (!Number.isInteger(cantidad) || cantidad <= 0 || cantidad > MAX_PERIODOS_POR_ITEM) {
+    throw new BusinessError(`El item ${index + 1} debe tener una cantidad entera entre 1 y ${MAX_PERIODOS_POR_ITEM}`);
   }
 
   return Array.from({ length: cantidad }, (_, offset) => addMonthsToPeriodo(periodoInicial, offset));
