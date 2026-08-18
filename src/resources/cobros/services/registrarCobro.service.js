@@ -223,11 +223,17 @@ export const registrarCobro = async ({ clubId, user, body }) => {
 
     await session.withTransaction(async () => {
       const precioCache = new Map();
-      const items = Array.isArray(body?.items)
-        ? (await Promise.all(body.items.map((item, index) => normalizeItem({
-          item, index, clubId, date, precioCache, session,
-        })))).flat()
-        : [];
+      // Secuencial, no Promise.all: normalizeItem hace queries con .session(session)
+      // y Mongo no soporta más de una operación en vuelo por ClientSession a la vez.
+      const items = [];
+      if (Array.isArray(body?.items)) {
+        for (let index = 0; index < body.items.length; index++) {
+          const normalized = await normalizeItem({
+            item: body.items[index], index, clubId, date, precioCache, session,
+          });
+          items.push(...normalized);
+        }
+      }
 
       if (!items.length) throw new BusinessError('El cobro debe incluir al menos un ítem');
 
