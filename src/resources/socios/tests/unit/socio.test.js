@@ -13,6 +13,7 @@ vi.mock('../../../services/pushNotification.service.js', () => ({
 }));
 vi.mock('../../../usuarios/models/User.js', () => ({ default: { findOne: vi.fn().mockResolvedValue(null) } }));
 vi.mock('../../../suscripciones/models/Suscripcion.js', () => ({ default: { find: vi.fn() } }));
+vi.mock('../../../advertencias/models/Advertencia.js', () => ({ default: { updateMany: vi.fn().mockResolvedValue({}) } }));
 
 import { createSocioHandler } from '../../handlers/createSocio.handler.js';
 import { getSociosHandler } from '../../handlers/getSocios.handler.js';

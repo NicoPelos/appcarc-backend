@@ -1,4 +1,5 @@
 import Socio from '../models/Socio.js';
+import Advertencia from '../../advertencias/models/Advertencia.js';
 import { syncSocioToSheet } from '../services/socioSheetSync.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
@@ -36,6 +37,14 @@ export const deleteSocioHandler = async (req, res) => {
       { _id: id, clubId: req.user?.clubId },
       { active: false, deletedAt: new Date(), deletedBy: req.user?.id, updatedBy: req.user?.id },
       { returnDocument: 'after' }
+    );
+
+    // Resolver advertencias abiertas (ej. morosidad) para que el panel deje de
+    // mostrar/ofrecer contactar a un socio ya eliminado — si no, quedan
+    // visibles hasta el próximo barrido semanal de avisoMorosidad.job.js.
+    await Advertencia.updateMany(
+      { clubId: req.user?.clubId, socioId: id, estado: 'abierta' },
+      { estado: 'resuelta', resueltoEn: new Date() },
     );
 
     await syncSocioToSheet(socio, { appendIfMissing: false, deleted: true });
