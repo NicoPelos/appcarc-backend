@@ -99,8 +99,18 @@ const buildCargoPuntualBody = (cargos) => {
  *         description:
  *           type: string
  */
+// 'MercadoPago' como paymentMethod solo lo asigna procesarPagoMercadoPago.service.js
+// al confirmar un pago online (webhook) — este endpoint es el único punto de entrada
+// donde un humano con permiso cobros:write podría mandarlo a mano, así que se corta
+// acá antes de llegar a registrarCobro (que sí lo acepta, para el flujo interno).
+const HANDLER_VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
+
 export const createCobroHandler = async (req, res) => {
   try {
+    if (!HANDLER_VALID_PAYMENT_METHODS.includes(String(req.body?.paymentMethod || '').trim())) {
+      throw new BusinessError('La forma de pago debe ser Efectivo o Transferencia');
+    }
+
     const result = await registrarCobro({
       clubId: req.user?.clubId,
       user: req.user,
