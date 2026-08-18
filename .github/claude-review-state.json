@@ -63,5 +63,10 @@
     "sha": "0968e28ef4f6838928036e96272adf8331f06776",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-17T07:03:57Z"
+  },
+  "src/resources/cobros": {
+    "sha": "36535a03b84105d8c015de3397847c585bccd536",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-18T06:53:48Z"
   }
 }
