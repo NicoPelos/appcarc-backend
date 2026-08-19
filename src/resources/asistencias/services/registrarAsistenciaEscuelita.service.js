@@ -35,7 +35,6 @@ export const registrarAsistenciaEscuelita = async ({ clubId, user, body }) => {
         socioId: socio._id,
         clubId,
         active: true,
-        estado: 'activo',
       }).session(session);
       if (!inscripcion) throw new BusinessError('El socio no está inscripto activamente en la escuelita', 400);
 
