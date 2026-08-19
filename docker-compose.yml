@@ -61,6 +61,12 @@ services:
     image: nicopelos/appcarc-superadmin:latest
     restart: unless-stopped
 
+  staff:
+    build:
+      context: ../appCARC-web
+    image: nicopelos/appcarc-web:latest
+    restart: unless-stopped
+
   gateway:
     image: nginx:alpine
     restart: unless-stopped
@@ -71,3 +77,4 @@ services:
     depends_on:
       - app
       - superadmin
+      - staff
