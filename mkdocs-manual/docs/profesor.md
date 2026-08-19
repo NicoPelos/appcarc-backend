@@ -33,7 +33,8 @@ La solapa `Asistencia` muestra el historial reciente; el ícono de buscar (arrib
 
 1. Andá a `Escuelita` → solapa `Asistencia`.
 2. Tocá la lupa (arriba a la derecha) y buscá al alumno por nombre o DNI.
-3. Al confirmarlo, te muestra cuántas clases lleva esa semana sobre el total de su plan (por ejemplo "2/2 esta semana") y cualquier advertencia (cuota social o de escuelita impaga, límite semanal alcanzado, etc.).
+3. Se abre una pantalla para confirmar la fecha (por defecto, hoy) — tocá `Registrar`.
+4. Te muestra cuántas clases lleva esa semana sobre el total de su plan (por ejemplo "2/2 esta semana") y cualquier advertencia (cuota social o de escuelita impaga, límite semanal alcanzado, etc.).
 
 Si no tenés el cartel a mano, tocá el ícono de QR (junto a la lupa) para generarlo e imprimirlo de nuevo.
 
