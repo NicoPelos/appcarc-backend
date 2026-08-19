@@ -68,5 +68,10 @@
     "sha": "36535a03b84105d8c015de3397847c585bccd536",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-18T06:53:48Z"
+  },
+  "src/resources/cuotas": {
+    "sha": "f0d93857e31c73f5b722fe476f12a122dc271e4b",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-19T06:54:15Z"
   }
 }
