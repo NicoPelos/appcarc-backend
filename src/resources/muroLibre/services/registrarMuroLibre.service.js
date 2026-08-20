@@ -111,6 +111,29 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         }
       }
 
+      // Un socio con pase mensual activo no puede anotarse como diario —
+      // bloqueo duro, no solo una advertencia. Pasó varias veces que quedaba
+      // mal clasificado y había que corregirlo a mano en la base porque
+      // encima el endpoint de edición no permite cambiar el tipoPase (ver
+      // updateMuroLibre.handler.js).
+      if (socio && tipoPase === 'diario') {
+        const etiquetaMensualCheck = await Etiqueta.findOne({
+          clubId,
+          uso_sistema: 'muro_libre_mensual_socio',
+          active: true,
+        }).lean();
+        const suscripcionMensualActiva = etiquetaMensualCheck && await Suscripcion.findOne({
+          clubId,
+          socioId: socio._id,
+          etiquetaId: etiquetaMensualCheck._id,
+          active: true,
+        }).session(session).lean();
+
+        if (suscripcionMensualActiva) {
+          throw new BusinessError(`${nombre} ${apellido} ya tiene un pase mensual activo — registrá el check-in como mensual, no diario`);
+        }
+      }
+
       // Cuota social vigente (advertencia, no bloquea — solo para socios)
       if (socio) {
         const periodoActual = buildPeriodo(fecha);
