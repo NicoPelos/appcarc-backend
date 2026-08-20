@@ -73,5 +73,10 @@
     "sha": "f0d93857e31c73f5b722fe476f12a122dc271e4b",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-19T06:54:15Z"
+  },
+  "src/resources/escuelita": {
+    "sha": "6cb6613d12b2cef9e316dc608e496e8356e662d9",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-20T06:55:39Z"
   }
 }
