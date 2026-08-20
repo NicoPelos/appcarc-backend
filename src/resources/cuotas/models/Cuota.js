@@ -15,7 +15,6 @@ const cuotaSchema = new mongoose.Schema({
   suscripcionId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Suscripcion',
-    default: null,
     index: true,
   },
   etiquetaId: {
@@ -93,9 +92,16 @@ const cuotaSchema = new mongoose.Schema({
   timestamps: true,
 });
 
+// Índice parcial (solo cuando suscripcionId es un ObjectId real) en vez de
+// sparse — sparse solo excluye un documento si TODOS los campos indexados
+// están ausentes, y acá clubId/socioId/periodo son required y active tiene
+// default, así que el documento nunca quedaba realmente exento (appcarc-backend#99).
+// Además, suscripcionId ya no tiene default:null en el schema (un null
+// explícito cuenta como "presente" para Mongo, rompía la intención de sparse
+// igual que el índice compuesto).
 cuotaSchema.index(
   { clubId: 1, socioId: 1, suscripcionId: 1, periodo: 1, active: 1 },
-  { unique: true, sparse: true }
+  { unique: true, partialFilterExpression: { suscripcionId: { $type: 'objectId' } } },
 );
 
 export default mongoose.model('Cuota', cuotaSchema);

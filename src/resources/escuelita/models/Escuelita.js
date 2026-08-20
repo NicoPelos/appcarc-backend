@@ -39,7 +39,17 @@ const escuelitaSchema = new mongoose.Schema({
   updatedBy: String,
 }, { timestamps: true });
 
-escuelitaSchema.index({ clubId: 1, socioId: 1, active: 1 }, { unique: true });
+// Índice parcial (solo entre inscripciones activas) en vez de un unique
+// simple sobre {clubId, socioId, active} — ese último incluía active:false
+// en la restricción de unicidad, así que un socio con más de una baja
+// terminaba con dos documentos {..., active:false} idénticos y la segunda
+// baja rompía con E11000 (appcarc-backend#103). Los registros inactivos
+// (historial de bajas) quedan fuera de la unicidad, que es lo que
+// createAlumnoHandler ya asume al chequear duplicados solo con active:true.
+escuelitaSchema.index(
+  { clubId: 1, socioId: 1 },
+  { unique: true, partialFilterExpression: { active: true } },
+);
 
 const Escuelita = mongoose.model('Escuelita', escuelitaSchema);
 
