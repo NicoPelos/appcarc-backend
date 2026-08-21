@@ -101,6 +101,18 @@ const MovimientoSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  // Fotos de comprobante/ticket, siempre opcional — array (no un solo campo)
+  // porque un mismo gasto puede tener varias fotos (ej. ticket de varias
+  // páginas). Solo tiene sentido para movimientos manuales, pero no se
+  // restringe a nivel de schema (ver uploadComprobante.handler.js).
+  comprobantes: {
+    type: [{
+      url: { type: String, required: true },
+      createdBy: { type: String, required: true },
+      createdAt: { type: Date, default: Date.now },
+    }],
+    default: [],
+  },
 }, {
   timestamps: true,
 });
