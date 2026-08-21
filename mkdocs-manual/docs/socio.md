@@ -29,12 +29,14 @@ Mantené presionado cualquier ícono del grid para entrar en modo edición, arra
 
 ## 2. Ver y pagar tus cuotas
 
-Muestra tu estado actual, el total adeudado si tenés cuotas vencidas, y los períodos pendientes. El botón "Pagar con Mercado Pago" siempre está disponible y te lleva a Mercado Pago para pagar.
+Muestra tu estado actual y el total adeudado si tenés cuotas vencidas. Si tenés hijos vinculados, la deuda se muestra separada por perfil: la tuya y la de cada uno de ellos.
 
 <figure markdown>
   ![Tus cuotas](assets/screenshots/socio-cuotas.png){ width="260" }
   <figcaption>Tus cuotas</figcaption>
 </figure>
+
+Cada cuota o cargo pendiente tiene un interruptor para incluirlo o no en el pago (viene tildado por defecto). Si una cuota tiene varios períodos adeudados, podés elegir cuáles pagar tocando los chips de período uno por uno. El botón de Mercado Pago muestra el total de lo que tildaste ("PAGAR $X CON MERCADO PAGO") y queda deshabilitado ("ELEGÍ QUÉ PAGAR") si no dejaste nada tildado.
 
 Si preferís pagar en efectivo o transferencia, se registra en persona por secretaría o admin (ver sus manuales, sección "Registrar el cobro de una cuota").
 
