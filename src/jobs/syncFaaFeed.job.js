@@ -3,8 +3,10 @@ import { syncFaaFeed } from '../resources/novedades/services/syncFaaFeed.service
 
 export const startFaaSyncJob = () => {
   // Corre cada 2 horas — el feed de FAA se actualiza con poca frecuencia,
-  // no hace falta el mismo intervalo que Instagram.
-  cron.schedule('0 */2 * * *', async () => {
+  // no hace falta el mismo intervalo que Instagram. Minuto 10 (no en punto)
+  // para no pisar alertaPrecios (8:00 diario) ni el sync mensual de
+  // Instagram (4:00 el 1 y 15).
+  cron.schedule('10 */2 * * *', async () => {
     try {
       const result = await syncFaaFeed();
       if (result.inserted > 0) {

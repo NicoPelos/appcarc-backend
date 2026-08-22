@@ -5,8 +5,10 @@ import { notifyClub } from '../services/pushNotification.service.js';
 import InstagramConfig from '../resources/novedades/models/InstagramConfig.js';
 
 export const startInstagramSyncJob = () => {
-  // Corre cada 30 minutos, para cada club que tenga Instagram configurado
-  cron.schedule('*/30 * * * *', async () => {
+  // Corre cada 30 minutos, para cada club que tenga Instagram configurado.
+  // Corrido 15 min respecto de reconciliarPagosMercadoPago (también */30)
+  // para que no compitan por CPU al mismo tiempo.
+  cron.schedule('15,45 * * * *', async () => {
     const clubIds = await InstagramConfig.distinct('clubId');
     for (const clubId of clubIds) {
       try {

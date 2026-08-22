@@ -54,8 +54,9 @@ export const enviarRecordatorios = async () => {
 };
 
 export const startRecordatorioCuotasJob = () => {
-  // Corre el 1° de cada mes a las 9am
-  cron.schedule('0 9 1 * *', async () => {
+  // Corre el 1° de cada mes a las 9:15 — corrido 15 min de avisoMorosidad
+  // (lunes 9:00), que coincide con este job los meses en que el 1° cae lunes.
+  cron.schedule('15 9 1 * *', async () => {
     try {
       await enviarRecordatorios();
     } catch (err) {
