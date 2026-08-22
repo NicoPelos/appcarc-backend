@@ -39,6 +39,9 @@ import { PERMISOS } from '../../../constants/permisos.js';
  *                 type: string
  *                 enum: [Efectivo, Transferencia]
  *                 description: Forma de pago
+ *               amount:
+ *                 type: number
+ *                 description: Monto del pase diario — opcional, si no se manda toma el precio vigente configurado
  *               enviarComprobanteWp:
  *                 type: boolean
  *                 description: Indica si se debe enviar comprobante por WhatsApp
@@ -62,7 +65,7 @@ import { PERMISOS } from '../../../constants/permisos.js';
 
 export const checkinMuroLibreHandler = async (req, res) => {
   try {
-    const { token, dni, tipoPase, estadoPago, paymentMethod, enviarComprobanteWp, observaciones, fecha } = req.body;
+    const { token, dni, tipoPase, estadoPago, paymentMethod, amount, enviarComprobanteWp, observaciones, fecha } = req.body;
 
     // La decisión de qué flujo usar depende de si LA REQUEST trae token/dni
     // explícito, no de qué permisos tiene quien llama — un miembro del staff
@@ -122,6 +125,7 @@ export const checkinMuroLibreHandler = async (req, res) => {
         tipoPase: tipoPaseFinal,
         estadoPago: estadoPagoFinal,
         paymentMethod: identificacionExplicita ? paymentMethod : undefined,
+        amount: identificacionExplicita ? amount : undefined,
         enviarComprobanteWp,
         observaciones,
         fecha,

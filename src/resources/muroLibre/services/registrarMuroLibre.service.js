@@ -11,7 +11,7 @@ import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 const VALID_TIPO_PASE = ['diario', 'mensual'];
 
-const USO_SISTEMA_BY_TIPO = {
+export const USO_SISTEMA_BY_TIPO = {
   diario: {
     socio: 'muro_libre_diario_socio',
     noSocio: 'muro_libre_diario_no_socio',
@@ -36,7 +36,7 @@ const buildPeriodo = (date) => {
   return `${year}-${month}`;
 };
 
-const findPrecioVigenteByUsoSistema = async ({ clubId, uso_sistema, date, session = null }) => {
+export const findPrecioVigenteByUsoSistema = async ({ clubId, uso_sistema, date, session = null }) => {
   const etiqueta = await Etiqueta.findOne({ clubId, uso_sistema, active: true }).lean();
   if (!etiqueta) return null;
 
