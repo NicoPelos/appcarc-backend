@@ -11,6 +11,7 @@ services:
     volumes:
       - /mnt/ssd/uploads:/app/uploads
       - ./public/app:/app/public/app
+      - /mnt/ssd/backups:/backups
     depends_on:
       mongo-init:
         condition: service_completed_successfully
@@ -23,6 +24,7 @@ services:
       - "27017:27017"
     volumes:
       - /mnt/ssd/mongo-data:/data/db
+      - /mnt/ssd/backups:/backups
     environment:
       - MONGO_INITDB_DATABASE=appcarc
     healthcheck:
