@@ -38,6 +38,7 @@ async function main() {
     requestBody: { name: fileName, parents: [folderId] },
     media: { mimeType: 'application/gzip', body: fs.createReadStream(filePath) },
     fields: 'id',
+    supportsAllDrives: true,
   });
   console.log('✅ Subida OK');
 
@@ -48,11 +49,15 @@ async function main() {
     orderBy: 'createdTime desc',
     fields: 'files(id, name, createdTime)',
     pageSize: 1000,
+    corpora: 'drive',
+    driveId: folderId,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
   });
   const archivos = data.files ?? [];
   const aBorrar = archivos.slice(RETENTION_COUNT);
   for (const f of aBorrar) {
-    await drive.files.delete({ fileId: f.id });
+    await drive.files.delete({ fileId: f.id, supportsAllDrives: true });
     console.log(`🗑️  Borrado backup viejo: ${f.name}`);
   }
   console.log(`✅ Retención aplicada: ${archivos.length - aBorrar.length}/${archivos.length} backups conservados (máx ${RETENTION_COUNT})`);
