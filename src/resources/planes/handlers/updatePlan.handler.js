@@ -1,4 +1,4 @@
-import Plan from '../models/Plan.js';
+import Plan, { TIPOS } from '../models/Plan.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
@@ -50,7 +50,6 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *       500:
  *         description: Error al actualizar plan
  */
-const TIPOS = ['social', 'escuelita', 'muro_libre'];
 const MODALIDADES = ['mensual', 'por_uso'];
 
 export const updatePlanHandler = async (req, res) => {

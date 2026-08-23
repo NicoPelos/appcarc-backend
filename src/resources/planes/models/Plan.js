@@ -1,6 +1,9 @@
 import mongoose from 'mongoose';
 
-const TIPOS = ['social', 'escuelita', 'muro_libre'];
+// plan_deuda: planes de pago para deuda acumulada (ej. cuota social vieja
+// impaga) — conviven con la suscripción normal del socio a otras etiquetas,
+// son una categoría aparte para no mezclarlos con la oferta regular del club.
+export const TIPOS = ['social', 'escuelita', 'muro_libre', 'plan_deuda'];
 const MODALIDADES = ['mensual', 'por_uso'];
 
 const planSchema = new mongoose.Schema({
