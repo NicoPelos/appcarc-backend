@@ -28,7 +28,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *       404:
  *         description: Movimiento no encontrado
  *       409:
- *         description: Ese pago ya está vinculado a este u otro movimiento
+ *         description: Ese pago ya está vinculado a este movimiento
  */
 export const vincularMercadopagoHandler = async (req, res) => {
   try {
@@ -50,13 +50,11 @@ export const vincularMercadopagoHandler = async (req, res) => {
       return res.status(400).json({ message: 'Ese pago no existe o no está aprobado en Mercado Pago' });
     }
 
-    const yaVinculado = await Movimiento.findOne({
-      clubId: req.user?.clubId,
-      active: true,
-      'mercadopagoVinculos.paymentId': String(payment.id),
-    }).lean();
-    if (yaVinculado) {
-      return res.status(409).json({ message: 'Ese pago de Mercado Pago ya está vinculado' });
+    // Un mismo pago SÍ puede corresponder a más de un movimiento (ver
+    // mercadopagoCandidatos.handler.js) — solo se evita vincularlo dos
+    // veces al mismo movimiento.
+    if (movimiento.mercadopagoVinculos.some((v) => v.paymentId === String(payment.id))) {
+      return res.status(409).json({ message: 'Ese pago ya está vinculado a este movimiento' });
     }
 
     const actor = req.user?.email ?? req.user?.id ?? 'Sistema';

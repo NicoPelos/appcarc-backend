@@ -32,17 +32,32 @@ export const mercadopagoCandidatosHandler = async (req, res) => {
 
     const candidatos = await buscarPagosMercadoPago({ accessToken: config.accessToken, fecha: movimiento.date });
 
-    // No ofrecer un pago que ya está vinculado (a este movimiento o a otro
-    // activo) — un mismo pago de MP no puede corresponder a dos vínculos.
+    // Un mismo pago de MP puede legítimamente cubrir más de un movimiento
+    // (ej. alguien que transfiere junto lo de dos personas, registrado como
+    // 2 cobros separados acá) — no se oculta ni se bloquea, pero se avisa
+    // dónde más está vinculado para no vincularlo dos veces por error.
     const paymentIds = candidatos.map((c) => c.paymentId);
-    const yaVinculados = new Set(
-      await Movimiento.distinct('mercadopagoVinculos.paymentId', {
-        clubId: req.user?.clubId,
-        active: true,
-        'mercadopagoVinculos.paymentId': { $in: paymentIds },
-      }),
-    );
-    const disponibles = candidatos.filter((c) => !yaVinculados.has(c.paymentId));
+    const otrosMovimientos = await Movimiento.find({
+      clubId: req.user?.clubId,
+      active: true,
+      _id: { $ne: movimiento._id },
+      'mercadopagoVinculos.paymentId': { $in: paymentIds },
+    }).select('concept socioNombre mercadopagoVinculos.paymentId').lean();
+
+    const vinculadoEnPorPaymentId = new Map();
+    for (const otro of otrosMovimientos) {
+      for (const v of otro.mercadopagoVinculos) {
+        if (!paymentIds.includes(v.paymentId)) continue;
+        const lista = vinculadoEnPorPaymentId.get(v.paymentId) ?? [];
+        lista.push(otro.socioNombre || otro.concept);
+        vinculadoEnPorPaymentId.set(v.paymentId, lista);
+      }
+    }
+
+    const propioIds = new Set((movimiento.mercadopagoVinculos ?? []).map((v) => v.paymentId));
+    const disponibles = candidatos
+      .filter((c) => !propioIds.has(c.paymentId))
+      .map((c) => ({ ...c, vinculadoEnOtros: vinculadoEnPorPaymentId.get(c.paymentId) ?? [] }));
     disponibles.sort((a, b) => Math.abs(a.monto - movimiento.amount) - Math.abs(b.monto - movimiento.amount));
 
     res.json(disponibles);
