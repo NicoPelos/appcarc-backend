@@ -23,8 +23,8 @@ export const mercadopagoCandidatosHandler = async (req, res) => {
     const { id } = req.params;
     const movimiento = await Movimiento.findOne({ _id: id, clubId: req.user?.clubId, active: true });
     if (!movimiento) return res.status(404).json({ message: 'Movimiento no encontrado' });
-    if (movimiento.type !== 'Ingreso' || movimiento.paymentMethod !== 'Transferencia') {
-      return res.status(400).json({ message: 'Solo se puede vincular un Ingreso por Transferencia' });
+    if (movimiento.type !== 'Ingreso' || movimiento.paymentMethod === 'Efectivo') {
+      return res.status(400).json({ message: 'Solo se puede vincular un Ingreso por Transferencia o Mercado Pago' });
     }
 
     const config = await MercadoPagoConfig.findOne({ clubId: req.user?.clubId, active: true });
@@ -32,15 +32,14 @@ export const mercadopagoCandidatosHandler = async (req, res) => {
 
     const candidatos = await buscarPagosMercadoPago({ accessToken: config.accessToken, fecha: movimiento.date });
 
-    // No ofrecer un pago que ya está vinculado a otro movimiento activo —
-    // un mismo pago de MP no puede corresponder a dos movimientos distintos.
+    // No ofrecer un pago que ya está vinculado (a este movimiento o a otro
+    // activo) — un mismo pago de MP no puede corresponder a dos vínculos.
     const paymentIds = candidatos.map((c) => c.paymentId);
     const yaVinculados = new Set(
-      await Movimiento.distinct('mercadopagoVinculo.paymentId', {
+      await Movimiento.distinct('mercadopagoVinculos.paymentId', {
         clubId: req.user?.clubId,
         active: true,
-        _id: { $ne: movimiento._id },
-        'mercadopagoVinculo.paymentId': { $in: paymentIds },
+        'mercadopagoVinculos.paymentId': { $in: paymentIds },
       }),
     );
     const disponibles = candidatos.filter((c) => !yaVinculados.has(c.paymentId));

@@ -20,6 +20,6 @@ router.post('/:id/comprobantes', protect, authorize(PERMISOS.MOVIMIENTOS_WRITE),
 router.delete('/:id/comprobantes/:comprobanteId', protect, authorize(PERMISOS.MOVIMIENTOS_WRITE), deleteComprobanteHandler);
 router.get('/:id/mercadopago-candidatos', protect, authorize(PERMISOS.MOVIMIENTOS_READ), mercadopagoCandidatosHandler);
 router.post('/:id/mercadopago-vinculo', protect, authorize(PERMISOS.MOVIMIENTOS_WRITE), vincularMercadopagoHandler);
-router.delete('/:id/mercadopago-vinculo', protect, authorize(PERMISOS.MOVIMIENTOS_WRITE), desvincularMercadopagoHandler);
+router.delete('/:id/mercadopago-vinculo/:paymentId', protect, authorize(PERMISOS.MOVIMIENTOS_WRITE), desvincularMercadopagoHandler);
 
 export default router;

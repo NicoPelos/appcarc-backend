@@ -7,7 +7,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
  * @openapi
  * /api/movimientos/{id}/mercadopago-vinculo:
  *   post:
- *     summary: Vincular manualmente un Movimiento (Ingreso + Transferencia) con un pago real de Mercado Pago
+ *     summary: Vincular manualmente un Movimiento (Ingreso) con un pago real de Mercado Pago — admite más de uno por movimiento
  *     tags: [Movimientos]
  *     security:
  *       - bearerAuth: []
@@ -24,9 +24,11 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *       200:
  *         description: Vínculo guardado
  *       400:
- *         description: El movimiento no es Ingreso + Transferencia, o el pago no existe/no está aprobado
+ *         description: El movimiento no es un Ingreso elegible, o el pago no existe/no está aprobado
  *       404:
  *         description: Movimiento no encontrado
+ *       409:
+ *         description: Ese pago ya está vinculado a este u otro movimiento
  */
 export const vincularMercadopagoHandler = async (req, res) => {
   try {
@@ -36,8 +38,8 @@ export const vincularMercadopagoHandler = async (req, res) => {
 
     const movimiento = await Movimiento.findOne({ _id: id, clubId: req.user?.clubId, active: true });
     if (!movimiento) return res.status(404).json({ message: 'Movimiento no encontrado' });
-    if (movimiento.type !== 'Ingreso' || movimiento.paymentMethod !== 'Transferencia') {
-      return res.status(400).json({ message: 'Solo se puede vincular un Ingreso por Transferencia' });
+    if (movimiento.type !== 'Ingreso' || movimiento.paymentMethod === 'Efectivo') {
+      return res.status(400).json({ message: 'Solo se puede vincular un Ingreso por Transferencia o Mercado Pago' });
     }
 
     const config = await MercadoPagoConfig.findOne({ clubId: req.user?.clubId, active: true });
@@ -51,29 +53,29 @@ export const vincularMercadopagoHandler = async (req, res) => {
     const yaVinculado = await Movimiento.findOne({
       clubId: req.user?.clubId,
       active: true,
-      _id: { $ne: movimiento._id },
-      'mercadopagoVinculo.paymentId': String(payment.id),
+      'mercadopagoVinculos.paymentId': String(payment.id),
     }).lean();
     if (yaVinculado) {
-      return res.status(409).json({ message: 'Ese pago de Mercado Pago ya está vinculado a otro movimiento' });
+      return res.status(409).json({ message: 'Ese pago de Mercado Pago ya está vinculado' });
     }
 
     const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
-    const before = movimiento.mercadopagoVinculo;
-    movimiento.mercadopagoVinculo = {
+    const before = movimiento.mercadopagoVinculos;
+    movimiento.mercadopagoVinculos.push({
       paymentId: String(payment.id),
       payerEmail: payment.payer?.email ?? '',
       monto: payment.transaction_amount,
       fecha: payment.date_approved,
       vinculadoPor: actor,
-    };
+    });
     // El medio de pago pasa a reflejar la realidad — llegó por Mercado Pago,
-    // no una transferencia bancaria genérica. Se revierte en desvincular.
+    // no una transferencia bancaria genérica. Se revierte cuando se quita
+    // el último vínculo (ver desvincularMercadopagoHandler).
     movimiento.paymentMethod = 'MercadoPago';
     movimiento.updatedBy = actor;
     await movimiento.save();
 
-    logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Movimiento', resourceId: movimiento._id, before, after: movimiento.mercadopagoVinculo });
+    logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Movimiento', resourceId: movimiento._id, before, after: movimiento.mercadopagoVinculos });
     res.json(movimiento);
   } catch (error) {
     console.error('Error vinculando pago de Mercado Pago:', error);
@@ -83,9 +85,9 @@ export const vincularMercadopagoHandler = async (req, res) => {
 
 /**
  * @openapi
- * /api/movimientos/{id}/mercadopago-vinculo:
+ * /api/movimientos/{id}/mercadopago-vinculo/{paymentId}:
  *   delete:
- *     summary: Quitar el vínculo con Mercado Pago de un movimiento
+ *     summary: Quitar uno de los vínculos con Mercado Pago de un movimiento
  *     tags: [Movimientos]
  *     security:
  *       - bearerAuth: []
@@ -93,22 +95,29 @@ export const vincularMercadopagoHandler = async (req, res) => {
  *       200:
  *         description: Vínculo quitado
  *       404:
- *         description: Movimiento no encontrado
+ *         description: Movimiento no encontrado, o no tenía ese vínculo
  */
 export const desvincularMercadopagoHandler = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id, paymentId } = req.params;
     const movimiento = await Movimiento.findOne({ _id: id, clubId: req.user?.clubId, active: true });
     if (!movimiento) return res.status(404).json({ message: 'Movimiento no encontrado' });
 
+    const antes = movimiento.mercadopagoVinculos.length;
+    const before = movimiento.mercadopagoVinculos;
+    movimiento.mercadopagoVinculos = movimiento.mercadopagoVinculos.filter((v) => v.paymentId !== paymentId);
+    if (movimiento.mercadopagoVinculos.length === antes) {
+      return res.status(404).json({ message: 'Ese movimiento no tiene ese vínculo' });
+    }
+
     const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
-    const before = movimiento.mercadopagoVinculo;
-    movimiento.mercadopagoVinculo = null;
-    if (movimiento.paymentMethod === 'MercadoPago') movimiento.paymentMethod = 'Transferencia';
+    if (movimiento.mercadopagoVinculos.length === 0 && movimiento.paymentMethod === 'MercadoPago') {
+      movimiento.paymentMethod = 'Transferencia';
+    }
     movimiento.updatedBy = actor;
     await movimiento.save();
 
-    logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Movimiento', resourceId: movimiento._id, before, after: null });
+    logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Movimiento', resourceId: movimiento._id, before, after: movimiento.mercadopagoVinculos });
     res.json(movimiento);
   } catch (error) {
     console.error('Error quitando vínculo de Mercado Pago:', error);

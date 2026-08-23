@@ -113,20 +113,23 @@ const MovimientoSchema = new mongoose.Schema({
     }],
     default: [],
   },
-  // Vínculo manual con un pago real de Mercado Pago — solo tiene sentido
+  // Vínculo manual con pagos reales de Mercado Pago — solo tiene sentido
   // para Ingreso + Transferencia (la API de MP solo expone plata que ENTRÓ
-  // a la cuenta del club, no egresos/retiros). Guarda una foto del pago al
-  // momento de vincular en vez de re-consultar la API cada vez que se lista.
-  mercadopagoVinculo: {
-    type: {
+  // a la cuenta del club, no egresos/retiros). Array (no un solo objeto)
+  // porque un mismo movimiento puede corresponder a más de una transferencia
+  // real (ej. alguien que transfiere en 2 partes y se registra como un solo
+  // cobro acá). Guarda una foto del pago al momento de vincular en vez de
+  // re-consultar la API cada vez que se lista.
+  mercadopagoVinculos: {
+    type: [{
       paymentId: { type: String, required: true },
       payerEmail: { type: String, default: '' },
       monto: { type: Number, required: true },
       fecha: { type: Date, required: true },
       vinculadoPor: { type: String, required: true },
       vinculadoAt: { type: Date, default: Date.now },
-    },
-    default: null,
+    }],
+    default: [],
   },
 }, {
   timestamps: true,
