@@ -48,6 +48,16 @@ export const vincularMercadopagoHandler = async (req, res) => {
       return res.status(400).json({ message: 'Ese pago no existe o no está aprobado en Mercado Pago' });
     }
 
+    const yaVinculado = await Movimiento.findOne({
+      clubId: req.user?.clubId,
+      active: true,
+      _id: { $ne: movimiento._id },
+      'mercadopagoVinculo.paymentId': String(payment.id),
+    }).lean();
+    if (yaVinculado) {
+      return res.status(409).json({ message: 'Ese pago de Mercado Pago ya está vinculado a otro movimiento' });
+    }
+
     const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
     const before = movimiento.mercadopagoVinculo;
     movimiento.mercadopagoVinculo = {

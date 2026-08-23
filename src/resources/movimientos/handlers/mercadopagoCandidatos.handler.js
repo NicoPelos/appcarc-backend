@@ -31,9 +31,22 @@ export const mercadopagoCandidatosHandler = async (req, res) => {
     if (!config) return res.status(400).json({ message: 'El club no tiene Mercado Pago configurado' });
 
     const candidatos = await buscarPagosMercadoPago({ accessToken: config.accessToken, fecha: movimiento.date });
-    candidatos.sort((a, b) => Math.abs(a.monto - movimiento.amount) - Math.abs(b.monto - movimiento.amount));
 
-    res.json(candidatos);
+    // No ofrecer un pago que ya está vinculado a otro movimiento activo —
+    // un mismo pago de MP no puede corresponder a dos movimientos distintos.
+    const paymentIds = candidatos.map((c) => c.paymentId);
+    const yaVinculados = new Set(
+      await Movimiento.distinct('mercadopagoVinculo.paymentId', {
+        clubId: req.user?.clubId,
+        active: true,
+        _id: { $ne: movimiento._id },
+        'mercadopagoVinculo.paymentId': { $in: paymentIds },
+      }),
+    );
+    const disponibles = candidatos.filter((c) => !yaVinculados.has(c.paymentId));
+    disponibles.sort((a, b) => Math.abs(a.monto - movimiento.amount) - Math.abs(b.monto - movimiento.amount));
+
+    res.json(disponibles);
   } catch (error) {
     console.error('Error buscando candidatos de Mercado Pago:', error);
     res.status(500).json({ message: 'Error al buscar pagos de Mercado Pago' });
