@@ -86,7 +86,7 @@ Esto es igual para cualquier rol — se accede desde la solapa `Perfil`, abajo a
   <figcaption>Mi Perfil</figcaption>
 </figure>
 
-- **Foto de perfil:** tocá tu avatar (círculo con tus iniciales) para elegir una foto de tu galería, o para quitarla si ya tenés una puesta.
+- **Foto de perfil:** tocá tu avatar (círculo con tus iniciales) para elegir una foto de tu galería. Si ya tenés una foto puesta, aparece además un botón aparte **Quitar foto** debajo del avatar para sacarla.
 - **Mis datos:** tus datos personales (nombre, contacto, etc.).
 - **Configuración:** desde acá accedés a varias secciones en una misma pantalla:
     - **Apariencia:** appClub trae 5 temas de color para elegir, además de "Sistema" (que sigue el modo claro/oscuro del celular).
