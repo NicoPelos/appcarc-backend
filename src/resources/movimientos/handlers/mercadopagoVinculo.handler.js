@@ -57,6 +57,9 @@ export const vincularMercadopagoHandler = async (req, res) => {
       fecha: payment.date_approved,
       vinculadoPor: actor,
     };
+    // El medio de pago pasa a reflejar la realidad — llegó por Mercado Pago,
+    // no una transferencia bancaria genérica. Se revierte en desvincular.
+    movimiento.paymentMethod = 'MercadoPago';
     movimiento.updatedBy = actor;
     await movimiento.save();
 
@@ -91,6 +94,7 @@ export const desvincularMercadopagoHandler = async (req, res) => {
     const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
     const before = movimiento.mercadopagoVinculo;
     movimiento.mercadopagoVinculo = null;
+    if (movimiento.paymentMethod === 'MercadoPago') movimiento.paymentMethod = 'Transferencia';
     movimiento.updatedBy = actor;
     await movimiento.save();
 
