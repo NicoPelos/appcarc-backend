@@ -88,5 +88,10 @@
     "sha": "ddbe9aee7d928c06582b829a4a32d379552c62b0",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-23T06:50:01Z"
+  },
+  "src/resources/movimientos": {
+    "sha": "4eb8be26a64f85b4aa3c825e3666c63756dfcf35",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-24T07:07:22Z"
   }
 }
