@@ -1,36 +1,57 @@
 const MP_API_BASE = 'https://api.mercadopago.com';
+const PAGE_SIZE = 50;
+const MAX_RESULTADOS = 500;
 
 /**
- * Busca pagos recibidos en la cuenta de Mercado Pago del club cerca de una
- * fecha dada, para vincular manualmente contra un Movimiento de tipo
- * Transferencia. Solo sirve para Ingresos — la API de pagos de MP expone
- * plata que ENTRÓ a la cuenta, no egresos/retiros del club.
+ * Busca pagos recibidos en la cuenta de Mercado Pago del club. Dos modos:
+ * - `fecha` + `rangoDias`: ventana centrada en una fecha (vincular contra un
+ *   Movimiento puntual).
+ * - `desde` + `hasta`: rango explícito (revisión general de pagos sin
+ *   vincular, paginada).
+ * Solo sirve para Ingresos — la API de pagos de MP expone plata que ENTRÓ a
+ * la cuenta, no egresos/retiros del club.
  */
-export const buscarPagosMercadoPago = async ({ accessToken, fecha, rangoDias = 5 }) => {
-  const desde = new Date(fecha);
-  desde.setDate(desde.getDate() - rangoDias);
-  const hasta = new Date(fecha);
-  hasta.setDate(hasta.getDate() + rangoDias);
-
-  const params = new URLSearchParams({
-    sort: 'date_approved',
-    criteria: 'desc',
-    range: 'date_approved',
-    begin_date: desde.toISOString(),
-    end_date: hasta.toISOString(),
-    limit: '50',
-  });
-
-  const response = await fetch(`${MP_API_BASE}/v1/payments/search?${params}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!response.ok) {
-    throw new Error(`Mercado Pago devolvió ${response.status} buscando pagos`);
+export const buscarPagosMercadoPago = async ({ accessToken, fecha, rangoDias = 5, desde, hasta }) => {
+  let desdeDate;
+  let hastaDate;
+  if (desde || hasta) {
+    desdeDate = desde ? new Date(desde) : new Date(0);
+    hastaDate = hasta ? new Date(hasta) : new Date();
+  } else {
+    desdeDate = new Date(fecha);
+    desdeDate.setDate(desdeDate.getDate() - rangoDias);
+    hastaDate = new Date(fecha);
+    hastaDate.setDate(hastaDate.getDate() + rangoDias);
   }
-  const data = await response.json();
 
-  return (data.results ?? [])
-    .filter((p) => p.status === 'approved')
+  const resultados = [];
+  let offset = 0;
+  while (offset < MAX_RESULTADOS) {
+    const params = new URLSearchParams({
+      sort: 'date_approved',
+      criteria: 'desc',
+      range: 'date_approved',
+      begin_date: desdeDate.toISOString(),
+      end_date: hastaDate.toISOString(),
+      limit: String(PAGE_SIZE),
+      offset: String(offset),
+    });
+
+    const response = await fetch(`${MP_API_BASE}/v1/payments/search?${params}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!response.ok) {
+      throw new Error(`Mercado Pago devolvió ${response.status} buscando pagos`);
+    }
+    const data = await response.json();
+    const batch = data.results ?? [];
+    resultados.push(...batch);
+    if (batch.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+
+  return resultados
+    .filter((p) => p.status === 'approved' && ['money_transfer', 'account_fund'].includes(p.operation_type))
     .map((p) => ({
       paymentId: String(p.id),
       monto: p.transaction_amount,
