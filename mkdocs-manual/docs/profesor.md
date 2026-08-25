@@ -55,7 +55,7 @@ Cada hora que cargás queda asociada a tu nombre y a una etiqueta de pago ("Hora
 1. Andá a `Horarios` y tocá el botón de agregar (+).
 2. Elegí la fecha del turno trabajado.
 3. Cargá la hora de entrada y de salida — la app calcula las horas totales.
-4. Elegí el tipo de tarea (por ejemplo, "clases de escuelita").
+4. Elegí el tipo de tarea — para un profesor suele ser "Hora Profesor" (esa etiqueta es la que define la tarifa por hora que te paga el club, no el tipo de clase dictada).
 5. Agregá una observación si hace falta, y confirmá.
 
 En la lista de tus registros, cada uno tiene un lápiz y un tacho al lado para editarlo o borrarlo si cargaste algo mal.
