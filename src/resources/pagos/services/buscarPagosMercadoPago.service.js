@@ -8,8 +8,13 @@ const MAX_RESULTADOS = 500;
  *   Movimiento puntual).
  * - `desde` + `hasta`: rango explícito (revisión general de pagos sin
  *   vincular, paginada).
- * Solo sirve para Ingresos — la API de pagos de MP expone plata que ENTRÓ a
- * la cuenta, no egresos/retiros del club.
+ *
+ * Solo devuelve Ingresos reales — /v1/payments/search también trae pagos
+ * salientes (ej. honorarios pagados por transferencia interna de MP a otra
+ * cuenta MP, no por CVU/banco) cuando el destinatario también tiene MP.
+ * Ahí el club figura como `payer_id`, no `collector_id` — sin filtrar por
+ * esto, una transferencia SALIENTE aparecía en la lista de "sin vincular"
+ * como si fuera plata que entró (bug encontrado 2026-08-25).
  */
 export const buscarPagosMercadoPago = async ({ accessToken, fecha, rangoDias = 5, desde, hasta }) => {
   let desdeDate;
@@ -23,6 +28,14 @@ export const buscarPagosMercadoPago = async ({ accessToken, fecha, rangoDias = 5
     hastaDate = new Date(fecha);
     hastaDate.setDate(hastaDate.getDate() + rangoDias);
   }
+
+  const userRes = await fetch(`${MP_API_BASE}/users/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!userRes.ok) {
+    throw new Error(`Mercado Pago devolvió ${userRes.status} identificando la cuenta`);
+  }
+  const clubUserId = (await userRes.json()).id;
 
   const resultados = [];
   let offset = 0;
@@ -51,7 +64,11 @@ export const buscarPagosMercadoPago = async ({ accessToken, fecha, rangoDias = 5
   }
 
   return resultados
-    .filter((p) => p.status === 'approved' && ['money_transfer', 'account_fund'].includes(p.operation_type))
+    .filter((p) => (
+      p.status === 'approved'
+      && ['money_transfer', 'account_fund'].includes(p.operation_type)
+      && p.collector_id === clubUserId
+    ))
     .map((p) => ({
       paymentId: String(p.id),
       monto: p.transaction_amount,
