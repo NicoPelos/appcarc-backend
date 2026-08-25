@@ -29,7 +29,7 @@ export const deleteHorarioHandler = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const horario = await Horarios.findOne({ _id: id, active: true });
+    const horario = await Horarios.findOne({ _id: id, clubId: req.user?.clubId, active: true });
     if (!horario) return res.status(404).json({ message: 'Horario no encontrado' });
 
     const canEditAll = req.user?.roles?.some(r => ROLES_EDIT_ALL.includes(r));

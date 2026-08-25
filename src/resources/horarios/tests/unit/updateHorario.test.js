@@ -78,6 +78,13 @@ describe('updateHorarioHandler', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it('should scope the lookup to the caller club (no cross-club write)', async () => {
+    vi.spyOn(Horarios, 'findOne').mockResolvedValue(makeHorario());
+    const res = mockRes();
+    await updateHorarioHandler({ params: { id: 'h1' }, body: { totalHoras: 3 }, user: USER }, res);
+    expect(Horarios.findOne).toHaveBeenCalledWith(expect.objectContaining({ clubId: USER.clubId }));
+  });
+
   it('should return 500 on unexpected error', async () => {
     vi.spyOn(Horarios, 'findOne').mockRejectedValue(new Error('DB down'));
     const res = mockRes();

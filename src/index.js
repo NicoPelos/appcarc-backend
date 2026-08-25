@@ -22,8 +22,7 @@ import { startReconciliarPagosMercadoPagoJob } from './jobs/reconciliarPagosMerc
 dotenv.config();
 
 if (!process.env.JWT_SECRET) {
-  console.warn('⚠️ JWT_SECRET no está definido. Usando secreto de desarrollo por defecto. Define JWT_SECRET en backend/.env para producción.');
-  process.env.JWT_SECRET = 'dev_default_jwt_secret';
+  throw new Error('JWT_SECRET es obligatorio — no se puede arrancar sin él. Definilo en backend/.env.');
 }
 
 const app = express();

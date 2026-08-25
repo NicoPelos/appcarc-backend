@@ -50,6 +50,13 @@ describe('deleteHorarioHandler', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'Horario eliminado' });
   });
 
+  it('should scope the lookup to the caller club (no cross-club delete)', async () => {
+    vi.spyOn(Horarios, 'findOne').mockResolvedValue(makeHorario());
+    const res = mockRes();
+    await deleteHorarioHandler({ params: { id: 'h1' }, user: USER }, res);
+    expect(Horarios.findOne).toHaveBeenCalledWith(expect.objectContaining({ clubId: USER.clubId }));
+  });
+
   it('should return 500 on unexpected error', async () => {
     vi.spyOn(Horarios, 'findOne').mockRejectedValue(new Error('DB down'));
     const res = mockRes();
