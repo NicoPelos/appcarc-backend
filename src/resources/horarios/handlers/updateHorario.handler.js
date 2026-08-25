@@ -84,6 +84,10 @@ export const updateHorarioHandler = async (req, res) => {
       horario.horaSalida = d;
     }
 
+    if (totalHoras !== undefined && (typeof totalHoras !== 'number' || !Number.isFinite(totalHoras) || totalHoras < 0)) {
+      return res.status(400).json({ message: 'El totalHoras debe ser un número mayor o igual a 0' });
+    }
+
     if (etiquetaId !== undefined) horario.etiquetaId = etiquetaId ?? null;
     if (totalHoras !== undefined) horario.totalHoras = totalHoras;
     if (observaciones !== undefined) horario.observaciones = observaciones;

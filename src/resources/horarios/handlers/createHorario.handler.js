@@ -69,6 +69,10 @@ export const createHorarioHandler = async (req, res) => {
       if (isNaN(d.getTime())) return res.status(400).json({ message: 'La hora de salida es inválida' });
     }
 
+    if (totalHoras !== undefined && (typeof totalHoras !== 'number' || !Number.isFinite(totalHoras) || totalHoras < 0)) {
+      return res.status(400).json({ message: 'El totalHoras debe ser un número mayor o igual a 0' });
+    }
+
     const horario = new Horarios({
       idHorarios: randomBytes(4).toString('hex'),
       clubId: req.user?.clubId,

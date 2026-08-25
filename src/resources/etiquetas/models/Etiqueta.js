@@ -34,9 +34,13 @@ const etiquetaSchema = new mongoose.Schema({
 // está AUSENTE, pero acá uso_sistema siempre está presente con default: null,
 // así que un índice sparse indexaría igual todos los null y el unique
 // rechazaría clubes con más de una etiqueta sin uso_sistema configurado.
+// También excluye inactivas (soft-deleted) — sin esto, borrar una etiqueta
+// con uso_sistema y volver a crear una con el mismo uso_sistema fallaba con
+// E11000 aunque el chequeo de aplicación (que sí filtra active:true) no viera
+// ningún conflicto — mismo patrón ya arreglado en Escuelita/Cuota (f57ab3c).
 etiquetaSchema.index(
   { clubId: 1, uso_sistema: 1 },
-  { unique: true, partialFilterExpression: { uso_sistema: { $type: 'string' } } },
+  { unique: true, partialFilterExpression: { uso_sistema: { $type: 'string' }, active: true } },
 );
 
 const Etiqueta = mongoose.model('Etiqueta', etiquetaSchema);

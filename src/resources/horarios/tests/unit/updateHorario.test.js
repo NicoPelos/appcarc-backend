@@ -62,6 +62,14 @@ describe('updateHorarioHandler', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'La hora de salida es inválida' });
   });
 
+  it('should return 400 when totalHoras is negative', async () => {
+    vi.spyOn(Horarios, 'findOne').mockResolvedValue(makeHorario());
+    const res = mockRes();
+    await updateHorarioHandler({ params: { id: 'h1' }, body: { totalHoras: -3 }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'El totalHoras debe ser un número mayor o igual a 0' });
+  });
+
   it('should update fields and return 200', async () => {
     const horario = makeHorario();
     vi.spyOn(Horarios, 'findOne').mockResolvedValue(horario);

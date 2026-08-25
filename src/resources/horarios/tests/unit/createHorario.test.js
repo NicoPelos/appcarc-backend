@@ -58,6 +58,20 @@ describe('createHorarioHandler', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'La hora de salida es inválida' });
   });
 
+  it('should return 400 when totalHoras is negative', async () => {
+    const res = mockRes();
+    await createHorarioHandler({ body: { ...BASE_BODY, totalHoras: -1 }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'El totalHoras debe ser un número mayor o igual a 0' });
+  });
+
+  it('should return 400 when totalHoras is not a number', async () => {
+    const res = mockRes();
+    await createHorarioHandler({ body: { ...BASE_BODY, totalHoras: 'dos' }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'El totalHoras debe ser un número mayor o igual a 0' });
+  });
+
   it('should create horario and return 201', async () => {
     const res = mockRes();
     await createHorarioHandler({ body: BASE_BODY, user: USER }, res);

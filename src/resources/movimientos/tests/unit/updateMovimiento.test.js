@@ -20,6 +20,7 @@ const makeMovimiento = (overrides = {}) => ({
   description: '',
   date: new Date(),
   active: true,
+  sourceType: 'manual',
   updatedBy: '',
   save: vi.fn().mockResolvedValue(undefined),
   toObject: vi.fn().mockReturnValue({}),
@@ -116,6 +117,24 @@ describe('updateMovimientoHandler', () => {
     expect(mov.concept).toBe('Gasto nuevo');
     expect(mov.updatedBy).toBe('admin@carc.test');
     expect(mov.save).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('should reject changing amount/type/paymentMethod on a non-manual movimiento (cobro)', async () => {
+    const mov = makeMovimiento({ sourceType: 'cobro' });
+    vi.spyOn(Movimiento, 'findOne').mockResolvedValue(mov);
+    const res = mockRes();
+    await updateMovimientoHandler({ params: { id: 'mov1' }, body: { amount: 5000 }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mov.save).not.toHaveBeenCalled();
+  });
+
+  it('should still allow editing description/date on a non-manual movimiento (muro_libre)', async () => {
+    const mov = makeMovimiento({ sourceType: 'muro_libre' });
+    vi.spyOn(Movimiento, 'findOne').mockResolvedValue(mov);
+    const res = mockRes();
+    await updateMovimientoHandler({ params: { id: 'mov1' }, body: { description: 'nota' }, user: USER }, res);
+    expect(mov.description).toBe('nota');
     expect(res.status).toHaveBeenCalledWith(200);
   });
 

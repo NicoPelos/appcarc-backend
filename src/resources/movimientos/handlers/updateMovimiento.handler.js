@@ -61,6 +61,14 @@ export const updateMovimientoHandler = async (req, res) => {
     if (!movimiento) return res.status(404).json({ message: 'Movimiento no encontrado' });
     const movimientoAntes = movimiento.toObject();
 
+    // Los movimientos de cobro/muro_libre reflejan plata ya registrada en
+    // otro documento (Cobro.total, Cuota.montoPagadoSnapshot, etc.) — editar
+    // type/amount/paymentMethod acá los desincroniza de su origen sin dejar
+    // rastro de por qué difieren. Solo se puede tocar description/date.
+    if (movimiento.sourceType !== 'manual' && (type !== undefined || amount !== undefined || paymentMethod !== undefined)) {
+      return res.status(400).json({ message: 'Este movimiento se generó automáticamente — solo se puede editar la descripción y la fecha' });
+    }
+
     if (type !== undefined && !['Ingreso', 'Egreso'].includes(type)) {
       return res.status(400).json({ message: 'Tipo de movimiento inválido' });
     }

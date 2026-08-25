@@ -3,6 +3,7 @@ import { updatePlanHandler } from '../../handlers/updatePlan.handler.js';
 
 vi.mock('../../models/Plan.js', () => ({
   default: { findOne: vi.fn() },
+  TIPOS: ['social', 'escuelita', 'muro_libre', 'plan_deuda'],
 }));
 vi.mock('../../../etiquetas/models/Etiqueta.js', () => ({
   default: { findOne: vi.fn() },

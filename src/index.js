@@ -67,7 +67,19 @@ const swaggerOptions = {
 const swaggerDocs = swaggerJsDoc(swaggerOptions);
 
 // Middleware
-app.use(cors());
+// En producción, la PWA/appCARC-web/superadmin se sirven desde el mismo
+// gateway/dominio que la API (same-origin, CORS ni entra en juego ahí) —
+// esto es principalmente para los dev servers locales (Vite de appCARC-web
+// y superadmin, Expo web). CORS_ORIGINS permite sumar dominios de producción
+// si en algún momento se sirve algo desde otro host, sin hardcodearlo acá.
+const DEFAULT_CORS_ORIGINS = [
+  'http://localhost:3002', 'http://localhost:3003',
+  'http://localhost:8081', 'http://localhost:19006',
+];
+const corsOrigins = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
+  : DEFAULT_CORS_ORIGINS;
+app.use(cors({ origin: corsOrigins }));
 app.use(express.json());
 app.use(express.static(join(__dirname, '../public')));
 app.use('/uploads', express.static(join(__dirname, '../uploads')));
