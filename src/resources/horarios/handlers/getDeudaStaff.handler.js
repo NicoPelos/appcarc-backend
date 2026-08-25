@@ -1,17 +1,5 @@
 import Horarios from '../models/Horarios.js';
-import Precios from '../../cuotas/models/Precios.js';
-
-const getPrecioVigente = async ({ clubId, etiquetaId, fecha }) => {
-  return Precios.findOne({
-    clubId,
-    etiquetaId,
-    active: true,
-    vigenteDesde: { $lte: fecha },
-    $or: [{ vigenteHasta: null }, { vigenteHasta: { $gte: fecha } }],
-  })
-    .sort({ vigenteDesde: -1 })
-    .lean();
-};
+import { findPrecioVigente } from '../../cuotas/services/findPrecioVigente.service.js';
 
 /**
  * @openapi
@@ -89,7 +77,7 @@ export const getDeudaStaffHandler = async (req, res) => {
             let subtotal = null;
 
             if (etiqueta?._id) {
-              const precio = await getPrecioVigente({ clubId, etiquetaId: etiqueta._id, fecha: fechaRef });
+              const precio = await findPrecioVigente({ clubId, etiquetaId: etiqueta._id, date: fechaRef });
               precioPorHora = precio?.monto ?? null;
               subtotal = precioPorHora !== null ? totalHoras * precioPorHora : null;
             }

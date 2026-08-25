@@ -130,7 +130,7 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
       // convivir con meses ya pagados de antes de pasar a exento, y la
       // grilla necesita poder pintarlos igual (appcarc-backend, caso Viola).
       const periodosPagados = (await Cuota.find({
-        socioId, clubId, etiquetaId: sus.etiquetaId._id, estado: 'pagada',
+        socioId, clubId, etiquetaId: sus.etiquetaId._id, estado: 'pagada', active: true,
       }).lean()).map((c) => c.periodo);
 
       if (sus.exento) {
@@ -184,6 +184,7 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
           clubId,
           etiquetaId: sus.etiquetaId._id,
           estado: 'pagada',
+          active: true,
           periodo: { $lte: hoy },
         })
           .sort({ periodo: -1 })
@@ -193,6 +194,7 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
           clubId,
           etiquetaId: sus.etiquetaId._id,
           estado: 'pagada',
+          active: true,
           periodo: { $in: candidatos },
         }).lean(),
       ]);

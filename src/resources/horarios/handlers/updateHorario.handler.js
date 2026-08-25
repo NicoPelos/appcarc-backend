@@ -1,4 +1,5 @@
 import Horarios from '../models/Horarios.js';
+import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 const ROLES_EDIT_ALL  = ['admin', 'secretaria'];
@@ -88,7 +89,13 @@ export const updateHorarioHandler = async (req, res) => {
       return res.status(400).json({ message: 'El totalHoras debe ser un número mayor o igual a 0' });
     }
 
-    if (etiquetaId !== undefined) horario.etiquetaId = etiquetaId ?? null;
+    if (etiquetaId !== undefined) {
+      if (etiquetaId) {
+        const etiqueta = await Etiqueta.findOne({ _id: etiquetaId, clubId: req.user?.clubId, active: true });
+        if (!etiqueta) return res.status(404).json({ message: 'Etiqueta no encontrada' });
+      }
+      horario.etiquetaId = etiquetaId ?? null;
+    }
     if (totalHoras !== undefined) horario.totalHoras = totalHoras;
     if (observaciones !== undefined) horario.observaciones = observaciones;
     horario.updatedBy = req.user?.email ?? req.user?.id ?? 'Sistema';

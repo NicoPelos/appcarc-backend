@@ -71,7 +71,13 @@ export const createPrecioHandler = async (req, res) => {
     }
 
     const desde = vigenteDesde ? new Date(vigenteDesde) : new Date();
+    if (isNaN(desde.getTime())) {
+      return res.status(400).json({ message: 'vigenteDesde inválido' });
+    }
     const hasta = vigenteHasta ? new Date(vigenteHasta) : null;
+    if (hasta && isNaN(hasta.getTime())) {
+      return res.status(400).json({ message: 'vigenteHasta inválido' });
+    }
 
     const session = await mongoose.startSession();
     let precio;

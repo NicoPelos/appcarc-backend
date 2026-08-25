@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { fileURLToPath } from 'url';
@@ -80,6 +82,18 @@ const corsOrigins = process.env.CORS_ORIGINS
   ? process.env.CORS_ORIGINS.split(',').map((o) => o.trim()).filter(Boolean)
   : DEFAULT_CORS_ORIGINS;
 app.use(cors({ origin: corsOrigins }));
+// contentSecurityPolicy: false porque este mismo Express sirve Swagger UI
+// (/api-docs) y la PWA (/app), ambos con scripts inline/bundles propios que
+// la CSP por default de helmet bloquearía — el resto de los headers
+// (X-Content-Type-Options, X-Frame-Options, HSTS, etc.) siguen activos.
+app.use(helmet({ contentSecurityPolicy: false }));
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', apiLimiter);
 app.use(express.json());
 app.use(express.static(join(__dirname, '../public')));
 app.use('/uploads', express.static(join(__dirname, '../uploads')));

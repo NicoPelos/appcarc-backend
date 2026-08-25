@@ -1,5 +1,6 @@
 import { randomBytes } from 'crypto';
 import Horarios from '../models/Horarios.js';
+import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
@@ -71,6 +72,11 @@ export const createHorarioHandler = async (req, res) => {
 
     if (totalHoras !== undefined && (typeof totalHoras !== 'number' || !Number.isFinite(totalHoras) || totalHoras < 0)) {
       return res.status(400).json({ message: 'El totalHoras debe ser un número mayor o igual a 0' });
+    }
+
+    if (etiquetaId) {
+      const etiqueta = await Etiqueta.findOne({ _id: etiquetaId, clubId: req.user?.clubId, active: true });
+      if (!etiqueta) return res.status(404).json({ message: 'Etiqueta no encontrada' });
     }
 
     const horario = new Horarios({

@@ -82,6 +82,28 @@ describe('createMovimientoHandler', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'El responsable es obligatorio' });
   });
 
+  it('should return 400 when concept is only whitespace', async () => {
+    const res = mockRes();
+    await createMovimientoHandler({ body: { ...BASE_BODY, concept: '   ' }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'El concepto es obligatorio' });
+  });
+
+  it('should return 400 when responsable is only whitespace', async () => {
+    const res = mockRes();
+    await createMovimientoHandler({ body: { ...BASE_BODY, responsable: '   ' }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'El responsable es obligatorio' });
+  });
+
+  it('should trim concept and responsable before saving', async () => {
+    const res = mockRes();
+    await createMovimientoHandler({ body: { ...BASE_BODY, concept: '  Cuota mensual  ', responsable: '  Secretaría  ' }, user: USER }, res);
+    const created = res.json.mock.calls[0][0];
+    expect(created.concept).toBe('Cuota mensual');
+    expect(created.responsable).toBe('Secretaría');
+  });
+
   it('should return 400 when paymentMethod is invalid', async () => {
     const res = mockRes();
     await createMovimientoHandler({ body: { ...BASE_BODY, paymentMethod: 'Tarjeta' }, user: USER }, res);

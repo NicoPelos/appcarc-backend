@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { updateHorarioHandler } from '../../handlers/updateHorario.handler.js';
 import Horarios from '../../models/Horarios.js';
+import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 
 const mockRes = () => {
   const res = {};
@@ -73,8 +74,9 @@ describe('updateHorarioHandler', () => {
   it('should update fields and return 200', async () => {
     const horario = makeHorario();
     vi.spyOn(Horarios, 'findOne').mockResolvedValue(horario);
-    const res = mockRes();
     const etqId = '507f1f77bcf86cd799439011';
+    vi.spyOn(Etiqueta, 'findOne').mockResolvedValue({ _id: etqId });
+    const res = mockRes();
     await updateHorarioHandler(
       { params: { id: 'h1' }, body: { etiquetaId: etqId, totalHoras: 3 }, user: USER },
       res,
@@ -84,6 +86,21 @@ describe('updateHorarioHandler', () => {
     expect(horario.updatedBy).toBe('admin@carc.test');
     expect(horario.save).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('should return 404 when etiquetaId does not belong to the caller club', async () => {
+    const horario = makeHorario();
+    vi.spyOn(Horarios, 'findOne').mockResolvedValue(horario);
+    vi.spyOn(Etiqueta, 'findOne').mockResolvedValue(null);
+    const res = mockRes();
+    const etqId = '507f1f77bcf86cd799439099';
+    await updateHorarioHandler(
+      { params: { id: 'h1' }, body: { etiquetaId: etqId }, user: USER },
+      res,
+    );
+    expect(Etiqueta.findOne).toHaveBeenCalledWith(expect.objectContaining({ _id: etqId, clubId: USER.clubId, active: true }));
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(horario.save).not.toHaveBeenCalled();
   });
 
   it('should scope the lookup to the caller club (no cross-club write)', async () => {

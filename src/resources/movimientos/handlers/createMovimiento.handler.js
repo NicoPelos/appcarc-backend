@@ -90,7 +90,7 @@ export const createMovimientoHandler = async (req, res) => {
       return res.status(400).json({ message: 'El importe debe ser un número mayor que cero' });
     }
 
-    if (!concept || typeof concept !== 'string') {
+    if (!concept?.trim()) {
       return res.status(400).json({ message: 'El concepto es obligatorio' });
     }
 
@@ -98,7 +98,7 @@ export const createMovimientoHandler = async (req, res) => {
       return res.status(400).json({ message: `La categoría debe ser una de: ${CATEGORIAS_MOVIMIENTO[type].join(', ')}` });
     }
 
-    if (!responsable || typeof responsable !== 'string') {
+    if (!responsable?.trim()) {
       return res.status(400).json({ message: 'El responsable es obligatorio' });
     }
 
@@ -114,10 +114,10 @@ export const createMovimientoHandler = async (req, res) => {
     const movimiento = new Movimiento({
       clubId: req.user.clubId,
       userId: req.user.id,
-      responsable,
+      responsable: responsable.trim(),
       type,
       amount,
-      concept,
+      concept: concept.trim(),
       categoria,
       paymentMethod,
       socioNombre: socioNombre || '',

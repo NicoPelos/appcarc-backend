@@ -79,6 +79,26 @@ describe('createPrecioHandler', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
+  it('retorna 400 si vigenteDesde es inválido', async () => {
+    const req = { user: mockUser, body: { ...validBody, vigenteDesde: 'no-es-fecha' } };
+    const res = mockRes();
+
+    await createPrecioHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'vigenteDesde inválido' });
+  });
+
+  it('retorna 400 si vigenteHasta es inválido', async () => {
+    const req = { user: mockUser, body: { ...validBody, vigenteHasta: 'no-es-fecha' } };
+    const res = mockRes();
+
+    await createPrecioHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'vigenteHasta inválido' });
+  });
+
   it('retorna 404 si etiqueta no existe', async () => {
     Etiqueta.findOne.mockResolvedValue(null);
     const req = { user: mockUser, body: validBody };
