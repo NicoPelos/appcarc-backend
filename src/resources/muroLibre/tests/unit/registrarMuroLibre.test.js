@@ -313,6 +313,40 @@ describe('registrarMuroLibre service (unit)', () => {
     }));
   });
 
+  it('filtra active:true en la consulta de cuota social y de cuota mensual', async () => {
+    mockSocioQuery({ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' });
+    mockPrecioVigenteQuery({ monto: 8000 });
+    const cuotaSocialQuery = { session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) }) };
+    const cuotaMensualQuery = { session: vi.fn().mockResolvedValue(null) };
+    Cuota.findOne = vi.fn()
+      .mockReturnValueOnce(cuotaSocialQuery)
+      .mockReturnValueOnce(cuotaMensualQuery);
+
+    await registrarMuroLibre({
+      clubId: CLUB_ID, user: USER,
+      body: { socioId: SOCIO_ID, tipoPase: 'mensual', estadoPago: 'pendiente' },
+    });
+
+    expect(Cuota.findOne).toHaveBeenNthCalledWith(1, expect.objectContaining({ estado: 'pagada', active: true }));
+    expect(Cuota.findOne).toHaveBeenNthCalledWith(2, expect.objectContaining({ estado: 'pagada', active: true }));
+  });
+
+  it('convierte un duplicate key error (11000) de diaCheckin en un 409 con el mismo mensaje del chequeo en memoria', async () => {
+    mockSocioQuery({ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' });
+    mockPrecioVigenteQuery(null);
+    Suscripcion.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) }) });
+    Cuota.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) }) });
+    const dupError = new Error('E11000 duplicate key error collection: appcarc.asistencias index: clubId_1_socioId_1_tipo_1_diaCheckin_1_active_1 dup key: { diaCheckin: "2026-06-15" }');
+    dupError.code = 11000;
+    dupError.keyPattern = { clubId: 1, socioId: 1, tipo: 1, diaCheckin: 1, active: 1 };
+    registroSaveSpy.mockRejectedValueOnce(dupError);
+
+    await expect(registrarMuroLibre({
+      clubId: CLUB_ID, user: USER,
+      body: { socioId: SOCIO_ID, tipoPase: 'diario', estadoPago: 'exento' },
+    })).rejects.toMatchObject({ status: 409, message: 'Ana García ya registró asistencia en muro libre hoy' });
+  });
+
   it('should fail when mensual is attempted without a linked socio', async () => {
     await expect(registrarMuroLibre({
       clubId: CLUB_ID, user: USER,

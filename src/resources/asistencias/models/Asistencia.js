@@ -9,6 +9,12 @@ const asistenciaSchema = new mongoose.Schema({
   dni: { type: String, default: '' },
   esSocio: { type: Boolean, required: true, index: true },
   fecha: { type: Date, required: true, default: Date.now, index: true },
+  // Día calendario (America/Argentina, YYYY-MM-DD) del check-in — solo se
+  // completa para muro_libre con socio. Respalda el índice único de abajo
+  // (appcarc-backend#121): el chequeo de duplicado en memoria de
+  // registrarMuroLibre.service.js es un read-then-write sin aislamiento
+  // real entre transacciones concurrentes.
+  diaCheckin: { type: String, default: null },
 
   // muro_libre
   tipoPase: { type: String, default: null },
@@ -42,6 +48,23 @@ const asistenciaSchema = new mongoose.Schema({
   updatedBy: { type: String, required: true },
   active: { type: Boolean, default: true, index: true },
 }, { timestamps: true });
+
+// Un socio no puede tener dos check-ins de muro_libre activos el mismo día
+// calendario — respaldo a nivel de base del chequeo en memoria (que sigue
+// existiendo por el mensaje de error amigable, pero no alcanza solo bajo
+// transacciones concurrentes).
+asistenciaSchema.index(
+  { clubId: 1, socioId: 1, tipo: 1, diaCheckin: 1, active: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      socioId: { $type: 'objectId' },
+      tipo: 'muro_libre',
+      diaCheckin: { $type: 'string' },
+      active: true,
+    },
+  },
+);
 
 const Asistencia = mongoose.model('Asistencia', asistenciaSchema);
 

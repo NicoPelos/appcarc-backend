@@ -91,6 +91,20 @@ describe('POST /api/muro-libre/checkin (integración)', () => {
     expect(second.status).toBe(409);
   });
 
+  it('rechaza check-ins concurrentes del mismo socio el mismo día (índice único, no solo el chequeo en memoria)', async () => {
+    const { token } = await createAdminUser();
+    const socio = await createSocio();
+
+    const send = () => request(app)
+      .post('/api/muro-libre/checkin')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ dni: socio.dni, tipoPase: 'diario', estadoPago: 'exento' });
+
+    const [a, b] = await Promise.all([send(), send()]);
+    const statuses = [a.status, b.status].sort();
+    expect(statuses).toEqual([201, 409]);
+  });
+
   it('rechaza un tipoPase inválido (400)', async () => {
     const { token } = await createAdminUser();
     const socio = await createSocio();

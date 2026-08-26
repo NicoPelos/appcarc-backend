@@ -21,6 +21,7 @@ const makeMovimiento = (overrides = {}) => ({
   date: new Date(),
   active: true,
   sourceType: 'manual',
+  mercadopagoVinculos: [],
   updatedBy: '',
   save: vi.fn().mockResolvedValue(undefined),
   toObject: vi.fn().mockReturnValue({}),
@@ -136,6 +137,40 @@ describe('updateMovimientoHandler', () => {
     await updateMovimientoHandler({ params: { id: 'mov1' }, body: { description: 'nota' }, user: USER }, res);
     expect(mov.description).toBe('nota');
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('should reject changing type to Egreso when the movimiento has mercadopagoVinculos', async () => {
+    const mov = makeMovimiento({ mercadopagoVinculos: [{ paymentId: 'p1', monto: 1000, fecha: new Date(), vinculadoPor: 'admin@carc.test' }] });
+    vi.spyOn(Movimiento, 'findOne').mockResolvedValue(mov);
+    const res = mockRes();
+    await updateMovimientoHandler({ params: { id: 'mov1' }, body: { type: 'Egreso' }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'Este movimiento tiene pagos de Mercado Pago vinculados — no se puede cambiar a Egreso ni a Efectivo. Desvinculá los pagos primero.' });
+    expect(mov.save).not.toHaveBeenCalled();
+  });
+
+  it('should reject changing paymentMethod to Efectivo when the movimiento has mercadopagoVinculos', async () => {
+    const mov = makeMovimiento({
+      paymentMethod: 'Transferencia',
+      mercadopagoVinculos: [{ paymentId: 'p1', monto: 1000, fecha: new Date(), vinculadoPor: 'admin@carc.test' }],
+    });
+    vi.spyOn(Movimiento, 'findOne').mockResolvedValue(mov);
+    const res = mockRes();
+    await updateMovimientoHandler({ params: { id: 'mov1' }, body: { paymentMethod: 'Efectivo' }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(mov.save).not.toHaveBeenCalled();
+  });
+
+  it('should still allow editing description on a movimiento with mercadopagoVinculos when type/paymentMethod stay compatible', async () => {
+    const mov = makeMovimiento({
+      paymentMethod: 'Transferencia',
+      mercadopagoVinculos: [{ paymentId: 'p1', monto: 1000, fecha: new Date(), vinculadoPor: 'admin@carc.test' }],
+    });
+    vi.spyOn(Movimiento, 'findOne').mockResolvedValue(mov);
+    const res = mockRes();
+    await updateMovimientoHandler({ params: { id: 'mov1' }, body: { description: 'nota' }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(mov.save).toHaveBeenCalled();
   });
 
   it('should return 500 on unexpected error', async () => {

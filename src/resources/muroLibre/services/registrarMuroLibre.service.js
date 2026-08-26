@@ -36,6 +36,14 @@ const buildPeriodo = (date) => {
   return `${year}-${month}`;
 };
 
+// Día calendario en America/Argentina (UTC-3, sin horario de verano) — mismo
+// offset que ya usaba el chequeo de duplicado en memoria más abajo.
+const buildDiaCheckin = (date) => {
+  const OFFSET_MS = -3 * 60 * 60 * 1000;
+  const localFecha = new Date(date.getTime() + OFFSET_MS);
+  return `${localFecha.getUTCFullYear()}-${String(localFecha.getUTCMonth() + 1).padStart(2, '0')}-${String(localFecha.getUTCDate()).padStart(2, '0')}`;
+};
+
 export const findPrecioVigenteByUsoSistema = async ({ clubId, uso_sistema, date, session = null }) => {
   const etiqueta = await Etiqueta.findOne({ clubId, uso_sistema, active: true }).lean();
   if (!etiqueta) return null;
@@ -67,6 +75,11 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
   }
 
   const session = await mongoose.startSession();
+  // Hoisteados fuera de la transacción para poder armar el mismo mensaje de
+  // error si el catch de más abajo termina resolviendo el duplicado en vez
+  // del chequeo en memoria.
+  let nombre = '';
+  let apellido = '';
   try {
     let result = null;
 
@@ -81,8 +94,8 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
       }
 
       const esSocio = Boolean(socio || body?.esSocio === true);
-      const nombre = String(body?.nombre || socio?.nombre || '').trim();
-      const apellido = String(body?.apellido || socio?.apellido || '').trim();
+      nombre = String(body?.nombre || socio?.nombre || '').trim();
+      apellido = String(body?.apellido || socio?.apellido || '').trim();
       const dni = String(body?.dni || socio?.dni || '').trim();
 
       if (!nombre) {
@@ -144,6 +157,7 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
           etiquetaId: etiquetaSocial._id,
           periodo: periodoActual,
           estado: 'pagada',
+          active: true,
         }).session(session).lean();
 
         if (!cuotaSocial) {
@@ -191,6 +205,7 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
           etiquetaId: etiquetaMensual._id,
           periodo: periodoMensual,
           estado: 'pagada',
+          active: true,
         }).session(session);
 
         if (cuotaMensualVigente) {
@@ -233,6 +248,7 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         clubId,
         tipo: 'muro_libre',
         socioId: socio?._id ?? null,
+        diaCheckin: socio ? buildDiaCheckin(fecha) : null,
         scannedBy: body?.scannedBy || null,
         checkinMethod: body?.checkinMethod || 'MANUAL',
         nombre,
@@ -324,6 +340,13 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
     });
 
     return { ...result, advertencias };
+  } catch (error) {
+    const esDuplicadoCheckin = error?.code === 11000
+      && (error?.keyPattern?.diaCheckin !== undefined || /diaCheckin/.test(error?.message || ''));
+    if (esDuplicadoCheckin) {
+      throw new BusinessError(`${nombre} ${apellido} ya registró asistencia en muro libre hoy`, 409);
+    }
+    throw error;
   } finally {
     session.endSession();
   }
