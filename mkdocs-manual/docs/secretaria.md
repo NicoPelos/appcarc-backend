@@ -43,15 +43,15 @@ Al inscribir a alguien en un plan de escuelita, appClub crea automáticamente su
 4. Buscá al socio por nombre o DNI y tocalo en los resultados.
 5. Queda inscripto como `activo` y aparece en la lista de inscriptos con su plan.
 
-Si un alumno deja de asistir a escuelita, se lo da de baja desde su ficha — queda registrado como `baja` sin borrar su historial. Si vuelve más adelante, se lo puede reinscribir de nuevo.
+Si un alumno deja de asistir a escuelita, se lo da de baja tocando el ícono de tacho en su fila, desde la lista de inscriptos — queda registrado como `baja` (no borra su historial) y sale de la lista de activos. Si vuelve más adelante, se lo puede reinscribir de nuevo.
 
 **La ficha del alumno**
 
-Tocando a un alumno en la lista de inscriptos se abre su ficha: estado (activo/baja), cambiar de plan, cuánto adeuda de cuota de escuelita (con los períodos pendientes) y sus asistencias recientes.
+Tocando a un alumno en la lista de inscriptos se abre su ficha: perfil, plan (con la opción de cambiarlo), cuánto adeuda de cuota de escuelita (con los períodos pendientes) y sus asistencias recientes. La ficha no muestra un estado activo/baja ni tiene la acción de dar de baja — eso se hace desde la lista, como se explicó arriba.
 
 <figure markdown>
   ![Ficha del alumno](assets/screenshots/secretaria-escuelita-ficha-alumno.png){ width="260" }
-  <figcaption>Ficha del alumno: estado, plan, deuda y asistencias</figcaption>
+  <figcaption>Ficha del alumno: perfil, plan, deuda y asistencias</figcaption>
 </figure>
 
 ## 3. Tomar asistencia de escuelita

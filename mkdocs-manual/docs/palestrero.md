@@ -32,11 +32,13 @@ Para gente externa (que no es socio) o si preferís cargar el check-in vos mismo
 1. Andá a `Muro Libre` y tocá el botón de agregar (+).
 2. Buscá a la persona por nombre o DNI. Si ya es socio, va a aparecer en los resultados con su estado. Si no aparece nadie, tocá "¿No es socio? Registrar como visitante externo" y cargá nombre (obligatorio), apellido y DNI (opcionales).
 3. Elegí la fecha del check-in.
-4. Elegí el tipo de pase: `diario` o `mensual`. El pase mensual solo está disponible para socios — a una persona externa solo se le puede cobrar el diario. Si al elegir el socio ya tiene un pase mensual vigente, la app muestra esa info junto a su nombre para que no se lo cobres de nuevo.
+4. Elegí el tipo de pase: `diario` o `mensual`. El pase mensual solo está disponible para socios — a una persona externa solo se le puede cobrar el diario.
+   Si el socio elegido ya tiene un pase mensual vigente, la app lo detecta sola: fija el tipo en `mensual` (no lo podés cambiar a `diario`) y el estado de pago queda automático — `exento` si el pase está vigente, `pendiente` si venció. En ese caso los pasos 5 a 7 no aparecen.
 5. Elegí el estado de pago: `pagado`, `pendiente` o `exento`.
 6. Si está pagado, elegí la forma de pago (`Efectivo` / `Transferencia`).
-7. Opcional: agregá una observación en el campo de texto libre al final del formulario.
-8. Confirmá — queda el check-in con fecha y hora.
+7. Si el pase es `diario` y quedó `pagado`, aparece el campo **Monto**: viene precargado con el precio sugerido (distinto si es socio o externo), pero se puede editar antes de confirmar.
+8. Opcional: agregá una observación en el campo de texto libre al final del formulario.
+9. Confirmá — queda el check-in con fecha y hora.
 
 Para corregir un check-in ya cargado (por ejemplo si te equivocaste de tipo de pase o forma de pago), tocá el lápiz en su fila de la lista; el tacho de al lado lo elimina.
 

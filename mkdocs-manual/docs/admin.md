@@ -149,7 +149,7 @@ Un panel único con todos los socios que tienen algo para revisar: cuota social 
 </figure>
 
 1. Andá a `Advertencias` desde el grid de Inicio.
-2. Filtrá por período (`7 días` / `30 días` / `90 días`) y por tipo (`Escuelita` / `Muro` / `Morosidad`), o dejalo en `Todos`.
+2. Filtrá por tipo (`Escuelita` / `Muro` / `Morosidad`), o dejalo en `Todos`. El filtro de período (`7 días` / `30 días` / `90 días`) solo aparece para `Escuelita`, `Muro` y `Todos` — no aplica a `Morosidad`, que se muestra mientras la advertencia siga abierta, sin importar cuándo se detectó.
 3. Cada tarjeta muestra el socio, dónde saltó la advertencia y de qué se trata.
 4. Si el socio tiene teléfono cargado, aparece un ícono de WhatsApp para escribirle directo desde ahí.
 
