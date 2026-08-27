@@ -66,6 +66,20 @@ describe('crearPreferenciaCobroMercadoPago', () => {
     expect(mockIntentSave).toHaveBeenCalled();
   });
 
+  it('excluye tarjeta/efectivo/cajero de la preferencia — solo deja transferencia y saldo en cuenta', async () => {
+    await crearPreferenciaCobroMercadoPago(baseArgs());
+
+    const [, fetchOptions] = fetch.mock.calls[0];
+    const body = JSON.parse(fetchOptions.body);
+    expect(body.payment_methods.excluded_payment_types).toEqual(expect.arrayContaining([
+      { id: 'credit_card' },
+      { id: 'debit_card' },
+      { id: 'prepaid_card' },
+      { id: 'ticket' },
+      { id: 'atm' },
+    ]));
+  });
+
   it('suma el monto de varios items para el total, multiplicando por períodos/cantidad', async () => {
     const args = baseArgs();
     args.items = [

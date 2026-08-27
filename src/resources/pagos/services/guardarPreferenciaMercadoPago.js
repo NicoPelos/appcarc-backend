@@ -54,6 +54,19 @@ export const crearPreferenciaYGuardarIntent = async ({
     },
     auto_return: 'approved',
     payer: email ? { email } : undefined,
+    // Excluye tarjeta (crédito/débito/prepaga), efectivo en puntos de pago y
+    // cajero — la comisión de MP por esos medios (~2-6%) se la termina
+    // comiendo el club. Deja disponibles solo transferencia bancaria y saldo
+    // en cuenta de MP, que no tienen ese cargo (o es mucho menor).
+    payment_methods: {
+      excluded_payment_types: [
+        { id: 'credit_card' },
+        { id: 'debit_card' },
+        { id: 'prepaid_card' },
+        { id: 'ticket' },
+        { id: 'atm' },
+      ],
+    },
   };
 
   const mpResponse = await fetch(`${MP_API_BASE}/checkout/preferences`, {
