@@ -30,7 +30,7 @@ La mayoría de los check-ins de socios se cargan solos: en la pared del club hay
 Para gente externa (que no es socio) o si preferís cargar el check-in vos mismo/a:
 
 1. Andá a `Muro Libre` y tocá el botón de agregar (+).
-2. Buscá a la persona por nombre o DNI. Si ya es socio, va a aparecer en los resultados con su estado. Si no aparece nadie, tocá "¿No es socio? Registrar como visitante externo" y cargá nombre (obligatorio), apellido y DNI (opcionales).
+2. Buscá a la persona por nombre o DNI. Los resultados muestran nombre y DNI — el estado del pase mensual (si lo tiene vigente o vencido) aparece recién al tocar a la persona, no en la lista. Si no aparece nadie, tocá el link para registrarla como visitante externo y cargá nombre (obligatorio), apellido y DNI (opcionales).
 3. Elegí la fecha del check-in.
 4. Elegí el tipo de pase: `diario` o `mensual`. El pase mensual solo está disponible para socios — a una persona externa solo se le puede cobrar el diario.
    Si el socio elegido ya tiene un pase mensual vigente, la app lo detecta sola: fija el tipo en `mensual` (no lo podés cambiar a `diario`) y el estado de pago queda automático — `exento` si el pase está vigente, `pendiente` si venció. En ese caso los pasos 5 a 7 no aparecen.
@@ -58,7 +58,7 @@ Igual que el profesor, cada hora que cargás queda asociada a tu nombre, y así 
 3. Elegí el tipo de tarea — la lista muestra todas las etiquetas de hora del club, así que elegí la que te corresponde a vos (por ejemplo, "Hora Palestrero").
 4. Confirmá — el formulario es el mismo que usa un profesor, solo cambia qué etiqueta corresponde pagarte.
 
-La pantalla también tiene una solapa `Resumen`, con el total de horas que cargaste cada mes agrupado por tipo de tarea.
+La pantalla también tiene una solapa `Resumen`, con el total de horas que cargaste cada mes agrupado por tipo de tarea. Y una solapa `Deuda`, que traduce esas horas a plata según el precio configurado — cuánto te corresponde cobrar.
 
 ## 3. Notificaciones
 

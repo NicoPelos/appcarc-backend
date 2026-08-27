@@ -108,14 +108,14 @@ Todo lo que veas mientras actuás "como" un hijo vinculado (cuotas, credencial, 
 
 ## 7. Mis clases (si estás inscripto en escuelita)
 
-Si tenés una inscripción activa (o la tuviste alguna vez) en algún plan de escuelita, aparece una solapa `Mis clases` con tu propio historial de asistencias.
+Si tenés una inscripción **activa** en algún plan de escuelita, aparece una solapa `Mis clases` con tu propio historial de asistencias.
 
 <figure markdown>
   ![Mis clases](assets/screenshots/socio-mis-clases.png){ width="260" }
   <figcaption>Tu historial de clases</figcaption>
 </figure>
 
-Esta solapa solo aparece si alguna vez tuviste una inscripción — si nunca fuiste alumno de escuelita, no la vas a ver.
+Esta solapa depende de la inscripción vigente, no del historial: si te dan de baja de escuelita, la solapa deja de aparecer aunque hayas sido alumno antes.
 
 ## 8. Mis Visitas (si sos frecuente en muro libre)
 

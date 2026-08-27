@@ -19,12 +19,11 @@ Cuando un socio paga (cuota social, escuelita o muro libre mensual), se registra
 </figure>
 
 1. Buscá al socio (por nombre o DNI) y entrá a su ficha.
-2. Tocá "Registrar cobro" — vas a ver una lista con cada cuota que tiene activa (social, escuelita, etc.) y cuánto adeuda de cada una.
-3. Activá las cuotas que está pagando ahora.
+2. Tocá "Registrar cobro". Arriba de todo vas a ver la "Fecha del cobro" (por defecto hoy, editable si necesitás cargar un cobro retroactivo) y la forma de pago (`Efectivo` o `Transferencia`).
+3. Debajo, una lista con cada cuota que tiene activa (social, escuelita, etc.) y cuánto adeuda de cada una. Activá las que está pagando ahora.
 4. Para cada una, tildá los períodos que corresponda entre los chips de meses adeudados — vienen todos tildados por defecto, pero podés destildar cualquiera; no hace falta que sean consecutivos.
 5. Si paga un monto distinto al sugerido, podés ajustarlo a mano.
-6. Revisá la "Fecha del cobro" (por defecto hoy, editable si necesitás cargar un cobro retroactivo).
-7. Elegí la forma de pago (`Efectivo` o `Transferencia`) y confirmá — se genera el cobro, y automáticamente el movimiento de caja correspondiente.
+6. Confirmá — se genera el cobro, y automáticamente el movimiento de caja correspondiente.
 
 **Alternativa: cobrar por Mercado Pago.** En vez de confirmar el cobro manual, podés tocar "Generar link de pago" — arma un link de Mercado Pago con los mismos ítems tildados, para mandarle al socio. El cobro se registra solo, automáticamente, cuando el socio efectivamente paga.
 
@@ -98,11 +97,15 @@ La mayoría de los check-ins de socios se cargan solos: en la pared del club hay
 Para gente externa (que no es socio) o si preferís cargar el check-in vos mismo/a:
 
 1. Andá a `Muro Libre` y tocá el botón de agregar (+).
-2. Buscá a la persona por nombre o DNI (si ya es socio, aparece en los resultados).
-3. Elegí el tipo de pase: `diario` o `mensual`. Si ya tiene un pase mensual vigente, la app te lo muestra antes de cobrar de más.
-4. Elegí el estado de pago: `pagado` o `pendiente`.
-5. Si está pagado, elegí la forma de pago (`Efectivo` / `Transferencia`).
-6. Confirmá — queda el check-in registrado con fecha y hora.
+2. Buscá a la persona por nombre o DNI. Los resultados muestran nombre y DNI — el estado del pase mensual (si lo tiene vigente o vencido) aparece recién al tocar a la persona, no en la lista. Si no aparece nadie, tocá el link para registrarla como visitante externo y cargá nombre (obligatorio), apellido y DNI (opcionales).
+3. Elegí la fecha del check-in.
+4. Elegí el tipo de pase: `diario` o `mensual`. El pase mensual solo está disponible para socios — a una persona externa solo se le puede cobrar el diario.
+   Si el socio elegido ya tiene un pase mensual vigente, la app lo detecta sola: fija el tipo en `mensual` (no lo podés cambiar a `diario`) y el estado de pago queda automático — `exento` si el pase está vigente, `pendiente` si venció. En ese caso los pasos 5 a 7 no aparecen.
+5. Elegí el estado de pago: `pagado`, `pendiente` o `exento`.
+6. Si está pagado, elegí la forma de pago (`Efectivo` / `Transferencia`).
+7. Si el pase es `diario` y quedó `pagado`, aparece el campo **Monto**: viene precargado con el precio sugerido (distinto si es socio o externo), pero se puede editar antes de confirmar.
+8. Opcional: agregá una observación en el campo de texto libre al final del formulario.
+9. Confirmá — queda el check-in con fecha y hora.
 
 Si no tenés el cartel a mano, tocá el ícono de QR en el header de `Muro Libre` para generarlo e imprimirlo de nuevo.
 

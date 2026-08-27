@@ -45,7 +45,7 @@ Un socio (por lo general, menor de edad) puede tener uno o más tutores vinculad
 
 1. Abrí la ficha del socio (el "hijo") y tocá `Vincular a un tutor`.
 2. Elegí el modo, según si el tutor ya es socio del club o no:
-    - `Es socio del club` (modo por defecto): tocá `Buscar socio` y elegilo de la lista — queda vinculado al confirmar la búsqueda, sin más pasos.
+    - `Es socio del club` (modo por defecto): tocá `Buscar socio` y elegilo de la lista — queda vinculado al confirmar la búsqueda. Si ese socio todavía no tiene cuenta de login, se le crea una automáticamente (mismo aviso de contraseña temporal que en el modo "No es socio", ver más abajo).
     - `No es socio`: cargá el email del tutor y, si todavía no tiene cuenta en el club, su nombre.
 
 <figure markdown>
@@ -69,7 +69,9 @@ Los tutores vinculados quedan listados en la ficha del socio, con un botón para
 
 ## 3. Planes — crear planes nuevos
 
-Un **Plan** es lo que se le ofrece a un socio: "Cuota Social", "Escuelita Principiantes X2", "Muro Libre Diario", etc. Cada plan tiene un tipo (social / escuelita / muro_libre), una etiqueta de cobro asociada, y una descripción que sirve para que todo el equipo entienda para qué es.
+Un **Plan** es lo que se le ofrece a un socio: "Cuota Social", "Escuelita Principiantes X2", "Muro Libre Diario", etc. Cada plan tiene un tipo (social / escuelita / muro libre / plan de deuda), una etiqueta de cobro asociada, y una descripción que sirve para que todo el equipo entienda para qué es.
+
+El tipo `Plan de deuda` es distinto de los otros tres: sirve para armarle a un socio puntual un plan de pago en cuotas (por ejemplo, ponerse al día con meses atrasados) sin que eso le cierre automáticamente su Cuota Social real — los demás tipos sí se cierran solos entre sí al asignar uno nuevo del mismo tipo, este no.
 
 <figure markdown>
   ![Lista de planes](assets/screenshots/admin-planes-lista.png){ width="260" }
@@ -79,7 +81,7 @@ Un **Plan** es lo que se le ofrece a un socio: "Cuota Social", "Escuelita Princi
 **Crear un plan nuevo**
 
 1. Andá a `Planes` y tocá el botón de agregar (+).
-2. Elegí el tipo de plan (social, escuelita o muro libre).
+2. Elegí el tipo de plan (social, escuelita, muro libre o plan de deuda).
 3. Elegí la modalidad: `Mensual` (genera una cuota recurrente todos los meses, como Cuota Social o Escuelita) o `Por uso` (se cobra por uso puntual, como un pase Diario de Muro Libre, sin generar una cuota fija cada mes).
 4. Ponele un nombre claro y una descripción — se usa en toda la app para que el resto del equipo sepa qué incluye.
 5. Asociale la etiqueta de cobro correspondiente (ver [Precios y etiquetas](#4-precios-y-etiquetas)) — de ahí sale el precio.

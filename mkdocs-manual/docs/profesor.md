@@ -34,7 +34,7 @@ La solapa `Asistencia` muestra el historial reciente; el ícono de buscar (arrib
 1. Andá a `Escuelita` → solapa `Asistencia`.
 2. Tocá la lupa (arriba a la derecha) y buscá al alumno por nombre o DNI.
 3. Se abre una pantalla para confirmar la fecha (por defecto, hoy) — tocá `Registrar`.
-4. Te muestra cuántas clases lleva esa semana sobre el total de su plan (por ejemplo "2/2 esta semana") y cualquier advertencia (cuota social o de escuelita impaga, límite semanal alcanzado, etc.).
+4. Te muestra cuántas clases lleva esa semana sobre el total de su plan (por ejemplo "Clase 2/2 esa semana") y cualquier advertencia (cuota social o de escuelita impaga, límite semanal alcanzado, etc.).
 
 Si no tenés el cartel a mano, tocá el ícono de QR (junto a la lupa) para generarlo e imprimirlo de nuevo.
 
@@ -60,7 +60,7 @@ Cada hora que cargás queda asociada a tu nombre y a una etiqueta de pago ("Hora
 
 En la lista de tus registros, cada uno tiene un lápiz y un tacho al lado para editarlo o borrarlo si cargaste algo mal.
 
-La pantalla también tiene una solapa `Resumen`, con el total de horas que cargaste cada mes agrupado por tipo de tarea — útil para llevar la cuenta antes de que cierre el mes.
+La pantalla también tiene una solapa `Resumen`, con el total de horas que cargaste cada mes agrupado por tipo de tarea — útil para llevar la cuenta antes de que cierre el mes. Y una solapa `Deuda`, que traduce esas horas a plata según el precio configurado — cuánto te corresponde cobrar.
 
 ## 4. Notificaciones
 
