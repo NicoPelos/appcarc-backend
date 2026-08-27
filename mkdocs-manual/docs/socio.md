@@ -38,7 +38,7 @@ Muestra tu estado actual y el total adeudado si tenés cuotas vencidas. Si tené
 
 Cada cuota o cargo pendiente tiene un interruptor para incluirlo o no en el pago (viene tildado por defecto). Si una cuota tiene varios períodos adeudados, podés elegir cuáles pagar tocando los chips de período uno por uno. El botón de Mercado Pago muestra el total de lo que tildaste ("PAGAR $X CON MERCADO PAGO") y queda deshabilitado ("ELEGÍ QUÉ PAGAR") si no dejaste nada tildado.
 
-Si preferís pagar en efectivo o transferencia, se registra en persona por secretaría o admin (ver sus manuales, sección "Registrar el cobro de una cuota").
+Si preferís pagar en efectivo o transferencia, se registra en persona por secretaría (ver [manual de Secretaría](secretaria.md#1-registrar-el-cobro-de-una-cuota)) o admin, como acceso directo desde la ficha del socio (ver [manual de Admin](admin.md#1-socios-alta-baja-y-ficha)).
 
 ## 3. Credencial digital (QR)
 
