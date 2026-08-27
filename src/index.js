@@ -119,6 +119,11 @@ app.get('/', (req, res) => {
 // Página pública "link en bio" para Instagram
 app.use('/link', express.static(join(__dirname, '../public/link')));
 
+// Pantallas a las que Mercado Pago redirige tras un pago con link (ver
+// back_urls en guardarPreferenciaMercadoPago.js) — antes caían en la raíz
+// de la API, que solo devuelve texto plano.
+app.use('/pago', express.static(join(__dirname, '../public/pago'), { extensions: ['html'] }));
+
 // PWA de la app (alternativa a la instalación nativa, pensada para iOS)
 app.use('/app', express.static(join(__dirname, '../public/app'), { extensions: ['html'] }));
 

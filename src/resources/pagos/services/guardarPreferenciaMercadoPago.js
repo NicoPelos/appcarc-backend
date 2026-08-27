@@ -48,9 +48,9 @@ export const crearPreferenciaYGuardarIntent = async ({
     external_reference: externalReference,
     notification_url: `${BACKEND_PUBLIC_URL}/api/webhooks/mercadopago/${clubId}`,
     back_urls: {
-      success: BACKEND_PUBLIC_URL,
-      failure: BACKEND_PUBLIC_URL,
-      pending: BACKEND_PUBLIC_URL,
+      success: `${BACKEND_PUBLIC_URL}/pago/exito`,
+      failure: `${BACKEND_PUBLIC_URL}/pago/error`,
+      pending: `${BACKEND_PUBLIC_URL}/pago/pendiente`,
     },
     auto_return: 'approved',
     payer: email ? { email } : undefined,
