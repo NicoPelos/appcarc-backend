@@ -98,5 +98,10 @@
     "sha": "0a4d684a56addf8f0bfb18bfed658b25fe78e557",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-26T06:58:55Z"
+  },
+  "src/resources/notificaciones": {
+    "sha": "4b3ed957b046d38da236e10fbcd5d9eb03087173",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-27T17:30:14Z"
   }
 }
