@@ -103,5 +103,10 @@
     "sha": "4b3ed957b046d38da236e10fbcd5d9eb03087173",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-27T17:30:14Z"
+  },
+  "src/resources/novedades": {
+    "sha": "ffe1a4cd2195e00b98fcfa78baf5c490e855ce36",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-28T18:23:59Z"
   }
 }
