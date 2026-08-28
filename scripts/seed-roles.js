@@ -62,6 +62,7 @@ const ROLES_SEED = [
       P.NOVEDADES_WRITE,
       P.USUARIOS_WRITE,
       P.ROLES_READ,
+      P.RECURSOS_READ,
     ],
   },
   {

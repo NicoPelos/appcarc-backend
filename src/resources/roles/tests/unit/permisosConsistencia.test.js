@@ -72,7 +72,13 @@ describe('Consistencia de permisos entre rutas y permisos.js', () => {
 
   it('nivel 2 — todo permiso declarado en PERMISOS se usa en alguna ruta (sin permisos muertos)', () => {
     const usados = new Set(usosEnRutas.map((u) => u.permisoValue));
-    const sinUsar = TODOS_LOS_PERMISOS.filter((p) => !usados.has(p));
+    // Permisos que a propósito no protegen ninguna ruta del backend — son
+    // flags de visibilidad puramente del cliente (ej. qué tarjetas mostrar en
+    // el Home), sin dato propio del club detrás para proteger server-side.
+    const SOLO_CLIENTE = new Set([
+      PERMISOS.RECURSOS_READ,
+    ]);
+    const sinUsar = TODOS_LOS_PERMISOS.filter((p) => !usados.has(p) && !SOLO_CLIENTE.has(p));
     // No es un riesgo de seguridad (ver issue #25) — si esto falla, probablemente
     // sea un permiso agregado de más, o una ruta que debería usarlo y no lo hace.
     expect(sinUsar).toEqual([]);

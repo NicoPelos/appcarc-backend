@@ -88,6 +88,10 @@ export const PERMISOS = {
   ROLES_READ:   'roles:read',
   ROLES_WRITE:  'roles:write',
   ROLES_DELETE: 'roles:delete',
+
+  // Recursos externos (topos de escalada, senderos de trekking, etc. — links
+  // curados a sitios de terceros como theCrag/Wikiloc, sin dato propio del club)
+  RECURSOS_READ: 'recursos:read',
 };
 
 export const TODOS_LOS_PERMISOS = Object.values(PERMISOS);
@@ -114,4 +118,5 @@ export const PERMISOS_POR_CATEGORIA = [
   { categoria: 'Auditoría', permisos: [PERMISOS.AUDIT_READ, PERMISOS.AUDIT_REVERT] },
   { categoria: 'Usuarios', permisos: [PERMISOS.USUARIOS_WRITE] },
   { categoria: 'Roles', permisos: [PERMISOS.ROLES_READ, PERMISOS.ROLES_WRITE, PERMISOS.ROLES_DELETE] },
+  { categoria: 'Recursos externos', permisos: [PERMISOS.RECURSOS_READ] },
 ];
