@@ -108,5 +108,10 @@
     "sha": "ffe1a4cd2195e00b98fcfa78baf5c490e855ce36",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-28T18:23:59Z"
+  },
+  "src/resources/pagos": {
+    "sha": "02d5b7e1d83b80e8f17914271d3eb4faadf102b0",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-29T12:33:00Z"
   }
 }
