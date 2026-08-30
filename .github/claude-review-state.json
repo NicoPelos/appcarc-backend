@@ -113,5 +113,10 @@
     "sha": "02d5b7e1d83b80e8f17914271d3eb4faadf102b0",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-29T12:33:00Z"
+  },
+  "src/resources/planes": {
+    "sha": "a2f0ca5d44f6c013f1d028666c73455322591456",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-08-30T11:35:40Z"
   }
 }
