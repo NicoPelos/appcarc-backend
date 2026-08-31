@@ -1,6 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { googleLogin, googleCallback, register, login, selectProfile, getProfiles, switchProfile, logout, changePassword, registerPushToken } from './handlers/auth.handler.js';
+import { googleLogin, googleCallback, register, login, selectProfile, getProfiles, switchProfile, refresh, logout, changePassword, registerPushToken } from './handlers/auth.handler.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { PERMISOS } from '../../constants/permisos.js';
 
@@ -187,6 +187,29 @@ router.post('/switch-profile', protect, switchProfile);
 
 /**
  * @openapi
+ * /api/auth/refresh:
+ *   post:
+ *     summary: Renovar el access token a partir de un refresh token vigente, sin pedir contraseña de nuevo
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - refreshToken
+ *             properties:
+ *               refreshToken: { type: string }
+ *     responses:
+ *       200: { description: Access token renovado (incluye un refreshToken nuevo, rotado) }
+ *       400: { description: Falta refreshToken }
+ *       401: { description: refreshToken inválido, vencido o ya usado }
+ */
+router.post('/refresh', loginLimiter, refresh);
+
+/**
+ * @openapi
  * /api/auth/password:
  *   put:
  *     summary: Cambiar contraseña del usuario autenticado
@@ -215,10 +238,18 @@ router.put('/password', protect, changePassword);
  * @openapi
  * /api/auth/logout:
  *   post:
- *     summary: Cerrar sesión (invalidar token)
+ *     summary: Cerrar sesión (invalidar access token y, si se manda, el refresh token)
  *     tags: [Auth]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refreshToken: { type: string }
  */
 router.post('/logout', protect, logout);
 router.put('/push-token', protect, registerPushToken);

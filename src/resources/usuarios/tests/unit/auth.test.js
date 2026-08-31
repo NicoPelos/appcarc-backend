@@ -10,6 +10,12 @@ vi.mock('../../../roles/services/resolverRoles.service.js', () => ({
   obtenerSlugsPorRolIds: vi.fn().mockResolvedValue(['secretaria']),
 }));
 
+vi.mock('../../../../services/refreshTokenService.js', () => ({
+  issueRefreshToken: vi.fn().mockResolvedValue('mock-refresh-token'),
+  findValidRefreshToken: vi.fn(),
+  revokeRefreshToken: vi.fn().mockResolvedValue(undefined),
+}));
+
 import User from '../../models/User.js';
 import Socio from '../../../socios/models/Socio.js';
 import VinculoFamiliar from '../../../vinculos/models/VinculoFamiliar.js';
@@ -21,6 +27,7 @@ import tokenService from '../../../../services/tokenBlacklistService.js';
 import mongoose from 'mongoose';
 import { OAuth2Client } from 'google-auth-library';
 import { obtenerRolIdsPorNombres, obtenerSlugsPorRolIds } from '../../../roles/services/resolverRoles.service.js';
+import { issueRefreshToken, findValidRefreshToken, revokeRefreshToken } from '../../../../services/refreshTokenService.js';
 
 function mockRes() {
   const res = {};
@@ -45,6 +52,7 @@ describe('Usuarios auth handlers (unit)', () => {
     vi.spyOn(tokenService, 'addToken').mockImplementation(async () => true);
     obtenerRolIdsPorNombres.mockResolvedValue(['rol-id-1']);
     obtenerSlugsPorRolIds.mockResolvedValue(['secretaria']);
+    issueRefreshToken.mockResolvedValue('mock-refresh-token');
   });
 
   afterEach(() => {
@@ -352,6 +360,64 @@ describe('Usuarios auth handlers (unit)', () => {
 
     expect(tokenService.addToken).toHaveBeenCalledWith('sometoken');
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('logout should revoke the refresh token when provided', async () => {
+    const req = { headers: { authorization: 'Bearer sometoken' }, body: { refreshToken: 'rt1' } };
+    const res = mockRes();
+
+    await authHandlers.logout(req, res);
+
+    expect(revokeRefreshToken).toHaveBeenCalledWith('rt1');
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('refresh should return 400 without refreshToken', async () => {
+    const req = { body: {} };
+    const res = mockRes();
+
+    await authHandlers.refresh(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('refresh should return 401 when the refreshToken is invalid or expired', async () => {
+    findValidRefreshToken.mockResolvedValue(null);
+    const req = { body: { refreshToken: 'nope' } };
+    const res = mockRes();
+
+    await authHandlers.refresh(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  it('refresh should return 401 and revoke the token when the user no longer exists or is inactive', async () => {
+    findValidRefreshToken.mockResolvedValue({ userId: 'u1', payload: { socioId: null, roles: ['secretaria'], clubId: 'club1' } });
+    User.findById.mockResolvedValue(null);
+    const req = { body: { refreshToken: 'rt1' } };
+    const res = mockRes();
+
+    await authHandlers.refresh(req, res);
+
+    expect(revokeRefreshToken).toHaveBeenCalledWith('rt1');
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  it('refresh should rotate the token and preserve the active profile (ej. un perfil vinculado)', async () => {
+    findValidRefreshToken.mockResolvedValue({ userId: 'u1', payload: { socioId: 'socio-hijo', roles: ['socio'], clubId: 'club1' } });
+    User.findById.mockResolvedValue({ _id: 'u1', email: 'a@b.com', roles: [], clubId: 'club1', mustChangePassword: false, active: true });
+    const req = { body: { refreshToken: 'rt1' } };
+    const res = mockRes();
+
+    await authHandlers.refresh(req, res);
+
+    expect(revokeRefreshToken).toHaveBeenCalledWith('rt1');
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      token: 'mock-token',
+      refreshToken: 'mock-refresh-token',
+      user: expect.objectContaining({ socioId: 'socio-hijo', roles: ['socio'] }),
+    }));
   });
 
   it('registerPushToken should update user and return 200', async () => {

@@ -6,6 +6,7 @@ import VinculoFamiliar from '../../vinculos/models/VinculoFamiliar.js';
 import Notification from '../../notificaciones/models/Notification.js';
 import bcrypt from 'bcryptjs';
 import tokenService from '../../../services/tokenBlacklistService.js';
+import { issueRefreshToken, findValidRefreshToken, revokeRefreshToken } from '../../../services/refreshTokenService.js';
 import { getPermisosUsuario } from '../../../services/permisosCache.js';
 import { generarPasswordTemporal } from '../../../services/generarPasswordTemporal.service.js';
 import {
@@ -14,23 +15,33 @@ import {
   obtenerSlugsPorRolIds,
 } from '../../roles/services/resolverRoles.service.js';
 
-/** Arma la respuesta final de auth (token + user + permisos + socio) para un
- * `User` ya autenticado, con el `socioId` del perfil activo (el propio o uno
- * vinculado — ver VinculoFamiliar). El token siempre tiene la misma forma que
- * hoy ({id, email, roles, clubId, socioId}), así el resto del backend (protect,
- * authorize, etc.) no necesita saber nada sobre perfiles vinculados. */
+// El access token vive poco (antes eran 8h fijas sin renovación, así que en
+// el uso diario normal ya estaba vencido para la tarde — appcarc-mobile#107)
+// porque ahora el refresh token lo renueva solo mientras haya actividad.
+const ACCESS_TOKEN_TTL = '1h';
+
+/** Arma la respuesta final de auth (token + refreshToken + user + permisos +
+ * socio) para un `User` ya autenticado, con el `socioId` del perfil activo
+ * (el propio o uno vinculado — ver VinculoFamiliar). El access token siempre
+ * tiene la misma forma que hoy ({id, email, roles, clubId, socioId}), así el
+ * resto del backend (protect, authorize, etc.) no necesita saber nada sobre
+ * perfiles vinculados. El refresh token lleva el mismo roles/clubId/socioId
+ * como payload propio, para poder reemitir el access token sin perder el
+ * perfil activo cuando se renueve. */
 const buildAuthResponse = async (user, { socioId = user.socioId || null, rolesSlugs = null } = {}) => {
   const finalRolesSlugs = rolesSlugs ?? await obtenerSlugsPorRolIds(user.roles);
   const token = jwt.sign(
     { id: user._id, email: user.email, roles: finalRolesSlugs, clubId: user.clubId, socioId },
     process.env.JWT_SECRET,
-    { expiresIn: '8h' },
+    { expiresIn: ACCESS_TOKEN_TTL },
   );
+  const refreshToken = await issueRefreshToken(user._id, { email: user.email, roles: finalRolesSlugs, clubId: user.clubId, socioId });
   const socio = socioId ? await Socio.findById(socioId).lean() : null;
   const permisos = await getPermisosUsuario(user.clubId, finalRolesSlugs);
 
   return {
     token,
+    refreshToken,
     user: {
       id: user._id,
       email: user.email,
@@ -452,11 +463,39 @@ export const registerPushToken = async (req, res) => {
   }
 };
 
+/** Renueva el access token a partir de un refresh token vigente, sin pedir
+ * contraseña de nuevo — rota el refresh token en cada uso (se borra el
+ * viejo, se emite uno nuevo) para no dejar circulando indefinidamente uno
+ * que el dispositivo pudo haber perdido. */
+export const refresh = async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) return res.status(400).json({ message: 'refreshToken es requerido.' });
+
+  try {
+    const doc = await findValidRefreshToken(refreshToken);
+    if (!doc) return res.status(401).json({ message: 'Sesión expirada, iniciá sesión de nuevo.' });
+
+    const user = await User.findById(doc.userId);
+    if (!user || !user.active) {
+      await revokeRefreshToken(refreshToken);
+      return res.status(401).json({ message: 'Usuario no encontrado o desactivado' });
+    }
+
+    await revokeRefreshToken(refreshToken);
+    const response = await buildAuthResponse(user, { socioId: doc.payload.socioId, rolesSlugs: doc.payload.roles });
+    res.status(200).json(response);
+  } catch (error) {
+    console.error('Error renovando sesión:', error);
+    res.status(500).json({ message: 'Error en el servidor al renovar la sesión.' });
+  }
+};
+
 export const logout = async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return res.status(400).json({ message: 'Falta token' });
     await tokenService.addToken(token);
+    if (req.body?.refreshToken) await revokeRefreshToken(req.body.refreshToken);
     return res.status(200).json({ message: 'Desconectado correctamente' });
   } catch (error) {
     console.error('Error en logout:', error);

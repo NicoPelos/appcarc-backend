@@ -31,6 +31,7 @@ describe('POST /api/auth/login (integración)', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.token).toBeTruthy();
+    expect(res.body.refreshToken).toBeTruthy();
     expect(res.body.user.email).toBe('secretaria@carc.local');
   });
 
@@ -102,6 +103,52 @@ describe('Invalidación de sesión por cambio de contraseña (integración)', ()
       .set('Authorization', `Bearer ${tokenNuevo}`);
 
     expect(res.status).toBe(200);
+  });
+});
+
+describe('POST /api/auth/refresh (integración)', () => {
+  it('renueva el access token a partir de un refresh token vigente', async () => {
+    await createUserConPassword('unaClaveSegura123', { roles: ['superadmin'] });
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'secretaria@carc.local', password: 'unaClaveSegura123' });
+
+    const res = await request(app)
+      .post('/api/auth/refresh')
+      .send({ refreshToken: loginRes.body.refreshToken });
+
+    expect(res.status).toBe(200);
+    expect(res.body.token).toBeTruthy();
+    expect(res.body.refreshToken).toBeTruthy();
+    expect(res.body.user.email).toBe('secretaria@carc.local');
+
+    // El access token nuevo funciona contra un endpoint protegido.
+    const protegido = await request(app)
+      .get('/api/socios')
+      .set('Authorization', `Bearer ${res.body.token}`);
+    expect(protegido.status).toBe(200);
+  });
+
+  it('rota el refresh token: el usado no sirve una segunda vez', async () => {
+    await createUserConPassword('unaClaveSegura123');
+    const loginRes = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'secretaria@carc.local', password: 'unaClaveSegura123' });
+
+    await request(app).post('/api/auth/refresh').send({ refreshToken: loginRes.body.refreshToken });
+    const segundoUso = await request(app).post('/api/auth/refresh').send({ refreshToken: loginRes.body.refreshToken });
+
+    expect(segundoUso.status).toBe(401);
+  });
+
+  it('rechaza un refreshToken inexistente o inválido (401)', async () => {
+    const res = await request(app).post('/api/auth/refresh').send({ refreshToken: 'no-existe' });
+    expect(res.status).toBe(401);
+  });
+
+  it('rechaza el pedido sin refreshToken (400)', async () => {
+    const res = await request(app).post('/api/auth/refresh').send({});
+    expect(res.status).toBe(400);
   });
 });
 
