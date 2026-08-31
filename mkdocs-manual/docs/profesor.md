@@ -18,7 +18,9 @@ La pantalla de **Escuelita** muestra a todos los alumnos inscriptos, con el plan
   <figcaption>Alumnos inscriptos</figcaption>
 </figure>
 
-Tocando a un alumno se abre su ficha completa: datos del socio (nombre, DNI, N° de socio, fecha de inscripción), plan, deuda de cuota de escuelita y asistencias recientes — ver el [manual de Secretaría](secretaria.md#2-inscribir-un-alumno-a-la-escuelita) para el detalle.
+Como profesor también podés inscribir alumnos nuevos (botón `+` en la solapa `Inscriptos`) y dar de baja a los que dejan de asistir (ícono de tacho en su fila) — es el mismo flujo que usa secretaría, ver el [manual de Secretaría](secretaria.md#2-inscribir-un-alumno-a-la-escuelita) para el detalle paso a paso.
+
+Tocando a un alumno se abre su ficha completa: datos del socio (nombre, DNI, N° de socio, fecha de inscripción), plan (con la opción de cambiarlo), deuda de cuota de escuelita y asistencias recientes.
 
 ## 2. Tomar asistencia
 
