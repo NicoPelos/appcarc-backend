@@ -10,9 +10,9 @@
     "reviewedAt": "2026-08-05T08:42:53Z"
   },
   "src/resources/roles": {
-    "sha": "6010b8f63fbb6dd04a5605c40136d3e242ff3f27",
+    "sha": "ec096ad1862cdddc324e5c2cb70e4909a09b15fa",
     "reviewVersion": "2026-08",
-    "reviewedAt": "2026-08-06T08:46:30Z"
+    "reviewedAt": "2026-08-31T13:10:59Z"
   },
   "src/resources/super": {
     "sha": "685a1f1e1720aa8d70fc82a9d731684227e0a0ee",
