@@ -118,5 +118,10 @@
     "sha": "a2f0ca5d44f6c013f1d028666c73455322591456",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-08-30T11:35:40Z"
+  },
+  "src/resources/socios": {
+    "sha": "4301e1c348fcb12d76e3ff52ddea0728ec2240cd",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-09-01T11:25:29Z"
   }
 }
