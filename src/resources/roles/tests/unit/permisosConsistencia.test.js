@@ -75,9 +75,9 @@ describe('Consistencia de permisos entre rutas y permisos.js', () => {
     // Permisos que a propósito no protegen ninguna ruta del backend — son
     // flags de visibilidad puramente del cliente (ej. qué tarjetas mostrar en
     // el Home), sin dato propio del club detrás para proteger server-side.
-    const SOLO_CLIENTE = new Set([
-      PERMISOS.RECURSOS_READ,
-    ]);
+    // RECURSOS_READ dejó de estar acá cuando el CRUD de recursos externos
+    // (topos/senderos editables por club) sumó una ruta real (appCARC-mobile#16).
+    const SOLO_CLIENTE = new Set([]);
     const sinUsar = TODOS_LOS_PERMISOS.filter((p) => !usados.has(p) && !SOLO_CLIENTE.has(p));
     // No es un riesgo de seguridad (ver issue #25) — si esto falla, probablemente
     // sea un permiso agregado de más, o una ruta que debería usarlo y no lo hace.
