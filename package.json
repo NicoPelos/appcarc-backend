@@ -15,6 +15,7 @@
     "seed-roles": "node scripts/seed-roles.js",
     "seed-superadmin": "node scripts/seed-superadmin.js",
     "seed-clubs": "node scripts/seed-clubs.js",
+    "seed-recursos-legacy": "node scripts/seed-recursos-legacy.js",
     "import-horarios": "node scripts/import-horarios-from-sheet.js",
     "import-movimientos": "node scripts/import-movimientos-from-sheet.js",
     "load-test": "node scripts/load-test.js"
