@@ -85,9 +85,9 @@
     "reviewedAt": "2026-08-22T06:47:23Z"
   },
   "src/resources/horarios": {
-    "sha": "ddbe9aee7d928c06582b829a4a32d379552c62b0",
+    "sha": "cc79db38a894a8c2a2e56e73874345a8bb540118",
     "reviewVersion": "2026-08",
-    "reviewedAt": "2026-08-23T06:50:01Z"
+    "reviewedAt": "2026-09-02T10:58:39Z"
   },
   "src/resources/movimientos": {
     "sha": "8721d0e8346d84c1cde5f95529b3207d9a1ffb01",
