@@ -1,6 +1,7 @@
 import Socio from '../models/Socio.js';
 import Advertencia from '../../advertencias/models/Advertencia.js';
 import { syncSocioToSheet } from '../services/socioSheetSync.js';
+import { cerrarSuscripcionesPorBaja } from '../services/cerrarSuscripcionesPorBaja.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
@@ -46,6 +47,11 @@ export const deleteSocioHandler = async (req, res) => {
       { clubId: req.user?.clubId, socioId: id, estado: 'abierta' },
       { estado: 'resuelta', resueltoEn: new Date() },
     );
+
+    // Mismo efecto que dar de baja por PUT /:id (estado: 'Baja') — si no, la
+    // deuda del socio sigue creciendo mientras está en la papelera, y
+    // reaparece al restaurarlo (appcarc-backend#131).
+    await cerrarSuscripcionesPorBaja({ clubId: req.user?.clubId, socioId: id, req });
 
     await syncSocioToSheet(socio, { appendIfMissing: false, deleted: true });
 

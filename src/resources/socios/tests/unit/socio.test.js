@@ -40,6 +40,7 @@ describe('Socios handlers (unit)', () => {
     Socio.findOne = vi.fn();
     Socio.findOneAndUpdate = vi.fn();
     Socio.countDocuments = vi.fn();
+    Suscripcion.find.mockResolvedValue([]);
     delete process.env.GOOGLE_SHEETS_SOCIOS_ID;
     if (Socio.prototype && !Socio.prototype.save.isMockFunction) {
       vi.spyOn(Socio.prototype, 'save').mockImplementation(async function () { return this; });
@@ -214,6 +215,25 @@ describe('Socios handlers (unit)', () => {
     expect(Socio.findOneAndUpdate).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({ message: 'Socio desactivado con éxito' });
+  });
+
+  it('deleteSocioHandler cierra las suscripciones activas del socio (mismo efecto que la baja por PUT)', async () => {
+    const fake = { _id: 'id1', apellido: 'Perez' };
+    Socio.findOne.mockReturnValueOnce({ lean: vi.fn().mockResolvedValue(fake) });
+    Socio.findOneAndUpdate.mockResolvedValueOnce(fake);
+
+    const susActiva = { _id: 'sus1', fechaHasta: null, toObject: vi.fn().mockReturnValue({}), save: vi.fn().mockResolvedValue(undefined) };
+    Suscripcion.find.mockResolvedValueOnce([susActiva]);
+
+    const req = { params: { id: 'id1' }, user: { clubId: 'club1', id: 'user1' } };
+    const res = mockRes();
+
+    await deleteSocioHandler(req, res);
+
+    expect(Suscripcion.find).toHaveBeenCalledWith({ clubId: 'club1', socioId: 'id1', active: true, fechaHasta: null });
+    expect(susActiva.fechaHasta).toMatch(/^\d{4}-\d{2}$/);
+    expect(susActiva.save).toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it('getSociosHandler should return trashed socios when trash=true', async () => {

@@ -3,7 +3,8 @@ import request from 'supertest';
 import jwt from 'jsonwebtoken';
 import app from '../../../../index.js';
 import Socio from '../../models/Socio.js';
-import { CLUB_ID, createAdminUser, createSocio } from '../../../../testUtils/integrationHelpers.js';
+import Suscripcion from '../../../suscripciones/models/Suscripcion.js';
+import { CLUB_ID, createAdminUser, createSocio, createEtiqueta, createSuscripcion } from '../../../../testUtils/integrationHelpers.js';
 
 describe('DELETE /api/socios/:id y restore (integración)', () => {
   it('desactiva un socio (soft delete) y luego lo restaura', async () => {
@@ -37,6 +38,19 @@ describe('DELETE /api/socios/:id y restore (integración)', () => {
 
     const res = await request(app).put(`/api/socios/${socio._id}/restore`).set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(404);
+  });
+
+  it('cierra las suscripciones activas del socio al borrarlo (papelera)', async () => {
+    const { token } = await createAdminUser();
+    const socio = await createSocio();
+    const etiqueta = await createEtiqueta();
+    const suscripcion = await createSuscripcion({ socioId: socio._id, etiquetaId: etiqueta._id });
+
+    const res = await request(app).delete(`/api/socios/${socio._id}`).set('Authorization', `Bearer ${token}`);
+    expect(res.status).toBe(200);
+
+    const actualizada = await Suscripcion.findById(suscripcion._id);
+    expect(actualizada.fechaHasta).not.toBeNull();
   });
 });
 
