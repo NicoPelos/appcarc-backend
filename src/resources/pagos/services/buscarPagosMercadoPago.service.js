@@ -74,7 +74,13 @@ export const buscarPagosMercadoPago = async ({ accessToken, fecha, rangoDias = 5
     ))
     .map((p) => ({
       paymentId: String(p.id),
-      monto: p.transaction_amount,
+      // Para un egreso, "transaction_amount" es lo que le llegó al
+      // destinatario, no lo que salió de la cuenta del club — MP descuenta
+      // un cargo aparte (ver charges_details) que sí está incluido en
+      // total_paid_amount. Un Movimiento de egreso tiene que reflejar la
+      // plata real que salió, así que se usa ese campo (con fallback si no
+      // viniera, aunque en la práctica siempre está presente).
+      monto: direccion === 'egreso' ? (p.transaction_details?.total_paid_amount ?? p.transaction_amount) : p.transaction_amount,
       fecha: p.date_approved,
       // Para un ingreso, la contraparte es quien pagó (`payer`); para un
       // egreso, el club es el payer y la contraparte es quien cobró

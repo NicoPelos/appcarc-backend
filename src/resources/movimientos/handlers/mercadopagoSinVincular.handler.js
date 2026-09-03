@@ -1,7 +1,9 @@
-import Movimiento from '../models/Movimiento.js';
+import Movimiento, { CATEGORIAS_MOVIMIENTO } from '../models/Movimiento.js';
 import MercadoPagoConfig from '../../pagos/models/MercadoPagoConfig.js';
 import MercadopagoDescartado from '../../pagos/models/MercadopagoDescartado.js';
 import { buscarPagosMercadoPago } from '../../pagos/services/buscarPagosMercadoPago.service.js';
+import { obtenerPagoMercadoPago } from '../../pagos/services/procesarPagoMercadoPago.service.js';
+import { logAudit } from '../../audit/services/audit.service.js';
 
 const DIAS_DEFAULT = 30;
 
@@ -20,6 +22,9 @@ const DIAS_DEFAULT = 30;
  *       - in: query
  *         name: hasta
  *         schema: { type: string, format: date }
+ *       - in: query
+ *         name: direccion
+ *         schema: { type: string, enum: [ingreso, egreso], default: ingreso }
  *     responses:
  *       200:
  *         description: Lista de pagos sin vincular, ordenados por fecha descendente
@@ -35,8 +40,9 @@ export const mercadopagoSinVincularHandler = async (req, res) => {
     const desde = req.query.desde
       ? new Date(`${req.query.desde}T00:00:00.000Z`)
       : new Date(hasta.getTime() - DIAS_DEFAULT * 24 * 60 * 60 * 1000);
+    const direccion = req.query.direccion === 'egreso' ? 'egreso' : 'ingreso';
 
-    const pagos = await buscarPagosMercadoPago({ accessToken: config.accessToken, desde, hasta });
+    const pagos = await buscarPagosMercadoPago({ accessToken: config.accessToken, desde, hasta, direccion });
     const paymentIds = pagos.map((p) => p.paymentId);
 
     const [vinculados, descartados] = await Promise.all([
@@ -194,5 +200,96 @@ export const restaurarMercadopagoDescartadoHandler = async (req, res) => {
   } catch (error) {
     console.error('Error restaurando pago descartado de Mercado Pago:', error);
     res.status(500).json({ message: 'Error al restaurar el descarte' });
+  }
+};
+
+/**
+ * @openapi
+ * /api/movimientos/mercadopago-sin-vincular/{paymentId}/crear-egreso:
+ *   post:
+ *     summary: Crear un Movimiento Egreso a partir de un pago saliente de Mercado Pago sin vincular, ya vinculado en el mismo paso
+ *     tags: [Movimientos]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [concept, categoria, responsable]
+ *             properties:
+ *               concept: { type: string }
+ *               categoria: { type: string }
+ *               responsable: { type: string }
+ *               description: { type: string }
+ *     responses:
+ *       201:
+ *         description: Movimiento creado y vinculado
+ *       400:
+ *         description: Datos inválidos, el club no tiene Mercado Pago configurado, o el pago no existe/no está aprobado
+ *       409:
+ *         description: Ese pago ya está vinculado a otro movimiento
+ */
+export const crearEgresoDesdeMercadopagoHandler = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    const { concept, categoria, responsable, description = '' } = req.body ?? {};
+
+    if (!concept?.trim()) return res.status(400).json({ message: 'El concepto es obligatorio' });
+    if (!categoria || !CATEGORIAS_MOVIMIENTO.Egreso.includes(categoria)) {
+      return res.status(400).json({ message: `La categoría debe ser una de: ${CATEGORIAS_MOVIMIENTO.Egreso.join(', ')}` });
+    }
+    if (!responsable?.trim()) return res.status(400).json({ message: 'El responsable es obligatorio' });
+
+    const config = await MercadoPagoConfig.findOne({ clubId: req.user?.clubId, active: true });
+    if (!config) return res.status(400).json({ message: 'El club no tiene Mercado Pago configurado' });
+
+    const { ok, payment } = await obtenerPagoMercadoPago({ accessToken: config.accessToken, dataId: paymentId });
+    if (!ok || payment.status !== 'approved') {
+      return res.status(400).json({ message: 'Ese pago no existe o no está aprobado en Mercado Pago' });
+    }
+
+    const yaVinculado = await Movimiento.findOne({
+      clubId: req.user?.clubId,
+      active: true,
+      'mercadopagoVinculos.paymentId': String(payment.id),
+    }).select('_id').lean();
+    if (yaVinculado) return res.status(409).json({ message: 'Ese pago ya está vinculado a otro movimiento' });
+
+    const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
+    // Mismo criterio que buscarPagosMercadoPago para un egreso: lo que
+    // realmente salió de la cuenta del club, no transaction_amount (que es
+    // lo que le llega al destinatario, sin el cargo de MP).
+    const monto = payment.transaction_details?.total_paid_amount ?? payment.transaction_amount;
+
+    const movimiento = new Movimiento({
+      clubId: req.user.clubId,
+      userId: req.user.id,
+      responsable: responsable.trim(),
+      type: 'Egreso',
+      amount: monto,
+      concept: concept.trim(),
+      categoria,
+      paymentMethod: 'MercadoPago',
+      description: description.trim(),
+      date: payment.date_approved ? new Date(payment.date_approved) : new Date(),
+      createdBy: actor,
+      updatedBy: actor,
+      mercadopagoVinculos: [{
+        paymentId: String(payment.id),
+        payerEmail: payment.collector?.email ?? '',
+        monto,
+        fecha: payment.date_approved,
+        vinculadoPor: actor,
+      }],
+    });
+    await movimiento.save();
+
+    logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Movimiento', resourceId: movimiento._id, before: null, after: movimiento.toObject() });
+    res.status(201).json(movimiento);
+  } catch (error) {
+    console.error('Error creando egreso desde pago de Mercado Pago:', error);
+    res.status(500).json({ message: 'Error al crear el egreso' });
   }
 };

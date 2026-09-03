@@ -68,6 +68,44 @@ describe('buscarPagosMercadoPago', () => {
     expect(resultado[0]).toMatchObject({ paymentId: '2', payerEmail: 'proveedor@test.com' });
   });
 
+  it('direccion egreso: usa transaction_details.total_paid_amount (lo que salió de la cuenta), no transaction_amount', async () => {
+    mockFetchSecuencia([
+      { ok: true, json: vi.fn().mockResolvedValue({ id: CLUB_USER_ID }) },
+      {
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          results: [
+            buildPago({
+              id: 2, collector_id: OTRO_USER_ID, payer_id: CLUB_USER_ID,
+              transaction_amount: 352500,
+              transaction_details: { total_paid_amount: 354615 },
+            }),
+          ],
+        }),
+      },
+    ]);
+
+    const resultado = await buscarPagosMercadoPago({ accessToken: 'token', fecha: '2026-09-01', direccion: 'egreso' });
+
+    expect(resultado[0].monto).toBe(354615);
+  });
+
+  it('direccion egreso sin transaction_details: cae a transaction_amount', async () => {
+    mockFetchSecuencia([
+      { ok: true, json: vi.fn().mockResolvedValue({ id: CLUB_USER_ID }) },
+      {
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          results: [buildPago({ id: 3, collector_id: OTRO_USER_ID, payer_id: CLUB_USER_ID, transaction_amount: 1000 })],
+        }),
+      },
+    ]);
+
+    const resultado = await buscarPagosMercadoPago({ accessToken: 'token', fecha: '2026-09-01', direccion: 'egreso' });
+
+    expect(resultado[0].monto).toBe(1000);
+  });
+
   it('default sin direccion se comporta como ingreso', async () => {
     mockFetchSecuencia([
       { ok: true, json: vi.fn().mockResolvedValue({ id: CLUB_USER_ID }) },
