@@ -129,6 +129,20 @@ export const procesarPagoMercadoPago = async ({ clubId, payment, accessToken }) 
       });
       updated.cobroId = result.cobro._id;
       await updated.save();
+
+      // El pago vino de nuestro propio link (webhook/cron con nuestro
+      // accessToken) — ya sabemos exactamente qué pago real de Mercado Pago
+      // le corresponde a este Movimiento, así que se autovincula acá mismo
+      // en vez de dejarlo pendiente para la reconciliación bancaria manual
+      // (que es para movimientos importados de un extracto, no para estos).
+      result.movimiento.mercadopagoVinculos.push({
+        paymentId: String(payment.id),
+        payerEmail: payment.payer?.email ?? '',
+        monto: payment.transaction_amount,
+        fecha: payment.date_approved,
+        vinculadoPor: 'Sistema (pago online)',
+      });
+      await result.movimiento.save();
     } catch (err) {
       // No reintentar automáticamente: si esto falla es un conflicto de negocio real
       // (ej. la cuota ya se cobró por otro medio mientras el checkout estaba abierto),

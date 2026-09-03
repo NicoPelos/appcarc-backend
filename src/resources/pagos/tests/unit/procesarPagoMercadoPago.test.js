@@ -74,14 +74,23 @@ describe('procesarPagoMercadoPago', () => {
 
   it('pago aprobado: transiciona el intent, llama registrarCobro y expira la preferencia', async () => {
     const intent = buildIntent();
+    const movimiento = { mercadopagoVinculos: [], save: vi.fn().mockResolvedValue(undefined) };
     PagoOnlineIntent.findOne.mockResolvedValue(intent);
     PagoOnlineIntent.findOneAndUpdate.mockResolvedValue({ ...intent, estado: 'aprobado' });
-    registrarCobro.mockResolvedValue({ cobro: { _id: 'cobro-1' } });
+    registrarCobro.mockResolvedValue({ cobro: { _id: 'cobro-1' }, movimiento });
 
     const result = await procesarPagoMercadoPago({
       clubId: 'CARC',
       accessToken: 'TEST-token',
-      payment: { id: '999', status: 'approved', status_detail: 'accredited', transaction_amount: 15000, external_reference: 'ext-ref-1' },
+      payment: {
+        id: '999',
+        status: 'approved',
+        status_detail: 'accredited',
+        transaction_amount: 15000,
+        external_reference: 'ext-ref-1',
+        date_approved: '2026-09-03T12:00:00.000Z',
+        payer: { email: 'pagador@test.com' },
+      },
     });
 
     expect(registrarCobro).toHaveBeenCalledWith(expect.objectContaining({
@@ -90,6 +99,18 @@ describe('procesarPagoMercadoPago', () => {
       body: expect.objectContaining({ paymentMethod: 'MercadoPago' }),
     }));
     expect(result.resultado).toBe('aprobado');
+    // El movimiento del cobro se autovincula al pago real de MP — no debe
+    // quedar pendiente de vinculación manual en Reconciliación.
+    expect(movimiento.mercadopagoVinculos).toEqual([
+      expect.objectContaining({
+        paymentId: '999',
+        payerEmail: 'pagador@test.com',
+        monto: 15000,
+        fecha: '2026-09-03T12:00:00.000Z',
+        vinculadoPor: 'Sistema (pago online)',
+      }),
+    ]);
+    expect(movimiento.save).toHaveBeenCalled();
     expect(global.fetch).toHaveBeenCalledWith(
       'https://api.mercadopago.com/checkout/preferences/pref-1',
       expect.objectContaining({
@@ -118,9 +139,10 @@ describe('procesarPagoMercadoPago', () => {
   it('si falla la expiración de la preferencia, el cobro se registra igual', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
     const intent = buildIntent();
+    const movimiento = { mercadopagoVinculos: [], save: vi.fn().mockResolvedValue(undefined) };
     PagoOnlineIntent.findOne.mockResolvedValue(intent);
     PagoOnlineIntent.findOneAndUpdate.mockResolvedValue({ ...intent, estado: 'aprobado' });
-    registrarCobro.mockResolvedValue({ cobro: { _id: 'cobro-1' } });
+    registrarCobro.mockResolvedValue({ cobro: { _id: 'cobro-1' }, movimiento });
 
     const result = await procesarPagoMercadoPago({
       clubId: 'CARC',
