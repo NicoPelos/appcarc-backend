@@ -1,8 +1,8 @@
 import mongoose from 'mongoose';
 import Movimiento from '../models/Movimiento.js';
 import Cobro from '../../cobros/models/Cobro.js';
-import Cuota from '../../cuotas/models/Cuota.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
+import { anularCobroConTrazabilidad } from '../../cobros/services/anularCobro.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
@@ -56,18 +56,13 @@ export const deleteMovimientoHandler = async (req, res) => {
       if (movimiento.sourceModel === 'Cobro' && movimiento.sourceId) {
         const cobro = await Cobro.findOne({ _id: movimiento.sourceId, clubId: req.user?.clubId, active: true }).session(session);
         if (cobro) {
-          cobro.active = false;
-          cobro.anuladoAt = new Date();
-          cobro.anuladoPor = actor;
-          cobro.motivoAnulacion = 'Anulado al eliminar el movimiento asociado';
-          cobro.updatedBy = actor;
-          await cobro.save({ session });
-
-          await Cuota.updateMany(
-            { cobroId: cobro._id, clubId: req.user?.clubId },
-            { estado: 'anulada', updatedBy: actor },
-            { session },
-          );
+          await anularCobroConTrazabilidad({
+            cobro,
+            clubId: req.user?.clubId,
+            actor,
+            motivo: 'Anulado al eliminar el movimiento asociado',
+            session,
+          });
         }
       } else if (movimiento.sourceModel === 'Asistencia' && movimiento.sourceId) {
         await Asistencia.findOneAndUpdate(

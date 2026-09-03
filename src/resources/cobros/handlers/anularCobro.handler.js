@@ -1,9 +1,7 @@
 import mongoose from 'mongoose';
 import Cobro from '../models/Cobro.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
-import Cuota from '../../cuotas/models/Cuota.js';
-import CargoPuntual from '../../cargosPuntuales/models/CargoPuntual.js';
-import Asistencia from '../../asistencias/models/Asistencia.js';
+import { anularCobroConTrazabilidad } from '../services/anularCobro.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
@@ -67,13 +65,6 @@ export const anularCobroHandler = async (req, res) => {
         throw error;
       }
 
-      cobro.active = false;
-      cobro.anuladoAt = new Date();
-      cobro.anuladoPor = actor;
-      cobro.motivoAnulacion = motivo || null;
-      cobro.updatedBy = actor;
-      await cobro.save({ session });
-
       if (cobro.movimientoId) {
         await Movimiento.findByIdAndUpdate(
           cobro.movimientoId,
@@ -82,38 +73,7 @@ export const anularCobroHandler = async (req, res) => {
         );
       }
 
-      await Cuota.updateMany(
-        { cobroId: cobro._id, clubId: req.user?.clubId },
-        { estado: 'anulada', updatedBy: actor },
-        { session },
-      );
-
-      await CargoPuntual.updateMany(
-        { cobroId: cobro._id, clubId: req.user?.clubId },
-        {
-          estado: 'pendiente',
-          montoPagadoSnapshot: 0,
-          paymentMethod: null,
-          fechaPago: null,
-          cobroId: null,
-          movimientoId: null,
-          updatedBy: actor,
-        },
-        { session },
-      );
-
-      await Asistencia.updateMany(
-        { cobroId: cobro._id, clubId: req.user?.clubId },
-        {
-          estadoPago: 'pendiente',
-          monto: 0,
-          formaPago: 'Sin pago',
-          cobroId: null,
-          movimientoId: null,
-          updatedBy: actor,
-        },
-        { session },
-      );
+      await anularCobroConTrazabilidad({ cobro, clubId: req.user?.clubId, actor, motivo, session });
 
       result = { cobro };
     });

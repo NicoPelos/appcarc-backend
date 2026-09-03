@@ -4,6 +4,7 @@ import { deleteMovimientoHandler } from '../../handlers/deleteMovimiento.handler
 import Movimiento from '../../models/Movimiento.js';
 import Cobro from '../../../cobros/models/Cobro.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
+import CargoPuntual from '../../../cargosPuntuales/models/CargoPuntual.js';
 import Asistencia from '../../../asistencias/models/Asistencia.js';
 
 const mockRes = () => {
@@ -39,6 +40,8 @@ describe('deleteMovimientoHandler', () => {
     vi.spyOn(mongoose, 'startSession').mockResolvedValue(sessionMock);
     Cobro.findOne = vi.fn();
     Cuota.updateMany = vi.fn().mockResolvedValue(null);
+    CargoPuntual.updateMany = vi.fn().mockResolvedValue(null);
+    Asistencia.updateMany = vi.fn().mockResolvedValue(null);
     Asistencia.findOneAndUpdate = vi.fn().mockResolvedValue(null);
   });
 
@@ -69,7 +72,7 @@ describe('deleteMovimientoHandler', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'Movimiento eliminado' });
   });
 
-  it('should also anular the cobro and its cuotas when the movimiento comes from a cobro', async () => {
+  it('should also anular the cobro, its cuotas, cargos puntuales and asistencias when the movimiento comes from a cobro', async () => {
     const mov = makeMovimiento({ sourceType: 'cobro', sourceModel: 'Cobro', sourceId: COBRO_ID });
     vi.spyOn(Movimiento, 'findOne').mockReturnValue({ session: vi.fn().mockResolvedValue(mov) });
 
@@ -94,6 +97,16 @@ describe('deleteMovimientoHandler', () => {
     expect(Cuota.updateMany).toHaveBeenCalledWith(
       { cobroId: COBRO_ID, clubId: USER.clubId },
       { estado: 'anulada', updatedBy: USER.email },
+      { session: sessionMock },
+    );
+    expect(CargoPuntual.updateMany).toHaveBeenCalledWith(
+      { cobroId: COBRO_ID, clubId: USER.clubId },
+      expect.objectContaining({ estado: 'pendiente', cobroId: null, movimientoId: null }),
+      { session: sessionMock },
+    );
+    expect(Asistencia.updateMany).toHaveBeenCalledWith(
+      { cobroId: COBRO_ID, clubId: USER.clubId },
+      expect.objectContaining({ estadoPago: 'pendiente', cobroId: null, movimientoId: null }),
       { session: sessionMock },
     );
     expect(res.status).toHaveBeenCalledWith(200);
