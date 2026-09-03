@@ -16,7 +16,11 @@ describe('POST /api/super/clubs (integración)', () => {
       .send({ nombre: 'Club Andino Test', slug: 'CAT' });
 
     expect(res.status).toBe(201);
-    expect(res.body.slug).toBe('cat');
+    // Verbatim, sin normalizar mayúsculas/minúsculas — ver el comentario
+    // grande en Club.js: el resto del sistema (User.clubId, Socio.clubId,
+    // getClubs.handler.js contando por club.slug tal cual) asume slug
+    // verbatim; forzarlo a minúscula ya rompió producción una vez (#75).
+    expect(res.body.slug).toBe('CAT');
   });
 
   it('rechaza un slug duplicado (409)', async () => {
@@ -48,18 +52,18 @@ describe('POST /api/super/clubs (integración)', () => {
 describe('GET /api/super/clubs (integración)', () => {
   it('devuelve los clubs con métricas de usuarios y socios activos', async () => {
     const { token } = await createAdminUser();
-    // Nota: Club.slug se guarda en minúsculas pero clubId se usa en mayúsculas
-    // en el resto del sistema (ej. "CARC") -> getClubsHandler cuenta contra
-    // club.slug, así que en la práctica userCount/socioCount siempre da 0
-    // para clubes reales. Se documenta ese comportamiento actual acá.
+    // club.slug se usa verbatim contra clubId en todo el sistema (ver el
+    // comentario grande en Club.js) — para que getClubsHandler cuente bien,
+    // el slug del Club tiene que coincidir exactamente con el clubId que
+    // usan los Socio, sin normalizar mayúscula/minúscula de ningún lado.
     await Club.create({ nombre: 'Club Andino Rio Cuarto', slug: CLUB_ID });
-    await createSocio({ clubId: CLUB_ID.toLowerCase() });
-    await createSocio({ clubId: CLUB_ID.toLowerCase() });
+    await createSocio({ clubId: CLUB_ID });
+    await createSocio({ clubId: CLUB_ID });
 
     const res = await request(app).get('/api/super/clubs').set('Authorization', `Bearer ${token}`);
 
     expect(res.status).toBe(200);
-    const club = res.body.find((c) => c.slug === CLUB_ID.toLowerCase());
+    const club = res.body.find((c) => c.slug === CLUB_ID);
     expect(club.socioCount).toBe(2);
   });
 });
