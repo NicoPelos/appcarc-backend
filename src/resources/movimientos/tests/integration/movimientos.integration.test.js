@@ -12,6 +12,7 @@ const baseMovimiento = {
   type: 'Ingreso',
   amount: 1000,
   concept: 'Venta de gorra',
+  categoria: 'Otros',
   responsable: 'Secretaria',
   paymentMethod: 'Efectivo',
 };
