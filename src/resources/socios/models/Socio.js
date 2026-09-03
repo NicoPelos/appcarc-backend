@@ -69,7 +69,7 @@ const socioSchema = new mongoose.Schema({
   sexo: { type: String, enum: ['Masculino', 'Femenino', 'Otro'] },
   apellido: { type: String, required: true },
   nombre: { type: String, required: true },
-  dni: { type: String, required: true, unique: true },
+  dni: { type: String, required: true },
   fechaNacimiento: Date,
   direccionActual: String,
   domicilioCompleto: String,
@@ -109,6 +109,11 @@ const socioSchema = new mongoose.Schema({
 // El socioNumber es único dentro de cada club, no globalmente — dos clubes
 // distintos pueden tener ambos un socio "1" sin problema (issue #47).
 socioSchema.index({ clubId: 1, socioNumber: 1 }, { unique: true, sparse: true });
+
+// Mismo criterio para el dni: varios clubes de montaña pueden compartir
+// socios reales (la misma persona asociada a dos clubes distintos), así que
+// la unicidad tiene que ser por club, no global (appcarc-backend#130).
+socioSchema.index({ clubId: 1, dni: 1 }, { unique: true });
 
 const Socio = mongoose.model('Socio', socioSchema);
 
