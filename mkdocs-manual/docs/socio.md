@@ -40,6 +40,8 @@ Cada cuota o cargo pendiente tiene un interruptor para incluirlo o no en el pago
 
 Si preferís pagar en efectivo o transferencia, se registra en persona por secretaría (ver [manual de Secretaría](secretaria.md#1-registrar-el-cobro-de-una-cuota)) o admin, como acceso directo desde la ficha del socio (ver [manual de Admin](admin.md#1-socios-alta-baja-y-ficha)).
 
+Más abajo en la pantalla, un bloque **Métodos de pago** lista los medios que acepta el club (efectivo, transferencia bancaria y Mercado Pago), y el bloque **Pagos realizados** muestra el historial de cobros ya registrados: fecha, medio de pago y monto de cada uno. Si tenés hijos vinculados, cada pago indica para quién fue.
+
 ## 3. Credencial digital (QR)
 
 Tu identificación como socio, sin necesidad de carnet físico. El personal del club puede escanearla para ubicar tu ficha al toque (por ejemplo, en la recepción) — ya no hace falta para que se registre tu asistencia en muro libre o escuelita, eso ahora se hace de otra forma (ver la sección siguiente).

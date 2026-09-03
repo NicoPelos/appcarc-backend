@@ -20,8 +20,8 @@ Cuando un socio paga (cuota social, escuelita o muro libre mensual), se registra
 
 1. Buscá al socio (por nombre o DNI) y entrá a su ficha.
 2. Tocá "Registrar cobro". Arriba de todo vas a ver la "Fecha del cobro" (por defecto hoy, editable si necesitás cargar un cobro retroactivo) y la forma de pago (`Efectivo` o `Transferencia`).
-3. Debajo, una lista con cada cuota que tiene activa (social, escuelita, etc.) y cuánto adeuda de cada una. Activá las que está pagando ahora.
-4. Para cada una, tildá los períodos que corresponda entre los chips de meses adeudados — vienen todos tildados por defecto, pero podés destildar cualquiera; no hace falta que sean consecutivos.
+3. Debajo, una sección por cada concepto pendiente del socio: una por cada cuota que tiene activa (social, escuelita, etc.), y si corresponde, una de "Muro Libre" (visitas sin pase mensual vigente) y una por cada cargo puntual atribuido (por ejemplo, una salida). Activá las que está pagando ahora con el interruptor de cada sección.
+4. Según el tipo de sección: en una cuota, tildá los períodos que corresponda entre los chips de meses adeudados — vienen todos tildados por defecto, pero podés destildar cualquiera, no hace falta que sean consecutivos; en Muro Libre, ingresá la cantidad de visitas que está pagando; en un cargo puntual, el monto se carga directo.
 5. Si paga un monto distinto al sugerido, podés ajustarlo a mano.
 6. Confirmá — se genera el cobro, y automáticamente el movimiento de caja correspondiente.
 

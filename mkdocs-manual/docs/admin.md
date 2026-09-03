@@ -81,13 +81,16 @@ El tipo `Plan de deuda` es distinto de los otros tres: sirve para armarle a un s
 **Crear un plan nuevo**
 
 1. Andá a `Planes` y tocá el botón de agregar (+).
-2. Elegí el tipo de plan (social, escuelita, muro libre o plan de deuda).
-3. Elegí la modalidad: `Mensual` (genera una cuota recurrente todos los meses, como Cuota Social o Escuelita) o `Por uso` (se cobra por uso puntual, como un pase Diario de Muro Libre, sin generar una cuota fija cada mes).
-4. Ponele un nombre claro y una descripción — se usa en toda la app para que el resto del equipo sepa qué incluye.
-5. Asociale la etiqueta de cobro correspondiente (ver [Precios y etiquetas](#4-precios-y-etiquetas)) — de ahí sale el precio.
+2. Ponele un nombre claro — se usa en toda la app para que el resto del equipo sepa qué incluye.
+3. Elegí el tipo de plan (social, escuelita, muro libre o plan de deuda).
+4. Elegí la modalidad: `Mensual` (genera una cuota recurrente todos los meses, como Cuota Social o Escuelita) o `Por uso` (se cobra por uso puntual, como un pase Diario de Muro Libre, sin generar una cuota fija cada mes).
+5. Si el plan no debe generar deuda (por ejemplo "Socio Honorario" o un canje), activá `No genera deuda` — cualquier suscripción que se asigne con ese plan queda exenta automáticamente, sin tener que marcarlo caso por caso.
 6. Si es de escuelita, definí cuántas clases por semana incluye — eso es lo que controla el límite al tomar asistencia.
-7. Si el plan no debe generar deuda (por ejemplo "Socio Honorario" o un canje), activá `No genera deuda` — cualquier suscripción que se asigne con ese plan queda exenta automáticamente, sin tener que marcarlo caso por caso.
-8. Guardá. El plan ya queda disponible para inscribir socios (escuelita) o para asignar directamente ([Suscribir un socio a un plan](#7-suscribir-un-socio-a-un-plan)).
+7. Sumale una descripción (opcional).
+8. Asociale la etiqueta de cobro correspondiente (ver [Precios y etiquetas](#4-precios-y-etiquetas)) — de ahí sale el precio. Si el nombre que elegiste se parece al de otra etiqueta ya creada, la pantalla te avisa ("⚠ Parecida a: ...") para evitar elegir la etiqueta equivocada por error.
+9. Guardá. El plan ya queda disponible para inscribir socios (escuelita) o para asignar directamente ([Suscribir un socio a un plan](#7-suscribir-un-socio-a-un-plan)).
+
+**Editar o eliminar un plan.** Tocando un plan de la lista se abre el mismo formulario, ya cargado con sus datos, para editarlo. Cada fila tiene además un ícono de tacho para eliminarlo (pide confirmación antes de borrarlo).
 
 ## 4. Precios y etiquetas
 
