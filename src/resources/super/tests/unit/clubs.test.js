@@ -56,6 +56,15 @@ describe('Super — clubs handlers (unit)', () => {
     expect(res.status).toHaveBeenCalledWith(409);
   });
 
+  it('createClubHandler guarda el slug en minúsculas aunque venga con mayúsculas', async () => {
+    Club.findOne.mockResolvedValue(null);
+    Club.create.mockResolvedValue({ _id: 'c1', nombre: 'Club Andino Test', slug: 'cat' });
+    const req = { body: { nombre: 'Club Andino Test', slug: 'CAT' } };
+    const res = mockRes();
+    await createClubHandler(req, res);
+    expect(Club.create).toHaveBeenCalledWith(expect.objectContaining({ slug: 'cat' }));
+  });
+
   it('createClubHandler crea el club', async () => {
     Club.findOne.mockResolvedValue(null);
     Club.create.mockResolvedValue({ _id: 'c1', nombre: 'CARC', slug: 'carc' });

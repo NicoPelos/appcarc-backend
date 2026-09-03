@@ -11,7 +11,7 @@ export const createClubHandler = async (req, res) => {
     const existe = await Club.findOne({ slug: slug.toLowerCase() });
     if (existe) return res.status(409).json({ message: `Ya existe un club con slug '${slug}'` });
 
-    const club = await Club.create({ nombre, slug, logoUrl, contacto, plan, modulos, integraciones });
+    const club = await Club.create({ nombre, slug: slug.toLowerCase(), logoUrl, contacto, plan, modulos, integraciones });
     res.status(201).json(club);
   } catch (error) {
     console.error('Error creando club:', error);
