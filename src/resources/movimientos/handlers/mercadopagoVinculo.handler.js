@@ -7,7 +7,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
  * @openapi
  * /api/movimientos/{id}/mercadopago-vinculo:
  *   post:
- *     summary: Vincular manualmente un Movimiento (Ingreso) con un pago real de Mercado Pago — admite más de uno por movimiento
+ *     summary: Vincular manualmente un Movimiento (Ingreso o Egreso) con un pago real de Mercado Pago — admite más de uno por movimiento
  *     tags: [Movimientos]
  *     security:
  *       - bearerAuth: []
@@ -24,7 +24,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *       200:
  *         description: Vínculo guardado
  *       400:
- *         description: El movimiento no es un Ingreso elegible, o el pago no existe/no está aprobado
+ *         description: El movimiento es Efectivo, o el pago no existe/no está aprobado
  *       404:
  *         description: Movimiento no encontrado
  *       409:
@@ -38,8 +38,8 @@ export const vincularMercadopagoHandler = async (req, res) => {
 
     const movimiento = await Movimiento.findOne({ _id: id, clubId: req.user?.clubId, active: true });
     if (!movimiento) return res.status(404).json({ message: 'Movimiento no encontrado' });
-    if (movimiento.type !== 'Ingreso' || movimiento.paymentMethod === 'Efectivo') {
-      return res.status(400).json({ message: 'Solo se puede vincular un Ingreso por Transferencia o Mercado Pago' });
+    if (movimiento.paymentMethod === 'Efectivo') {
+      return res.status(400).json({ message: 'Solo se puede vincular un movimiento por Transferencia o Mercado Pago' });
     }
 
     const config = await MercadoPagoConfig.findOne({ clubId: req.user?.clubId, active: true });
@@ -59,9 +59,12 @@ export const vincularMercadopagoHandler = async (req, res) => {
 
     const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
     const before = movimiento.mercadopagoVinculos;
+    // Para un Egreso, el club es el payer del pago de MP — la contraparte
+    // (a quién se le pagó) es el collector, no el payer.
+    const contraparteEmail = movimiento.type === 'Egreso' ? payment.collector?.email : payment.payer?.email;
     movimiento.mercadopagoVinculos.push({
       paymentId: String(payment.id),
-      payerEmail: payment.payer?.email ?? '',
+      payerEmail: contraparteEmail ?? '',
       monto: payment.transaction_amount,
       fecha: payment.date_approved,
       vinculadoPor: actor,

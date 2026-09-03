@@ -3,20 +3,23 @@ const PAGE_SIZE = 50;
 const MAX_RESULTADOS = 500;
 
 /**
- * Busca pagos recibidos en la cuenta de Mercado Pago del club. Dos modos:
+ * Busca pagos de la cuenta de Mercado Pago del club, en una de dos
+ * direcciones (ver `direccion`). Dos modos de rango:
  * - `fecha` + `rangoDias`: ventana centrada en una fecha (vincular contra un
  *   Movimiento puntual).
  * - `desde` + `hasta`: rango explícito (revisión general de pagos sin
  *   vincular, paginada).
  *
- * Solo devuelve Ingresos reales — /v1/payments/search también trae pagos
- * salientes (ej. honorarios pagados por transferencia interna de MP a otra
- * cuenta MP, no por CVU/banco) cuando el destinatario también tiene MP.
- * Ahí el club figura como `payer_id`, no `collector_id` — sin filtrar por
- * esto, una transferencia SALIENTE aparecía en la lista de "sin vincular"
- * como si fuera plata que entró (bug encontrado 2026-08-25).
+ * /v1/payments/search trae tanto plata que ENTRÓ (el club como
+ * `collector_id`) como plata que SALIÓ por transferencia interna de MP a
+ * otra cuenta MP, no por CVU/banco (el club como `payer_id`) — sin filtrar
+ * por una sola dirección a la vez, una transferencia saliente aparecía en la
+ * lista de "sin vincular" de ingresos como si fuera plata que entró (bug
+ * encontrado 2026-08-25). `direccion: 'ingreso'` (default) filtra por
+ * `collector_id`; `direccion: 'egreso'` filtra por `payer_id`, para vincular
+ * pagos del club a proveedores hechos por MP.
  */
-export const buscarPagosMercadoPago = async ({ accessToken, fecha, rangoDias = 5, desde, hasta }) => {
+export const buscarPagosMercadoPago = async ({ accessToken, fecha, rangoDias = 5, desde, hasta, direccion = 'ingreso' }) => {
   let desdeDate;
   let hastaDate;
   if (desde || hasta) {
@@ -67,13 +70,17 @@ export const buscarPagosMercadoPago = async ({ accessToken, fecha, rangoDias = 5
     .filter((p) => (
       p.status === 'approved'
       && ['money_transfer', 'account_fund'].includes(p.operation_type)
-      && p.collector_id === clubUserId
+      && (direccion === 'egreso' ? p.payer_id === clubUserId : p.collector_id === clubUserId)
     ))
     .map((p) => ({
       paymentId: String(p.id),
       monto: p.transaction_amount,
       fecha: p.date_approved,
-      payerEmail: p.payer?.email ?? '',
+      // Para un ingreso, la contraparte es quien pagó (`payer`); para un
+      // egreso, el club es el payer y la contraparte es quien cobró
+      // (`collector`) — MP casi nunca expone su email (privacidad), por eso
+      // sigue "sin email" en la mayoría de los egresos.
+      payerEmail: (direccion === 'egreso' ? p.collector?.email : p.payer?.email) ?? '',
       descripcion: p.description ?? '',
     }));
 };
