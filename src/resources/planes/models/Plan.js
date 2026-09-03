@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 // impaga) — conviven con la suscripción normal del socio a otras etiquetas,
 // son una categoría aparte para no mezclarlos con la oferta regular del club.
 export const TIPOS = ['social', 'escuelita', 'muro_libre', 'plan_deuda'];
-const MODALIDADES = ['mensual', 'por_uso'];
+export const MODALIDADES = ['mensual', 'por_uso'];
 
 const planSchema = new mongoose.Schema({
   clubId: {
@@ -57,7 +57,9 @@ const planSchema = new mongoose.Schema({
   updatedBy: { type: String, default: '' },
 }, { timestamps: true });
 
-planSchema.index({ clubId: 1, nombre: 1 }, { unique: true });
+// partialFilterExpression: un plan con soft-delete (active:false) no debe
+// bloquear reusar su nombre — mismo criterio que Rol.js:15-16 (appcarc-backend#125).
+planSchema.index({ clubId: 1, nombre: 1 }, { unique: true, partialFilterExpression: { active: true } });
 planSchema.index({ clubId: 1, tipo: 1, active: 1 });
 
 const Plan = mongoose.model('Plan', planSchema);

@@ -4,6 +4,7 @@ import { createPlanHandler } from '../../handlers/createPlan.handler.js';
 vi.mock('../../models/Plan.js', () => ({
   default: vi.fn(),
   TIPOS: ['social', 'escuelita', 'muro_libre', 'plan_deuda'],
+  MODALIDADES: ['mensual', 'por_uso'],
 }));
 vi.mock('../../../etiquetas/models/Etiqueta.js', () => ({
   default: { findOne: vi.fn() },
