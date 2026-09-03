@@ -93,7 +93,13 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-app.use('/api', apiLimiter);
+// Los tests de integración (supertest) pegan contra este mismo Express real,
+// todos desde el mismo origen — correr la suite completa fácilmente supera
+// 300 requests/60s y algunos tests reciben un 429 real en vez del código que
+// están probando (appcarc-backend#143).
+if (process.env.NODE_ENV !== 'test') {
+  app.use('/api', apiLimiter);
+}
 app.use(express.json());
 app.use(express.static(join(__dirname, '../public')));
 app.use('/uploads', express.static(join(__dirname, '../uploads')));
