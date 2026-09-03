@@ -15,14 +15,14 @@ import Rol from '../models/Rol.js';
 // ningún permiso).
 export async function obtenerRolIdsPorNombres({ clubId, nombres }) {
   if (!nombres?.length) return [];
-  const roles = await Rol.find({ clubId, nombre: { $in: nombres } }).select('_id').lean();
+  const roles = await Rol.find({ clubId, nombre: { $in: nombres }, active: true }).select('_id').lean();
   return roles.map((r) => r._id);
 }
 
 // slugs conocidos por el código -> ObjectIds de Rol del club.
 export async function obtenerRolIdsPorSlugs({ clubId, slugs }) {
   if (!slugs?.length) return [];
-  const roles = await Rol.find({ clubId, slug: { $in: slugs } }).select('_id').lean();
+  const roles = await Rol.find({ clubId, slug: { $in: slugs }, active: true }).select('_id').lean();
   return roles.map((r) => r._id);
 }
 
@@ -31,6 +31,6 @@ export async function obtenerRolIdsPorSlugs({ clubId, slugs }) {
 // 'socio') siga funcionando sin cambios aunque el rol se renombre.
 export async function obtenerSlugsPorRolIds(rolIds) {
   if (!rolIds?.length) return [];
-  const roles = await Rol.find({ _id: { $in: rolIds } }).select('slug').lean();
+  const roles = await Rol.find({ _id: { $in: rolIds }, active: true }).select('slug').lean();
   return roles.map((r) => r.slug);
 }

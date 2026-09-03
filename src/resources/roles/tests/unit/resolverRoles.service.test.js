@@ -26,7 +26,7 @@ describe('obtenerRolIdsPorNombres', () => {
   it('resuelve nombres a ids del club', async () => {
     Rol.find.mockReturnValue(select([{ _id: 'id1' }, { _id: 'id2' }]));
     const ids = await obtenerRolIdsPorNombres({ clubId: 'CARC', nombres: ['admin', 'secretaria'] });
-    expect(Rol.find).toHaveBeenCalledWith({ clubId: 'CARC', nombre: { $in: ['admin', 'secretaria'] } });
+    expect(Rol.find).toHaveBeenCalledWith({ clubId: 'CARC', nombre: { $in: ['admin', 'secretaria'] }, active: true });
     expect(ids).toEqual(['id1', 'id2']);
   });
 });
@@ -41,7 +41,7 @@ describe('obtenerRolIdsPorSlugs', () => {
   it('resuelve slugs a ids del club', async () => {
     Rol.find.mockReturnValue(select([{ _id: 'id1' }]));
     const ids = await obtenerRolIdsPorSlugs({ clubId: 'CARC', slugs: ['socio'] });
-    expect(Rol.find).toHaveBeenCalledWith({ clubId: 'CARC', slug: { $in: ['socio'] } });
+    expect(Rol.find).toHaveBeenCalledWith({ clubId: 'CARC', slug: { $in: ['socio'] }, active: true });
     expect(ids).toEqual(['id1']);
   });
 });
@@ -56,7 +56,7 @@ describe('obtenerSlugsPorRolIds', () => {
   it('resuelve ids a slugs', async () => {
     Rol.find.mockReturnValue(select([{ slug: 'admin' }, { slug: 'socio' }]));
     const slugs = await obtenerSlugsPorRolIds(['id1', 'id2']);
-    expect(Rol.find).toHaveBeenCalledWith({ _id: { $in: ['id1', 'id2'] } });
+    expect(Rol.find).toHaveBeenCalledWith({ _id: { $in: ['id1', 'id2'] }, active: true });
     expect(slugs).toEqual(['admin', 'socio']);
   });
 });
