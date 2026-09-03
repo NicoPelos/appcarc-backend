@@ -1,4 +1,5 @@
 import User from '../../usuarios/models/User.js';
+import Socio from '../../socios/models/Socio.js';
 import { obtenerRolIdsPorNombres } from '../../roles/services/resolverRoles.service.js';
 
 export const getUsersHandler = async (req, res) => {
@@ -14,7 +15,20 @@ export const getUsersHandler = async (req, res) => {
 
     if (search) {
       const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      filter.$or = [{ nombre: regex }, { email: regex }];
+      const orClauses = [{ nombre: regex }, { email: regex }];
+
+      // User.socioId es un string suelto (no populate directo) — si el
+      // término de búsqueda parece un DNI, resolvemos primero los Socio que
+      // matchean (scoped al club si hay uno elegido) y sumamos sus ids al
+      // mismo $or (appcarc-superadmin#6).
+      if (/^\d+$/.test(search.trim())) {
+        const socioFilter = { dni: regex };
+        if (clubId) socioFilter.clubId = clubId;
+        const socios = await Socio.find(socioFilter).select('_id');
+        if (socios.length) orClauses.push({ socioId: { $in: socios.map((s) => String(s._id)) } });
+      }
+
+      filter.$or = orClauses;
     }
 
     const [total, users] = await Promise.all([

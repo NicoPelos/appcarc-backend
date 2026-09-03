@@ -3,12 +3,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 vi.mock('../../../roles/services/resolverRoles.service.js', () => ({
   obtenerRolIdsPorNombres: vi.fn().mockResolvedValue(['rol-id-1']),
 }));
+vi.mock('../../../socios/models/Socio.js', () => ({
+  default: { find: vi.fn() },
+}));
 
 import { getUsersHandler }        from '../../handlers/getUsers.handler.js';
 import { createSuperUserHandler } from '../../handlers/createSuperUser.handler.js';
 import { deleteSuperUserHandler } from '../../handlers/deleteSuperUser.handler.js';
 import { resetUserPasswordHandler } from '../../handlers/resetUserPassword.handler.js';
 import User from '../../../usuarios/models/User.js';
+import Socio from '../../../socios/models/Socio.js';
 import bcrypt from 'bcryptjs';
 import { obtenerRolIdsPorNombres } from '../../../roles/services/resolverRoles.service.js';
 
@@ -30,6 +34,7 @@ describe('Super — users handlers (unit)', () => {
     vi.spyOn(bcrypt, 'genSalt').mockResolvedValue('salt');
     vi.spyOn(bcrypt, 'hash').mockResolvedValue('hashed');
     obtenerRolIdsPorNombres.mockResolvedValue(['rol-id-1']);
+    Socio.find = vi.fn().mockReturnValue({ select: vi.fn().mockResolvedValue([]) });
   });
 
   afterEach(() => vi.clearAllMocks());
@@ -93,6 +98,48 @@ describe('Super — users handlers (unit)', () => {
     const filterArg = User.find.mock.calls[0][0];
     expect(filterArg.$or[0].nombre.test('(test)')).toBe(true);
     expect(filterArg.$or[0].nombre.test('test')).toBe(false);
+  });
+
+  it('getUsersHandler suma socioId por DNI cuando el search son solo dígitos', async () => {
+    Socio.find.mockReturnValue({ select: vi.fn().mockResolvedValue([{ _id: 'socio1' }, { _id: 'socio2' }]) });
+    const query = {
+      select: vi.fn().mockReturnThis(),
+      populate: vi.fn().mockReturnThis(),
+      sort:   vi.fn().mockReturnThis(),
+      skip:   vi.fn().mockReturnThis(),
+      limit:  vi.fn().mockReturnThis(),
+      lean:   vi.fn().mockResolvedValue([]),
+    };
+    User.find.mockReturnValue(query);
+
+    const req = { query: { search: '30123456', clubId: 'CARC' } };
+    const res = mockRes();
+    await getUsersHandler(req, res);
+
+    expect(Socio.find).toHaveBeenCalledWith(expect.objectContaining({ clubId: 'CARC' }));
+    const filterArg = User.find.mock.calls[0][0];
+    expect(filterArg.$or).toHaveLength(3);
+    expect(filterArg.$or[2]).toEqual({ socioId: { $in: ['socio1', 'socio2'] } });
+  });
+
+  it('getUsersHandler no suma cláusula de DNI si search no son solo dígitos', async () => {
+    const query = {
+      select: vi.fn().mockReturnThis(),
+      populate: vi.fn().mockReturnThis(),
+      sort:   vi.fn().mockReturnThis(),
+      skip:   vi.fn().mockReturnThis(),
+      limit:  vi.fn().mockReturnThis(),
+      lean:   vi.fn().mockResolvedValue([]),
+    };
+    User.find.mockReturnValue(query);
+
+    const req = { query: { search: 'ana30' } };
+    const res = mockRes();
+    await getUsersHandler(req, res);
+
+    expect(Socio.find).not.toHaveBeenCalled();
+    const filterArg = User.find.mock.calls[0][0];
+    expect(filterArg.$or).toHaveLength(2);
   });
 
   it('createSuperUserHandler devuelve 400 si falta email', async () => {
