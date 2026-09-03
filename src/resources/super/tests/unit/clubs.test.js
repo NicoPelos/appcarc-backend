@@ -56,13 +56,17 @@ describe('Super — clubs handlers (unit)', () => {
     expect(res.status).toHaveBeenCalledWith(409);
   });
 
-  it('createClubHandler guarda el slug en minúsculas aunque venga con mayúsculas', async () => {
+  it('createClubHandler guarda el slug verbatim, sin normalizar mayúsculas/minúsculas', async () => {
+    // Ver el comentario grande en Club.js: el resto del sistema (User.clubId,
+    // Socio.clubId, getClubs.handler.js contando por club.slug) asume slug
+    // verbatim — forzarlo a minúscula ya rompió producción una vez (#75).
     Club.findOne.mockResolvedValue(null);
-    Club.create.mockResolvedValue({ _id: 'c1', nombre: 'Club Andino Test', slug: 'cat' });
+    Club.create.mockResolvedValue({ _id: 'c1', nombre: 'Club Andino Test', slug: 'CAT' });
     const req = { body: { nombre: 'Club Andino Test', slug: 'CAT' } };
     const res = mockRes();
     await createClubHandler(req, res);
-    expect(Club.create).toHaveBeenCalledWith(expect.objectContaining({ slug: 'cat' }));
+    expect(Club.findOne).toHaveBeenCalledWith({ slug: 'CAT' });
+    expect(Club.create).toHaveBeenCalledWith(expect.objectContaining({ slug: 'CAT' }));
   });
 
   it('createClubHandler crea el club', async () => {
