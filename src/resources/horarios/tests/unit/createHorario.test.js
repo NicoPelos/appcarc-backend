@@ -73,6 +73,13 @@ describe('createHorarioHandler', () => {
     expect(res.json).toHaveBeenCalledWith({ message: 'El totalHoras debe ser un número mayor o igual a 0' });
   });
 
+  it('should return 400 when totalHoras exceeds the upper bound', async () => {
+    const res = mockRes();
+    await createHorarioHandler({ body: { ...BASE_BODY, totalHoras: 999999 }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'El totalHoras no puede superar 24 horas' });
+  });
+
   it('should create horario and return 201', async () => {
     const res = mockRes();
     await createHorarioHandler({ body: BASE_BODY, user: USER }, res);

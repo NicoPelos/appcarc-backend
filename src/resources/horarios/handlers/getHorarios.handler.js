@@ -1,11 +1,10 @@
 import Horarios from '../models/Horarios.js';
-
 // Mismo criterio que create/update/deleteHorario.handler.js: solo
 // admin/secretaria administran horarios de cualquiera, autoridad los ve
 // todos en modo lectura, y el resto (profesor, palestrero, limpieza,
 // arreglos) solo puede crear/editar los propios — por eso acá también
 // deben ver solo los propios, no la planilla de horas del resto del staff.
-const ROLES_VER_TODO = ['admin', 'secretaria', 'autoridad', 'superadmin'];
+import { ROLES_VER_TODO } from '../constants.js';
 
 /**
  * @openapi

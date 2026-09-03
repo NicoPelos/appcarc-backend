@@ -1,9 +1,7 @@
 import Horarios from '../models/Horarios.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
-
-const ROLES_EDIT_ALL  = ['admin', 'secretaria'];
-const ROLES_READ_ONLY = ['autoridad', 'superadmin'];
+import { ROLES_EDIT_ALL, ROLES_READ_ONLY, MAX_TOTAL_HORAS } from '../constants.js';
 
 /**
  * @openapi
@@ -85,8 +83,13 @@ export const updateHorarioHandler = async (req, res) => {
       horario.horaSalida = d;
     }
 
-    if (totalHoras !== undefined && (typeof totalHoras !== 'number' || !Number.isFinite(totalHoras) || totalHoras < 0)) {
-      return res.status(400).json({ message: 'El totalHoras debe ser un número mayor o igual a 0' });
+    if (totalHoras !== undefined) {
+      if (typeof totalHoras !== 'number' || !Number.isFinite(totalHoras) || totalHoras < 0) {
+        return res.status(400).json({ message: 'El totalHoras debe ser un número mayor o igual a 0' });
+      }
+      if (totalHoras > MAX_TOTAL_HORAS) {
+        return res.status(400).json({ message: `El totalHoras no puede superar ${MAX_TOTAL_HORAS} horas` });
+      }
     }
 
     if (etiquetaId !== undefined) {

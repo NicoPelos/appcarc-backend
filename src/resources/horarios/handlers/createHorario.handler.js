@@ -2,6 +2,7 @@ import { randomBytes } from 'crypto';
 import Horarios from '../models/Horarios.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { ROLES_EDIT_ALL, ROLES_READ_ONLY, MAX_TOTAL_HORAS } from '../constants.js';
 
 /**
  * @openapi
@@ -42,9 +43,6 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *       500:
  *         description: Error al crear horario
  */
-const ROLES_EDIT_ALL  = ['admin', 'secretaria'];
-const ROLES_READ_ONLY = ['autoridad', 'superadmin'];
-
 export const createHorarioHandler = async (req, res) => {
   try {
     const { fecha, horaEntrada, horaSalida, totalHoras, etiquetaId, observaciones } = req.body;
@@ -70,8 +68,13 @@ export const createHorarioHandler = async (req, res) => {
       if (isNaN(d.getTime())) return res.status(400).json({ message: 'La hora de salida es inválida' });
     }
 
-    if (totalHoras !== undefined && (typeof totalHoras !== 'number' || !Number.isFinite(totalHoras) || totalHoras < 0)) {
-      return res.status(400).json({ message: 'El totalHoras debe ser un número mayor o igual a 0' });
+    if (totalHoras !== undefined) {
+      if (typeof totalHoras !== 'number' || !Number.isFinite(totalHoras) || totalHoras < 0) {
+        return res.status(400).json({ message: 'El totalHoras debe ser un número mayor o igual a 0' });
+      }
+      if (totalHoras > MAX_TOTAL_HORAS) {
+        return res.status(400).json({ message: `El totalHoras no puede superar ${MAX_TOTAL_HORAS} horas` });
+      }
     }
 
     if (etiquetaId) {

@@ -1,8 +1,6 @@
 import Horarios from '../models/Horarios.js';
 import { logAudit } from '../../audit/services/audit.service.js';
-
-const ROLES_EDIT_ALL  = ['admin', 'secretaria'];
-const ROLES_READ_ONLY = ['autoridad', 'superadmin'];
+import { ROLES_EDIT_ALL, ROLES_READ_ONLY } from '../constants.js';
 
 /**
  * @openapi
