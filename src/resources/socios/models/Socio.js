@@ -114,9 +114,12 @@ const socioSchema = new mongoose.Schema({
 // dos Socio del mismo club sin socioNumber colisionaban igual con un
 // E11000 críptico (appcarc-backend#141). Confirmado empíricamente contra
 // Mongo real antes de este fix.
+// $type en vez de $ne: partialFilterExpression de Mongo no soporta $ne (se
+// compila a $not, no permitido ahí) — $type: 'string' logra lo mismo (excluye
+// ausente y null, que no son de tipo string) con un operador sí soportado.
 socioSchema.index(
   { clubId: 1, socioNumber: 1 },
-  { unique: true, partialFilterExpression: { socioNumber: { $exists: true, $ne: null } } },
+  { unique: true, partialFilterExpression: { socioNumber: { $type: 'string' } } },
 );
 
 // Mismo criterio para el dni: varios clubes de montaña pueden compartir
