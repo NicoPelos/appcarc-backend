@@ -3,10 +3,10 @@ import Club from '../resources/clubs/models/Club.js';
 import Socio from '../resources/socios/models/Socio.js';
 import Advertencia from '../resources/advertencias/models/Advertencia.js';
 import { calcularDeuda } from '../resources/cuotas/services/calcularDeuda.service.js';
-import { notifyRoles, notifyJobFailure } from '../services/pushNotification.service.js';
+import { notifyRolesByPermiso, notifyJobFailure } from '../services/pushNotification.service.js';
 import { ADVERTENCIA } from '../constants/advertenciaCodes.js';
+import { PERMISOS } from '../constants/permisos.js';
 
-const STAFF_ROLES = ['admin', 'secretaria', 'autoridad'];
 const MESES_AVISO = 3;
 const ESTADOS_A_REVISAR = ['Activo', 'Adherente'];
 
@@ -65,7 +65,7 @@ const revisarClub = async (club) => {
   }
 
   if (morosos.length > 0) {
-    await notifyRoles(clubId, STAFF_ROLES, {
+    await notifyRolesByPermiso(clubId, PERMISOS.ADVERTENCIAS_READ, {
       title: '⚠️ Socios con cuota social atrasada',
       body: `${morosos.length} ${morosos.length === 1 ? 'socio lleva' : 'socios llevan'} 3+ meses sin pagar la cuota social. Revisá el detalle en Advertencias.`,
       data: { tipo: 'morosidad_cuota_social', url: 'carc://advertencias?tipo=morosidad' },

@@ -13,7 +13,7 @@ vi.mock('../../../resources/cuotas/services/calcularDeuda.service.js', () => ({
   calcularDeuda: vi.fn(),
 }));
 vi.mock('../../../services/pushNotification.service.js', () => ({
-  notifyRoles: vi.fn().mockResolvedValue({ sent: 1 }),
+  notifyRolesByPermiso: vi.fn().mockResolvedValue({ sent: 1 }),
   notifyJobFailure: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -22,7 +22,7 @@ import Club from '../../../resources/clubs/models/Club.js';
 import Socio from '../../../resources/socios/models/Socio.js';
 import Advertencia from '../../../resources/advertencias/models/Advertencia.js';
 import { calcularDeuda } from '../../../resources/cuotas/services/calcularDeuda.service.js';
-import { notifyRoles, notifyJobFailure } from '../../../services/pushNotification.service.js';
+import { notifyRolesByPermiso, notifyJobFailure } from '../../../services/pushNotification.service.js';
 
 const mockSelectLean = (result) => ({ select: () => ({ lean: () => Promise.resolve(result) }) });
 
@@ -51,7 +51,7 @@ describe('revisarMorosidadCuotaSocial', () => {
       clubId: 'CARC', socioId: 'socio1', codigo: 'MOROSIDAD_CUOTA_SOCIAL',
       mensaje: 'Debe 3 meses de cuota social', estado: 'abierta',
     }));
-    expect(notifyRoles).toHaveBeenCalledWith('CARC', ['admin', 'secretaria', 'autoridad'], expect.objectContaining({
+    expect(notifyRolesByPermiso).toHaveBeenCalledWith('CARC', 'advertencias:read', expect.objectContaining({
       body: expect.stringContaining('1 socio lleva'),
     }));
   });
@@ -63,7 +63,7 @@ describe('revisarMorosidadCuotaSocial', () => {
     await revisarMorosidadCuotaSocial();
 
     expect(Advertencia.create).not.toHaveBeenCalled();
-    expect(notifyRoles).not.toHaveBeenCalled();
+    expect(notifyRolesByPermiso).not.toHaveBeenCalled();
   });
 
   it('actualiza (no duplica) la Advertencia si ya estaba abierta para ese socio', async () => {
@@ -90,7 +90,7 @@ describe('revisarMorosidadCuotaSocial', () => {
     expect(existing.estado).toBe('resuelta');
     expect(existing.resueltoEn).toBeInstanceOf(Date);
     expect(existingSave).toHaveBeenCalledTimes(1);
-    expect(notifyRoles).not.toHaveBeenCalled();
+    expect(notifyRolesByPermiso).not.toHaveBeenCalled();
   });
 
   it('ignora socios sin suscripción a cuota social', async () => {
@@ -100,7 +100,7 @@ describe('revisarMorosidadCuotaSocial', () => {
     await revisarMorosidadCuotaSocial();
 
     expect(Advertencia.create).not.toHaveBeenCalled();
-    expect(notifyRoles).not.toHaveBeenCalled();
+    expect(notifyRolesByPermiso).not.toHaveBeenCalled();
   });
 
   it('procesa cada club de forma independiente', async () => {
@@ -112,8 +112,8 @@ describe('revisarMorosidadCuotaSocial', () => {
 
     await revisarMorosidadCuotaSocial();
 
-    expect(notifyRoles).toHaveBeenCalledTimes(1);
-    expect(notifyRoles).toHaveBeenCalledWith('CARC', expect.anything(), expect.anything());
+    expect(notifyRolesByPermiso).toHaveBeenCalledTimes(1);
+    expect(notifyRolesByPermiso).toHaveBeenCalledWith('CARC', expect.anything(), expect.anything());
   });
 
   it('no revienta si falla la revisión de un club, y avisa al admin de ese club', async () => {

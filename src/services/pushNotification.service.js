@@ -1,6 +1,7 @@
 import User from '../resources/usuarios/models/User.js';
 import Notification from '../resources/notificaciones/models/Notification.js';
 import VinculoFamiliar from '../resources/vinculos/models/VinculoFamiliar.js';
+import Rol from '../resources/roles/models/Rol.js';
 import { obtenerRolIdsPorSlugs } from '../resources/roles/services/resolverRoles.service.js';
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
@@ -76,10 +77,37 @@ export const notifyClub = async (clubId, { title, body, data = {} }) => {
 
 /**
  * Envía una notificación push a usuarios de un club con alguno de los roles indicados.
+ *
+ * Ojo: matchea por IDENTIDAD del rol (slug), no por lo que ese rol puede
+ * hacer — si un club le saca un permiso a un rol pero el código sigue
+ * pidiendo notifyRoles(clubId, ['ese-slug'], ...) a mano, ese rol sigue
+ * recibiendo la notificación igual, sin importar que ya no tenga el permiso
+ * relacionado (appcarc-backend#advertencias-permisos). Para notificaciones
+ * sobre contenido gateado por un permiso puntual (ej. "hay una advertencia
+ * nueva" -> advertencias:read), usar notifyRolesByPermiso en su lugar.
  */
 export const notifyRoles = async (clubId, roles, { title, body, data = {} }) => {
   const rolIds = await obtenerRolIdsPorSlugs({ clubId, slugs: roles });
   const users = await User.find({ clubId, active: true, roles: { $in: rolIds } })
+    .select('expoPushToken').lean();
+
+  return sendPushNotification(
+    users.map((u) => ({ userId: u._id, clubId, token: u.expoPushToken })),
+    { title, body, data },
+  );
+};
+
+/**
+ * Envía una notificación push a los usuarios de un club cuyo rol tenga el
+ * permiso indicado — a diferencia de notifyRoles (que matchea por slug de
+ * rol hardcodeado), esto sigue siendo correcto aunque un club personalice
+ * qué permisos tiene cada rol: si le sacan advertencias:read a "secretaria",
+ * automáticamente deja de recibir notificaciones de advertencias, sin tener
+ * que tocar código.
+ */
+export const notifyRolesByPermiso = async (clubId, permiso, { title, body, data = {} }) => {
+  const rolIds = await Rol.find({ clubId, active: true, permisos: permiso }).select('_id').lean();
+  const users = await User.find({ clubId, active: true, roles: { $in: rolIds.map((r) => r._id) } })
     .select('expoPushToken').lean();
 
   return sendPushNotification(

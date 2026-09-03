@@ -9,7 +9,7 @@ vi.mock('../../services/socioData.service.js', () => ({
 }));
 vi.mock('../../../services/pushNotification.service.js', () => ({
   sendPushNotification: vi.fn().mockResolvedValue(),
-  notifyRoles: vi.fn().mockResolvedValue(),
+  notifyRolesByPermiso: vi.fn().mockResolvedValue(),
 }));
 vi.mock('../../../usuarios/models/User.js', () => ({ default: { findOne: vi.fn().mockResolvedValue(null) } }));
 vi.mock('../../../suscripciones/models/Suscripcion.js', () => ({ default: { find: vi.fn() } }));

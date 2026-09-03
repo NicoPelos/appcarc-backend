@@ -2,7 +2,8 @@ import Socio from '../models/Socio.js';
 import { syncSocioToSheet } from '../services/socioSheetSync.js';
 import { prepareSocioCreateData, syncSocioUserIfPossible, asignarSocioNumber } from '../services/socioData.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
-import { notifyRoles } from '../../../services/pushNotification.service.js';
+import { notifyRolesByPermiso } from '../../../services/pushNotification.service.js';
+import { PERMISOS } from '../../../constants/permisos.js';
 
 /**
  * @openapi
@@ -77,7 +78,7 @@ export const createSocioHandler = async (req, res) => {
 
     res.status(201).json(socio);
 
-    notifyRoles(req.user?.clubId, ['autoridad', 'secretaria'], {
+    notifyRolesByPermiso(req.user?.clubId, PERMISOS.SOCIOS_READ, {
       title: '🎉 Nuevo socio en el padrón',
       body: `${socio.nombre} ${socio.apellido} se incorporó como socio`,
       data: { tipo: 'nuevo_socio', socioId: socio._id.toString(), url: `carc://detalle-socio?id=${socio._id}` },

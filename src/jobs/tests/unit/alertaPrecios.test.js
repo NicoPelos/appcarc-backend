@@ -10,7 +10,7 @@ vi.mock('../../../resources/horarios/models/Horarios.js', () => ({
   default: { distinct: vi.fn() },
 }));
 vi.mock('../../../services/pushNotification.service.js', () => ({
-  notifyRoles: vi.fn().mockResolvedValue({ sent: 1 }),
+  notifyRolesByPermiso: vi.fn().mockResolvedValue({ sent: 1 }),
   notifySocio: vi.fn().mockResolvedValue({ sent: 1 }),
   notifyJobFailure: vi.fn().mockResolvedValue(undefined),
 }));
@@ -24,7 +24,7 @@ import { revisarVencimientosSinReemplazo, revisarCambiosDePrecio, startAlertaPre
 import Precios from '../../../resources/cuotas/models/Precios.js';
 import Suscripcion from '../../../resources/suscripciones/models/Suscripcion.js';
 import Horarios from '../../../resources/horarios/models/Horarios.js';
-import { notifyRoles, notifySocio, notifyJobFailure } from '../../../services/pushNotification.service.js';
+import { notifyRolesByPermiso, notifySocio, notifyJobFailure } from '../../../services/pushNotification.service.js';
 
 const mockPopulateLean = (result) => ({ populate: () => ({ lean: () => Promise.resolve(result) }) });
 const mockFindOneChain = (result) => ({
@@ -47,7 +47,7 @@ describe('revisarVencimientosSinReemplazo', () => {
 
     await revisarVencimientosSinReemplazo();
 
-    expect(notifyRoles).toHaveBeenCalledWith('CARC', ['admin', 'secretaria', 'autoridad'], expect.objectContaining({
+    expect(notifyRolesByPermiso).toHaveBeenCalledWith('CARC', 'precios:read', expect.objectContaining({
       title: expect.stringContaining('vencer'),
       body: expect.stringContaining('Cuota Social'),
     }));
@@ -64,13 +64,13 @@ describe('revisarVencimientosSinReemplazo', () => {
 
     await revisarVencimientosSinReemplazo();
 
-    expect(notifyRoles).not.toHaveBeenCalled();
+    expect(notifyRolesByPermiso).not.toHaveBeenCalled();
   });
 
   it('no revienta si no hay precios por vencer', async () => {
     Precios.find.mockReturnValue(mockPopulateLean([]));
     await expect(revisarVencimientosSinReemplazo()).resolves.not.toThrow();
-    expect(notifyRoles).not.toHaveBeenCalled();
+    expect(notifyRolesByPermiso).not.toHaveBeenCalled();
   });
 });
 
@@ -86,7 +86,7 @@ describe('revisarCambiosDePrecio', () => {
 
     await revisarCambiosDePrecio();
 
-    expect(notifyRoles).toHaveBeenCalledWith('CARC', ['admin', 'secretaria', 'autoridad'], expect.objectContaining({
+    expect(notifyRolesByPermiso).toHaveBeenCalledWith('CARC', 'precios:read', expect.objectContaining({
       body: expect.stringContaining('$5.000'),
     }));
     expect(notifySocio).toHaveBeenCalledTimes(2);
@@ -117,7 +117,7 @@ describe('revisarCambiosDePrecio', () => {
 
     await revisarCambiosDePrecio();
 
-    expect(notifyRoles).not.toHaveBeenCalled();
+    expect(notifyRolesByPermiso).not.toHaveBeenCalled();
     expect(notifySocio).not.toHaveBeenCalled();
   });
 
@@ -128,7 +128,7 @@ describe('revisarCambiosDePrecio', () => {
 
     await revisarCambiosDePrecio();
 
-    expect(notifyRoles).not.toHaveBeenCalled();
+    expect(notifyRolesByPermiso).not.toHaveBeenCalled();
     expect(notifySocio).not.toHaveBeenCalled();
   });
 });

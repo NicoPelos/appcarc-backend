@@ -2,10 +2,10 @@ import cron from 'node-cron';
 import Precios from '../resources/cuotas/models/Precios.js';
 import Suscripcion from '../resources/suscripciones/models/Suscripcion.js';
 import Horarios from '../resources/horarios/models/Horarios.js';
-import { notifyRoles, notifySocio, notifyJobFailure } from '../services/pushNotification.service.js';
+import { notifyRolesByPermiso, notifySocio, notifyJobFailure } from '../services/pushNotification.service.js';
 import { diaBoundsUTC } from '../services/fechaArgentina.js';
+import { PERMISOS } from '../constants/permisos.js';
 
-const STAFF_ROLES = ['admin', 'secretaria', 'autoridad'];
 const DEFAULT_CLUB_ID = process.env.DEFAULT_CLUB_ID || 'CARC';
 const DIAS_AVISO_VENCIMIENTO = 7;
 
@@ -52,7 +52,7 @@ export const revisarVencimientosSinReemplazo = async () => {
     if (reemplazo) continue;
 
     try {
-      await notifyRoles(precio.clubId, STAFF_ROLES, {
+      await notifyRolesByPermiso(precio.clubId, PERMISOS.PRECIOS_READ, {
         title: '⚠️ Precio por vencer sin reemplazo',
         body: `"${precio.etiquetaId.nombre}" vence el ${formatFechaAR(precio.vigenteHasta)} y no hay un precio nuevo cargado para después. Creá uno para no dejar a nadie sin precio.`,
         data: { tipo: 'precio_por_vencer', precioId: String(precio._id), url: `carc://precios?precioId=${precio._id}` },
@@ -98,7 +98,7 @@ export const revisarCambiosDePrecio = async () => {
     const cambio = `de ${formatMonto(anterior.monto)} a ${formatMonto(nuevo.monto)}`;
 
     try {
-      await notifyRoles(nuevo.clubId, STAFF_ROLES, {
+      await notifyRolesByPermiso(nuevo.clubId, PERMISOS.PRECIOS_READ, {
         title: '💰 Cambio de precio',
         body: `"${nombre}" cambió ${cambio} a partir de hoy.`,
         data: { tipo: 'precio_cambio', precioId: String(nuevo._id), url: `carc://precios?precioId=${nuevo._id}` },

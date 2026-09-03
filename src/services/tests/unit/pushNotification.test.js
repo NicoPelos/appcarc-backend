@@ -12,11 +12,15 @@ vi.mock('../../../resources/vinculos/models/VinculoFamiliar.js', () => ({
 vi.mock('../../../resources/roles/services/resolverRoles.service.js', () => ({
   obtenerRolIdsPorSlugs: vi.fn(),
 }));
+vi.mock('../../../resources/roles/models/Rol.js', () => ({
+  default: { find: vi.fn() },
+}));
 
-import { notifySocio, sendPushNotification, notifyJobFailure } from '../../pushNotification.service.js';
+import { notifySocio, sendPushNotification, notifyJobFailure, notifyRolesByPermiso } from '../../pushNotification.service.js';
 import User from '../../../resources/usuarios/models/User.js';
 import Notification from '../../../resources/notificaciones/models/Notification.js';
 import VinculoFamiliar from '../../../resources/vinculos/models/VinculoFamiliar.js';
+import Rol from '../../../resources/roles/models/Rol.js';
 import { obtenerRolIdsPorSlugs } from '../../../resources/roles/services/resolverRoles.service.js';
 
 const chainableFindOne = (result) => ({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(result) }) });
@@ -102,6 +106,38 @@ describe('notifySocio', () => {
 
     expect(result).toEqual({ sent: 0 });
     expect(Notification.insertMany).not.toHaveBeenCalled();
+  });
+});
+
+describe('notifyRolesByPermiso', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    Notification.insertMany.mockResolvedValue([]);
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+  });
+  afterEach(() => vi.clearAllMocks());
+
+  it('busca los roles del club que tengan el permiso, no por slug hardcodeado', async () => {
+    Rol.find.mockReturnValue({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([{ _id: 'rolConPermiso' }]) }) });
+    User.find.mockReturnValue(chainableFind([{ _id: 'user1', clubId: 'CARC', expoPushToken: null }]));
+
+    await notifyRolesByPermiso('CARC', 'advertencias:read', { title: 't', body: 'b' });
+
+    expect(Rol.find).toHaveBeenCalledWith({ clubId: 'CARC', active: true, permisos: 'advertencias:read' });
+    expect(User.find).toHaveBeenCalledWith({ clubId: 'CARC', active: true, roles: { $in: ['rolConPermiso'] } });
+    expect(Notification.insertMany).toHaveBeenCalledWith([
+      expect.objectContaining({ userId: 'user1', clubId: 'CARC' }),
+    ]);
+  });
+
+  it('un rol sin el permiso no recibe la notificación aunque su nombre coincida con lo que antes estaba hardcodeado', async () => {
+    Rol.find.mockReturnValue({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }) });
+    User.find.mockReturnValue(chainableFind([]));
+
+    const result = await notifyRolesByPermiso('CARC', 'advertencias:read', { title: 't', body: 'b' });
+
+    expect(User.find).toHaveBeenCalledWith({ clubId: 'CARC', active: true, roles: { $in: [] } });
+    expect(result).toEqual({ sent: 0 });
   });
 });
 

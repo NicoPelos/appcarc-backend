@@ -5,7 +5,7 @@ import Asistencia from '../../asistencias/models/Asistencia.js';
 import VinculoFamiliar from '../../vinculos/models/VinculoFamiliar.js';
 import { resolveSocioFromQrTokenOrDni, findActiveSocioById, BusinessError } from '../../socios/services/socioQr.service.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
-import { notifyRoles, notifySocio } from '../../../services/pushNotification.service.js';
+import { notifyRolesByPermiso, notifySocio } from '../../../services/pushNotification.service.js';
 import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC } from '../../../services/fechaArgentina.js';
 import { tienePermiso } from '../../../services/permisosCache.js';
 import { PERMISOS } from '../../../constants/permisos.js';
@@ -215,7 +215,7 @@ export const checkinEscuelitaHandler = async (req, res) => {
       const nombreCompleto = `${socio.nombre} ${socio.apellido}`;
       const resumen = advertencias.map((a) => a.mensaje).join(' | ');
       Promise.all([
-        notifyRoles(clubId, ['secretaria'], {
+        notifyRolesByPermiso(clubId, PERMISOS.ADVERTENCIAS_READ, {
           title: '⚠️ Ingreso con advertencias',
           body: `${nombreCompleto} ingresó a escuelita con ${advertencias.length} advertencia(s): ${resumen}`,
           data: { tipo: 'advertencia_checkin', asistenciaId: String(asistencia._id), url: 'carc://advertencias?tipo=escuelita' },

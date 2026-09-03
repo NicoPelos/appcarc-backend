@@ -1,6 +1,6 @@
 import { BusinessError, registrarMuroLibre } from '../services/registrarMuroLibre.service.js';
 import { resolveSocioFromQrTokenOrDni, findActiveSocioById, getPaseMuroLibreVigente } from '../../socios/services/socioQr.service.js';
-import { notifyRoles, notifySocio } from '../../../services/pushNotification.service.js';
+import { notifyRolesByPermiso, notifySocio } from '../../../services/pushNotification.service.js';
 import { tienePermiso } from '../../../services/permisosCache.js';
 import { PERMISOS } from '../../../constants/permisos.js';
 
@@ -140,7 +140,7 @@ export const checkinMuroLibreHandler = async (req, res) => {
       const nombreCompleto = `${socio.nombre} ${socio.apellido}`;
       const resumen = advertenciasResult.map((a) => a.mensaje).join(' | ');
       Promise.all([
-        notifyRoles(req.user?.clubId, ['secretaria'], {
+        notifyRolesByPermiso(req.user?.clubId, PERMISOS.ADVERTENCIAS_READ, {
           title: '⚠️ Ingreso con advertencias',
           body: `${nombreCompleto} ingresó a muro libre con ${advertenciasResult.length} advertencia(s): ${resumen}`,
           data: { tipo: 'advertencia_checkin', asistenciaId: String(result.registro._id), url: 'carc://advertencias?tipo=muro_libre' },
