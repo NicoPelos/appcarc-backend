@@ -296,6 +296,40 @@ describe('registrarCobro service (unit)', () => {
     expect(result.cuotas).toHaveLength(2);
   });
 
+  it('should allow paying a future periodo within the 24-month advance cap (adelantar meses)', async () => {
+    mockSuscripcionVigente({ _id: SUSCRIPCION_ID, etiquetaId: ETIQUETA_ID });
+    Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+    Cuota.find.mockReturnValue(buildSessionQuery([]));
+
+    const result = await registrarCobro({
+      clubId: CLUB_ID, user: USER,
+      body: {
+        paymentMethod: 'Efectivo',
+        date: '2026-09-01',
+        items: [{ socioId: SOCIO_ID, suscripcionId: SUSCRIPCION_ID, periodos: ['2026-12'], amount: 15000 }],
+      },
+    });
+
+    expect(result.cuotas.map((c) => c.periodo)).toEqual(['2026-12']);
+  });
+
+  it('should reject a periodo farther than 24 months in the future', async () => {
+    mockSuscripcionVigente({ _id: SUSCRIPCION_ID, etiquetaId: ETIQUETA_ID });
+    Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+    Cuota.find.mockReturnValue(buildSessionQuery([]));
+
+    await expect(registrarCobro({
+      clubId: CLUB_ID, user: USER,
+      body: {
+        paymentMethod: 'Efectivo',
+        date: '2026-09-01',
+        items: [{ socioId: SOCIO_ID, suscripcionId: SUSCRIPCION_ID, periodos: ['2029-01'], amount: 15000 }],
+      },
+    })).rejects.toMatchObject({ status: 400 });
+
+    expect(cobroSaveSpy).not.toHaveBeenCalled();
+  });
+
   it('should split an explicit amount across periods instead of applying it to each one', async () => {
     mockSuscripcionVigente({ _id: SUSCRIPCION_ID, etiquetaId: ETIQUETA_ID });
     Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));

@@ -38,28 +38,44 @@ const buildPeriodoFromFecha = (fecha) => {
 // array gigante dentro de la transacción de Mongo (DoS de bajo esfuerzo).
 const MAX_PERIODOS_POR_ITEM = 60;
 
-const getPeriodosFromItem = (item, index) => {
+// Registrar Cobro permite adelantar meses futuros de una suscripción abierta
+// (pagar por adelantado) — calcularDeuda no los expone como deuda, pero acá
+// no hay ninguna razón de negocio para rechazarlos. Sí conviene un tope
+// generoso para atajar errores de carga (ej. tipear "2030-01" por accidente),
+// no para limitar el adelanto legítimo.
+const MAX_MESES_ADELANTO = 24;
+
+const getPeriodosFromItem = (item, index, hoyPeriodo) => {
+  let periodos;
+
   if (Array.isArray(item?.periodos) && item.periodos.length) {
     if (item.periodos.length > MAX_PERIODOS_POR_ITEM) {
       throw new BusinessError(`El item ${index + 1} no puede tener más de ${MAX_PERIODOS_POR_ITEM} períodos`);
     }
-    const periodos = item.periodos.map((p) => String(p || '').trim());
+    periodos = item.periodos.map((p) => String(p || '').trim());
     const invalid = periodos.find((p) => !PERIODO_PATTERN.test(p));
     if (invalid) throw new BusinessError(`El item ${index + 1} contiene un período inválido`);
-    return periodos;
+  } else {
+    const periodoInicial = String(item?.periodoDesde || item?.periodo || '').trim();
+    if (!PERIODO_PATTERN.test(periodoInicial)) {
+      throw new BusinessError(`El item ${index + 1} debe usar periodo con formato YYYY-MM`);
+    }
+
+    const cantidad = item?.cantidad == null ? 1 : Number(item.cantidad);
+    if (!Number.isInteger(cantidad) || cantidad <= 0 || cantidad > MAX_PERIODOS_POR_ITEM) {
+      throw new BusinessError(`El item ${index + 1} debe tener una cantidad entera entre 1 y ${MAX_PERIODOS_POR_ITEM}`);
+    }
+
+    periodos = Array.from({ length: cantidad }, (_, offset) => addMonthsToPeriodo(periodoInicial, offset));
   }
 
-  const periodoInicial = String(item?.periodoDesde || item?.periodo || '').trim();
-  if (!PERIODO_PATTERN.test(periodoInicial)) {
-    throw new BusinessError(`El item ${index + 1} debe usar periodo con formato YYYY-MM`);
+  const tope = addMonthsToPeriodo(hoyPeriodo, MAX_MESES_ADELANTO);
+  const muyLejos = periodos.find((p) => p > tope);
+  if (muyLejos) {
+    throw new BusinessError(`El item ${index + 1} tiene un período (${muyLejos}) demasiado lejano — máximo ${MAX_MESES_ADELANTO} meses de adelanto`);
   }
 
-  const cantidad = item?.cantidad == null ? 1 : Number(item.cantidad);
-  if (!Number.isInteger(cantidad) || cantidad <= 0 || cantidad > MAX_PERIODOS_POR_ITEM) {
-    throw new BusinessError(`El item ${index + 1} debe tener una cantidad entera entre 1 y ${MAX_PERIODOS_POR_ITEM}`);
-  }
-
-  return Array.from({ length: cantidad }, (_, offset) => addMonthsToPeriodo(periodoInicial, offset));
+  return periodos;
 };
 
 const normalizeItem = async ({ item, index, clubId, date, precioCache, session = null }) => {
@@ -171,7 +187,7 @@ const normalizeItem = async ({ item, index, clubId, date, precioCache, session =
     });
   }
 
-  const periodos = getPeriodosFromItem(item, index);
+  const periodos = getPeriodosFromItem(item, index, buildPeriodoFromFecha(date));
 
   // Buscar suscripcion para obtener etiquetaId
   const suscripcion = await Suscripcion.findOne({
