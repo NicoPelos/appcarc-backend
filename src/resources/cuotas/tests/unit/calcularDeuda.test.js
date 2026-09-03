@@ -260,8 +260,8 @@ describe('calcularDeuda', () => {
   it('otrosCargos suma las visitas pendientes de check-in de muro libre', async () => {
     mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
     mockAsistenciaFind.mockReturnValue(chainableAsistencia([
-      { fecha: '2026-06-01T12:00:00Z', precioSugeridoSnapshot: 2000 },
-      { fecha: '2026-06-08T12:00:00Z', precioSugeridoSnapshot: 2500 },
+      { _id: 'asis_001', fecha: '2026-06-01T12:00:00Z', precioSugeridoSnapshot: 2000 },
+      { _id: 'asis_002', fecha: '2026-06-08T12:00:00Z', precioSugeridoSnapshot: 2500 },
     ]));
 
     const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
@@ -272,6 +272,10 @@ describe('calcularDeuda', () => {
       cantidadPendiente: 2,
       unidadPendiente: 'visita',
       fechas: ['2026-06-01T12:00:00Z', '2026-06-08T12:00:00Z'],
+      visitas: [
+        { asistenciaId: 'asis_001', fecha: '2026-06-01T12:00:00Z', monto: 2000 },
+        { asistenciaId: 'asis_002', fecha: '2026-06-08T12:00:00Z', monto: 2500 },
+      ],
       totalDeuda: 4500,
     }]);
     expect(mockAsistenciaFind).toHaveBeenCalledWith(expect.objectContaining({
@@ -287,7 +291,7 @@ describe('calcularDeuda', () => {
   it('el cargo de muro libre trata precioSugeridoSnapshot null como 0', async () => {
     mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
     mockAsistenciaFind.mockReturnValue(chainableAsistencia([
-      { fecha: '2026-06-01T12:00:00Z', precioSugeridoSnapshot: null },
+      { _id: 'asis_001', fecha: '2026-06-01T12:00:00Z', precioSugeridoSnapshot: null },
     ]));
 
     const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
@@ -324,7 +328,7 @@ describe('calcularDeuda', () => {
   it('otrosCargos combina muro libre pendiente y varios cargos puntuales', async () => {
     mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
     mockAsistenciaFind.mockReturnValue(chainableAsistencia([
-      { fecha: '2026-06-01T12:00:00Z', precioSugeridoSnapshot: 2000 },
+      { _id: 'asis_001', fecha: '2026-06-01T12:00:00Z', precioSugeridoSnapshot: 2000 },
     ]));
     mockCargoPuntualFind.mockReturnValue(chainableCargoPuntual([
       { _id: 'cargo_001', etiquetaId: { nombre: 'Inscripción' }, description: 'Inscripción 2026', montoEsperadoSnapshot: 5000 },

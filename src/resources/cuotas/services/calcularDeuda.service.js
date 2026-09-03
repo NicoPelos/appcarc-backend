@@ -54,7 +54,15 @@ const calcularCargoMuroLibre = async ({ socioId, clubId }) => {
     nombre: 'Muro Libre',
     cantidadPendiente: pendientes.length,
     unidadPendiente: 'visita',
+    // fechas: se mantiene por compatibilidad con clientes viejos — el
+    // front nuevo usa "visitas" para poder elegir puntualmente cuáles
+    // pagar en vez de solo una cantidad (appcarc-mobile: pedido de Nico).
     fechas: pendientes.map((p) => p.fecha),
+    visitas: pendientes.map((p) => ({
+      asistenciaId: String(p._id),
+      fecha: p.fecha,
+      monto: p.precioSugeridoSnapshot ?? null,
+    })),
     totalDeuda: pendientes.reduce((sum, p) => sum + (p.precioSugeridoSnapshot ?? 0), 0),
   };
 };

@@ -2,37 +2,48 @@ import mongoose from 'mongoose';
 import Movimiento from '../models/Movimiento.js';
 import Socio from '../../socios/models/Socio.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
+import Asistencia from '../../asistencias/models/Asistencia.js';
 
 const buildDetalle = async (movimientos, clubId) => {
   const socioIds = new Set();
   const etiquetaIds = new Set();
+  const asistenciaIds = new Set();
 
   for (const m of movimientos) {
     if (m.sourceModel === 'Cobro' && m.sourceId?.items) {
       for (const item of m.sourceId.items) {
         if (item.socioId) socioIds.add(String(item.socioId));
         if (item.etiquetaId) etiquetaIds.add(String(item.etiquetaId));
+        // item.periodo para una visita de Muro Libre es solo "AAAA-MM" (el
+        // helper que lo arma en registrarCobro.service.js está pensado para
+        // cuotas mensuales, no guarda el día) — hay que resolver la fecha
+        // real vía asistenciaId para saber QUÉ día de Muro Libre fue.
+        if (item.asistenciaId) asistenciaIds.add(String(item.asistenciaId));
       }
     }
   }
 
-  // clubId explícito en ambas queries: hoy el invariante "todo sourceId de un
-  // Movimiento referencia datos del mismo club" ya lo garantiza
+  // clubId explícito en las tres queries: hoy el invariante "todo sourceId de
+  // un Movimiento referencia datos del mismo club" ya lo garantiza
   // registrarCobro.service.js del lado de la escritura, pero cada query acá
   // tiene que defenderse sola igual que el resto del módulo — si ese
   // invariante se relaja en el futuro, esto deja de ser una fuga de datos de
   // otro club (appcarc-backend#138).
-  const [socios, etiquetas] = await Promise.all([
+  const [socios, etiquetas, asistencias] = await Promise.all([
     socioIds.size
       ? Socio.find({ _id: { $in: [...socioIds] }, clubId }, 'socioNumber nombre apellido dni').lean()
       : [],
     etiquetaIds.size
       ? Etiqueta.find({ _id: { $in: [...etiquetaIds] }, clubId }, 'nombre').lean()
       : [],
+    asistenciaIds.size
+      ? Asistencia.find({ _id: { $in: [...asistenciaIds] }, clubId }, 'fecha').lean()
+      : [],
   ]);
 
   const socioMap = new Map(socios.map((s) => [String(s._id), s]));
   const etiquetaMap = new Map(etiquetas.map((e) => [String(e._id), e]));
+  const asistenciaMap = new Map(asistencias.map((a) => [String(a._id), a]));
 
   return movimientos.map((m) => {
     let detalle = null;
@@ -41,6 +52,7 @@ const buildDetalle = async (movimientos, clubId) => {
       detalle = m.sourceId.items.map((item) => {
         const socio = socioMap.get(String(item.socioId));
         const etiqueta = etiquetaMap.get(String(item.etiquetaId));
+        const asistencia = item.asistenciaId ? asistenciaMap.get(String(item.asistenciaId)) : null;
         return {
           socioId: item.socioId,
           socioNumber: socio?.socioNumber || '',
@@ -48,6 +60,7 @@ const buildDetalle = async (movimientos, clubId) => {
           apellido: socio?.apellido || '',
           etiqueta: etiqueta?.nombre || '',
           periodo: item.periodo,
+          fecha: asistencia?.fecha ?? null,
           amount: item.amount,
         };
       });
@@ -58,6 +71,7 @@ const buildDetalle = async (movimientos, clubId) => {
         apellido: m.sourceId.apellido || '',
         esSocio: m.sourceId.esSocio,
         periodo: m.sourceId.periodo || '',
+        fecha: m.sourceId.fecha ?? null,
         tipoPase: m.sourceId.tipoPase || null,
       }];
     }

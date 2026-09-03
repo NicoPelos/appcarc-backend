@@ -3,6 +3,7 @@ import { getMovimientosHandler } from '../../handlers/getMovimientos.handler.js'
 import Movimiento from '../../models/Movimiento.js';
 import Socio from '../../../socios/models/Socio.js';
 import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
+import Asistencia from '../../../asistencias/models/Asistencia.js';
 
 const mockRes = () => {
   const res = {};
@@ -192,6 +193,48 @@ describe('getMovimientosHandler', () => {
 
     expect(Socio.find).toHaveBeenCalledWith(expect.objectContaining({ clubId: USER.clubId }), expect.anything());
     expect(Etiqueta.find).toHaveBeenCalledWith(expect.objectContaining({ clubId: USER.clubId }), expect.anything());
+  });
+
+  it('buildDetalle resuelve la fecha exacta de una visita de Muro Libre vía asistenciaId', async () => {
+    // item.periodo para Muro Libre es solo "AAAA-MM" (buildPeriodoFromFecha
+    // trunca el día) — el detalle tiene que resolver la fecha real vía
+    // asistenciaId, no confiar en periodo para saber qué día fue.
+    const fecha = new Date('2026-01-15T12:00:00Z');
+    const mov = {
+      _id: 'mov1',
+      sourceModel: 'Cobro',
+      sourceId: { items: [{ socioId: 'socio1', etiquetaId: 'etq1', asistenciaId: 'asis1', periodo: '2026-01', amount: 5000 }] },
+    };
+    vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(1);
+    vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([mov]));
+    vi.spyOn(Socio, 'find').mockReturnValue({ lean: vi.fn().mockResolvedValue([]) });
+    vi.spyOn(Etiqueta, 'find').mockReturnValue({ lean: vi.fn().mockResolvedValue([]) });
+    vi.spyOn(Asistencia, 'find').mockReturnValue({ lean: vi.fn().mockResolvedValue([{ _id: 'asis1', fecha }]) });
+
+    const res = mockRes();
+    await getMovimientosHandler({ query: {}, user: USER }, res);
+
+    expect(Asistencia.find).toHaveBeenCalledWith(expect.objectContaining({ clubId: USER.clubId, _id: { $in: ['asis1'] } }), expect.anything());
+    const body = res.json.mock.calls[0][0];
+    expect(body.movimientos[0].detalle[0].fecha).toEqual(fecha);
+  });
+
+  it('buildDetalle no llama Asistencia.find si ningún item tiene asistenciaId', async () => {
+    const mov = {
+      _id: 'mov1',
+      sourceModel: 'Cobro',
+      sourceId: { items: [{ socioId: 'socio1', etiquetaId: 'etq1', periodo: '2026-01', amount: 5000 }] },
+    };
+    vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(1);
+    vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([mov]));
+    vi.spyOn(Socio, 'find').mockReturnValue({ lean: vi.fn().mockResolvedValue([]) });
+    vi.spyOn(Etiqueta, 'find').mockReturnValue({ lean: vi.fn().mockResolvedValue([]) });
+    vi.spyOn(Asistencia, 'find');
+
+    const res = mockRes();
+    await getMovimientosHandler({ query: {}, user: USER }, res);
+
+    expect(Asistencia.find).not.toHaveBeenCalled();
   });
 
   it('should return 500 on unexpected error', async () => {

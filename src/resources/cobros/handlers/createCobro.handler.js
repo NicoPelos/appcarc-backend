@@ -89,6 +89,11 @@ const buildCargoPuntualBody = (cargos) => {
  *           type: integer
  *           minimum: 1
  *           default: 1
+ *           description: "Para muroLibrePendiente: si no viene asistenciaIds, paga las N visitas pendientes más viejas"
+ *         asistenciaIds:
+ *           type: array
+ *           items: { type: string }
+ *           description: "Para muroLibrePendiente: visitas puntuales a pagar (tiene prioridad sobre cantidad)"
  *         amount:
  *           type: number
  *           minimum: 0

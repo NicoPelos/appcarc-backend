@@ -125,12 +125,25 @@ const normalizeItem = async ({ item, index, clubId, date, precioCache, session =
       throw new BusinessError(`El socio ${socioId} no tiene visitas de Muro Libre pendientes`, 404);
     }
 
-    const cantidad = item?.cantidad == null ? pendientes.length : Number(item.cantidad);
-    if (!Number.isInteger(cantidad) || cantidad <= 0) {
-      throw new BusinessError(`El item ${index + 1} debe tener una cantidad entera mayor que cero`);
+    // asistenciaIds: visitas puntuales elegidas a mano (ej. "quiero pagar
+    // estas 2, no las 4 más viejas") — si no vienen, se mantiene el
+    // comportamiento viejo de "las cantidad más viejas primero", para no
+    // romper clientes que todavía mandan solo cantidad.
+    let seleccionadas;
+    if (Array.isArray(item?.asistenciaIds)) {
+      const idsPedidos = item.asistenciaIds.map(String);
+      const idsSet = new Set(idsPedidos);
+      seleccionadas = pendientes.filter((a) => idsSet.has(String(a._id)));
+      if (seleccionadas.length !== idsSet.size) {
+        throw new BusinessError(`El item ${index + 1} incluye visitas de Muro Libre que ya no están pendientes`, 404);
+      }
+    } else {
+      const cantidad = item?.cantidad == null ? pendientes.length : Number(item.cantidad);
+      if (!Number.isInteger(cantidad) || cantidad <= 0) {
+        throw new BusinessError(`El item ${index + 1} debe tener una cantidad entera mayor que cero`);
+      }
+      seleccionadas = pendientes.slice(0, Math.min(cantidad, pendientes.length));
     }
-
-    const seleccionadas = pendientes.slice(0, Math.min(cantidad, pendientes.length));
 
     const usoSistema = seleccionadas[0].esSocio ? 'muro_libre_diario_socio' : 'muro_libre_diario_no_socio';
     const etiqueta = await Etiqueta.findOne({ clubId, uso_sistema: usoSistema, active: true }).session(session).lean();

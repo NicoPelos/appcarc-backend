@@ -486,5 +486,44 @@ describe('registrarCobro service (unit)', () => {
       expect(result.cuotas).toHaveLength(0);
       expect(savedMovimientos[0]).toMatchObject({ type: 'Ingreso', amount: 5000 });
     });
+
+    it('should pay exactly the visitas selected via asistenciaIds, even if not the oldest', async () => {
+      const fecha1 = new Date('2026-07-01T12:00:00Z');
+      const fecha2 = new Date('2026-07-05T12:00:00Z');
+      mockAsistenciasPendientes([
+        { _id: ASISTENCIA_ID_1, fecha: fecha1, esSocio: true, precioSugeridoSnapshot: 5000, estadoPago: 'pendiente' },
+        { _id: ASISTENCIA_ID_2, fecha: fecha2, esSocio: true, precioSugeridoSnapshot: 6000, estadoPago: 'pendiente' },
+      ]);
+      mockEtiquetaMuroLibre({ _id: ETIQUETA_ID });
+      Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+
+      // Elige la MÁS NUEVA (asistencia 2), no la más vieja como haría "cantidad".
+      const asistenciaDoc = {
+        _id: ASISTENCIA_ID_2, estadoPago: 'pendiente', monto: 0, formaPago: 'Sin pago',
+        save: vi.fn(async function () { return this; }),
+      };
+      mockAsistenciasDb([asistenciaDoc]);
+
+      const result = await registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [{ ...muroLibreItem, asistenciaIds: [ASISTENCIA_ID_2] }] },
+      });
+
+      expect(asistenciaDoc.estadoPago).toBe('pagado');
+      expect(asistenciaDoc.monto).toBe(6000);
+      expect(result.asistencias).toEqual([asistenciaDoc]);
+    });
+
+    it('should fail with 404 when an asistenciaId is not among the pendientes', async () => {
+      const fecha1 = new Date('2026-07-01T12:00:00Z');
+      mockAsistenciasPendientes([
+        { _id: ASISTENCIA_ID_1, fecha: fecha1, esSocio: true, precioSugeridoSnapshot: 5000, estadoPago: 'pendiente' },
+      ]);
+
+      await expect(registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [{ ...muroLibreItem, asistenciaIds: [ASISTENCIA_ID_2] }] },
+      })).rejects.toMatchObject({ status: 404 });
+    });
   });
 });
