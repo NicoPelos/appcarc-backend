@@ -107,9 +107,8 @@ describe('asignarSocioNumber', () => {
     expect(result).toBe('8');
   });
 
-  it('devuelve undefined si el club no existe', async () => {
+  it('lanza si el club no existe, en vez de devolver undefined en silencio', async () => {
     Club.findOneAndUpdate.mockResolvedValue(null);
-    const result = await asignarSocioNumber('noexiste');
-    expect(result).toBeUndefined();
+    await expect(asignarSocioNumber('noexiste')).rejects.toThrow(/no se encontró el club/i);
   });
 });

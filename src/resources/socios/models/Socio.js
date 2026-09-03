@@ -108,7 +108,16 @@ const socioSchema = new mongoose.Schema({
 
 // El socioNumber es único dentro de cada club, no globalmente — dos clubes
 // distintos pueden tener ambos un socio "1" sin problema (issue #47).
-socioSchema.index({ clubId: 1, socioNumber: 1 }, { unique: true, sparse: true });
+// partialFilterExpression en vez de sparse: sparse en un índice COMPUESTO
+// solo excluye un documento si le faltan TODOS los campos indexados, no
+// alcanza con que falte socioNumber solo (clubId siempre está presente) —
+// dos Socio del mismo club sin socioNumber colisionaban igual con un
+// E11000 críptico (appcarc-backend#141). Confirmado empíricamente contra
+// Mongo real antes de este fix.
+socioSchema.index(
+  { clubId: 1, socioNumber: 1 },
+  { unique: true, partialFilterExpression: { socioNumber: { $exists: true, $ne: null } } },
+);
 
 // Mismo criterio para el dni: varios clubes de montaña pueden compartir
 // socios reales (la misma persona asociada a dos clubes distintos), así que
