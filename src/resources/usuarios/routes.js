@@ -4,13 +4,21 @@ import { googleLogin, googleCallback, register, login, selectProfile, getProfile
 import { protect, authorize } from '../../middleware/auth.js';
 import { PERMISOS } from '../../constants/permisos.js';
 
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { message: 'Demasiados intentos de login. Intentá de nuevo en 15 minutos.' },
-});
+// No-op en test: los tests de integración (supertest) pegan contra este mismo
+// Express real, todos desde el mismo origen — max:10 cada 15min se agota
+// enseguida corriendo la suite completa y algunos tests reciben un 429 real
+// en vez del código que están probando (mismo criterio que apiLimiter en
+// index.js, appcarc-backend#143 — este limiter quedó afuera de ese fix por
+// vivir en otro archivo).
+const loginLimiter = process.env.NODE_ENV === 'test'
+  ? (req, res, next) => next()
+  : rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: 'Demasiados intentos de login. Intentá de nuevo en 15 minutos.' },
+  });
 
 const router = express.Router();
 
