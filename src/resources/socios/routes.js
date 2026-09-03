@@ -104,12 +104,12 @@ router.get('/:id/deuda', protect, getSocioDeudaHandler);
 router.put('/:id/foto', protect, authorizeSelfSocioOr(PERMISOS.SOCIOS_WRITE), upload.single('foto'), handleUploadError, uploadFotoSocioHandler);
 router.delete('/:id/foto', protect, authorizeSelfSocioOr(PERMISOS.SOCIOS_WRITE), deleteFotoSocioHandler);
 
-router.get('/:id/qr', protect, getSocioQrHandler);
+router.get('/:id/qr', protect, authorizeSelfSocioOr(PERMISOS.SOCIOS_READ), getSocioQrHandler);
 router.post('/verify', protect, authorize(PERMISOS.SOCIOS_READ), verifySocioQrHandler);
 
 router.get('/morosos', protect, authorize(PERMISOS.COBROS_READ), getSociosMorososHandler);
 
-router.get('/:id', protect, getSocioByIdHandler);
+router.get('/:id', protect, authorizeSelfSocioOr(PERMISOS.SOCIOS_READ), getSocioByIdHandler);
 
 /**
  * @openapi
