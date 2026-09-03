@@ -3,18 +3,19 @@ import { syncSocioUserFromSocio } from '../../usuarios/services/userSync.js';
 
 // Asigna el próximo socioNumber del club de forma atómica ($inc no pisa
 // incrementos concurrentes de dos altas simultáneas) — ver issue #47.
-// Lanza si no encuentra el Club en vez de devolver undefined en silencio:
-// un socioNumber ausente por esto colisiona con el segundo alta en el mismo
-// clubId (índice único compuesto, appcarc-backend#141) con un E11000
-// críptico en vez de este mensaje de negocio claro.
+// Si no encuentra el Club (clubId sin documento Club todavía) devuelve
+// undefined a propósito: varios flujos (incluida buena parte de la suite de
+// integración) crean Socio sin sembrar un Club primero, y eso es válido —
+// el fix real de appcarc-backend#141 es el índice de Socio.js, que ahora
+// excluye socioNumber ausente de la restricción de unicidad en vez de
+// depender de que este valor nunca falte.
 export const asignarSocioNumber = async (clubId) => {
   const club = await Club.findOneAndUpdate(
     { slug: clubId },
     { $inc: { ultimoSocioNumber: 1 } },
     { new: true }
   );
-  if (!club) throw new Error(`No se encontró el club '${clubId}' para asignar el número de socio`);
-  return String(club.ultimoSocioNumber);
+  return club ? String(club.ultimoSocioNumber) : undefined;
 };
 
 export const buildDomicilioCompleto = ({ domicilioCompleto, calle, altura, direccionActual } = {}) => {
