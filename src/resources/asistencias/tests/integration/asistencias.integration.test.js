@@ -4,10 +4,10 @@ import app from '../../../../index.js';
 import Escuelita from '../../../escuelita/models/Escuelita.js';
 import { createAdminUser, createSocio } from '../../../../testUtils/integrationHelpers.js';
 
-const inscribir = async (socio, estado = 'activo') => Escuelita.create({
+const inscribir = async (socio, active = true) => Escuelita.create({
   clubId: 'CARC',
   socioId: socio._id,
-  estado,
+  active,
   createdBy: 'test',
   updatedBy: 'test',
 });
@@ -31,7 +31,7 @@ describe('POST /api/asistencias/escuelita (integración)', () => {
   it('rechaza si el socio no está inscripto activamente en la escuelita (400)', async () => {
     const { token } = await createAdminUser();
     const socio = await createSocio();
-    await inscribir(socio, 'baja');
+    await inscribir(socio, false);
 
     const res = await request(app)
       .post('/api/asistencias/escuelita')
