@@ -100,6 +100,27 @@ describe('getDeudaStaffHandler', () => {
     expect(resultado.totalDeuda).toBe(0);
   });
 
+  it('agrupa en una sola fila los horarios sin socioId', async () => {
+    Horarios.find.mockReturnValue({
+      populate: vi.fn().mockReturnThis(),
+      lean: vi.fn().mockResolvedValue([
+        { _id: 'h1', socioId: null, etiquetaId: { _id: ETIQUETA_ID, nombre: 'Hora Palestrero', unidad: 'hora' }, totalHoras: 3 },
+        { _id: 'h2', socioId: null, etiquetaId: { _id: ETIQUETA_ID, nombre: 'Hora Palestrero', unidad: 'hora' }, totalHoras: 4 },
+      ]),
+    });
+
+    const req = { user: mockUser, query: { periodo: '2026-06' } };
+    const res = mockRes();
+
+    await getDeudaStaffHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const resultado = res.json.mock.calls[0][0];
+    expect(resultado).toHaveLength(1);
+    expect(resultado[0].nombre).toBe('(sin socio)');
+    expect(resultado[0].detalles[0].totalHoras).toBe(7); // 3h + 4h agrupadas, no dos filas
+  });
+
   it('retorna 500 si hay error', async () => {
     Horarios.find.mockReturnValue({
       populate: vi.fn().mockReturnThis(),

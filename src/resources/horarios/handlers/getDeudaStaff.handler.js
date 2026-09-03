@@ -52,7 +52,10 @@ export const getDeudaStaffHandler = async (req, res) => {
     // Agrupar por socio
     const porSocio = {};
     for (const h of horarios) {
-      const key = String(h.socioId?._id ?? h._id);
+      // Clave fija (no h._id) para el caso sin socio — si no, cada horario
+      // sin socioId termina en su propia fila "(sin socio)" en vez de
+      // agruparse en una sola (appcarc-backend#133).
+      const key = h.socioId?._id ? String(h.socioId._id) : 'sin-socio';
       if (!porSocio[key]) {
         porSocio[key] = {
           socioId: h.socioId?._id ?? null,
