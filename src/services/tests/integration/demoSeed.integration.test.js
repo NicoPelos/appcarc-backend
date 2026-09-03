@@ -36,16 +36,16 @@ describe('resetDemoClub (integración)', () => {
 
     const alDia = socios.find((s) => s.apellido === 'Al Día');
     const deudaAlDia = await calcularDeuda({ socioId: alDia._id, clubId: DEMO_CLUB_ID });
-    expect(deudaAlDia.reduce((acc, d) => acc + d.mesesDeuda, 0)).toBe(0);
+    expect(deudaAlDia.suscripciones.reduce((acc, d) => acc + d.mesesDeuda, 0)).toBe(0);
 
     const deudaLarga = socios.find((s) => s.apellido === 'Con Deuda Larga');
     const deudaDeudaLarga = await calcularDeuda({ socioId: deudaLarga._id, clubId: DEMO_CLUB_ID });
-    expect(deudaDeudaLarga.reduce((acc, d) => acc + d.mesesDeuda, 0)).toBe(4);
+    expect(deudaDeudaLarga.suscripciones.reduce((acc, d) => acc + d.mesesDeuda, 0)).toBe(4);
 
     const baja = socios.find((s) => s.apellido === 'De Baja');
     expect(baja.estado).toBe('Baja');
     const deudaBaja = await calcularDeuda({ socioId: baja._id, clubId: DEMO_CLUB_ID });
-    expect(deudaBaja).toEqual([]);
+    expect(deudaBaja).toEqual({ suscripciones: [], otrosCargos: [] });
   });
 
   it('arma alumnos de escuelita con clases asistidas, un alumno con la inscripción borrada y horas de staff', async () => {

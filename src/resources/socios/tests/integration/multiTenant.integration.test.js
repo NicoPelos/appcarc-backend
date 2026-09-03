@@ -40,7 +40,7 @@ describe('Aislamiento multi-tenant por clubId (integración)', () => {
 
     // calcularDeuda filtra por clubId: no debe encontrar la suscripción del club B
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([]);
+    expect(res.body).toEqual({ suscripciones: [], otrosCargos: [] });
   });
 
   it('un admin del club A no puede cobrar una cuota de un socio del club B (404)', async () => {
