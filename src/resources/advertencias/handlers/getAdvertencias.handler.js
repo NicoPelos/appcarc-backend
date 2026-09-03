@@ -1,9 +1,36 @@
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import Advertencia from '../models/Advertencia.js';
+import Cuota from '../../cuotas/models/Cuota.js';
+import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
+import { periodoDeFecha } from '../../../services/fechaArgentina.js';
 
 const CODIGOS_VALIDOS = Object.values(ADVERTENCIA);
 const TIPOS_VALIDOS = ['escuelita', 'muro_libre', 'morosidad'];
+
+// CUOTA_SOCIAL_IMPAGA/CUOTA_IMPAGA/PASE_MENSUAL_IMPAGO quedan congeladas en
+// el check-in que las generó — sin re-chequeo, secretaría las vería "sin
+// pagar" para siempre aunque el socio ya haya pagado. Se re-evalúan acá
+// contra el estado actual de la Cuota para que la lista funcione como
+// worklist (desaparece sola a medida que se van pagando). LIMITE_SEMANAL
+// queda afuera a propósito: es un hecho puntual de comportamiento, no algo
+// que se "pague y resuelva".
+const USO_SISTEMA_POR_CODIGO = {
+  [ADVERTENCIA.CUOTA_SOCIAL_IMPAGA]: 'cuota_social',
+  [ADVERTENCIA.CUOTA_IMPAGA]: 'cuota_escuelita',
+  [ADVERTENCIA.PASE_MENSUAL_IMPAGO]: 'muro_libre_mensual_socio',
+};
+
+// Mismo período que calculó cada flujo de check-in al generar la advertencia
+// — escuelita usa periodoDeFecha (ajusta a hora argentina), muro libre usa
+// el mes UTC crudo de la fecha (inconsistencia preexistente entre ambos
+// servicios, no se toca acá; solo hace falta replicarla para reconsultar el
+// mismo período que se guardó en su momento).
+const periodoDeAdvertencia = (asistencia) => (
+  asistencia.tipo === 'escuelita'
+    ? periodoDeFecha(new Date(asistencia.fecha))
+    : `${new Date(asistencia.fecha).getUTCFullYear()}-${String(new Date(asistencia.fecha).getUTCMonth() + 1).padStart(2, '0')}`
+);
 
 const formatWaPhone = (telefono) => {
   if (!telefono) return null;
@@ -90,15 +117,50 @@ export const getAdvertenciasHandler = async (req, res) => {
       if (codigo) filter['advertencias.codigo'] = codigo;
 
       const docs = await Asistencia.find(filter).populate('socioId', 'telefono').sort({ fecha: -1 }).lean();
-      asistenciaItems = docs.map((doc) => {
-        const telefono = doc.socioId?.telefono ?? null;
-        return {
-          ...doc,
-          telefono,
-          waLink: buildWaLink(telefono, doc.nombre, doc.advertencias),
-          socioId: doc.socioId?._id ?? doc.socioId,
-        };
-      });
+
+      const codigosResolubles = Object.keys(USO_SISTEMA_POR_CODIGO);
+      const necesitaChequeo = docs.some((d) => d.advertencias.some((a) => codigosResolubles.includes(a.codigo)));
+
+      let etiquetaIdPorUso = new Map();
+      let pagadasSet = new Set();
+      if (necesitaChequeo) {
+        const usosSistema = [...new Set(Object.values(USO_SISTEMA_POR_CODIGO))];
+        const etiquetas = await Etiqueta.find({ clubId, uso_sistema: { $in: usosSistema }, active: true }).lean();
+        etiquetaIdPorUso = new Map(etiquetas.map((e) => [e.uso_sistema, String(e._id)]));
+
+        const socioIds = [...new Set(docs.filter((d) => d.socioId).map((d) => String(d.socioId._id ?? d.socioId)))];
+        const etiquetaIds = [...etiquetaIdPorUso.values()];
+        if (socioIds.length && etiquetaIds.length) {
+          const cuotasPagadas = await Cuota.find({
+            clubId, estado: 'pagada', socioId: { $in: socioIds }, etiquetaId: { $in: etiquetaIds },
+          }).select('socioId etiquetaId periodo').lean();
+          pagadasSet = new Set(cuotasPagadas.map((c) => `${c.socioId}:${c.etiquetaId}:${c.periodo}`));
+        }
+      }
+
+      asistenciaItems = docs
+        .map((doc) => {
+          const socioIdStr = doc.socioId ? String(doc.socioId._id ?? doc.socioId) : null;
+          const periodo = periodoDeAdvertencia(doc);
+          const advertenciasVigentes = doc.advertencias.filter((a) => {
+            const usoSistema = USO_SISTEMA_POR_CODIGO[a.codigo];
+            if (!usoSistema) return true; // no resoluble (ej. LIMITE_SEMANAL): se mantiene siempre
+            const etiquetaId = etiquetaIdPorUso.get(usoSistema);
+            if (!socioIdStr || !etiquetaId) return true; // sin datos para chequear, no se oculta por las dudas
+            return !pagadasSet.has(`${socioIdStr}:${etiquetaId}:${periodo}`);
+          });
+          if (advertenciasVigentes.length === 0) return null; // ya se resolvieron todas — sale de la worklist
+
+          const telefono = doc.socioId?.telefono ?? null;
+          return {
+            ...doc,
+            advertencias: advertenciasVigentes,
+            telefono,
+            waLink: buildWaLink(telefono, doc.nombre, advertenciasVigentes),
+            socioId: doc.socioId?._id ?? doc.socioId,
+          };
+        })
+        .filter((item) => item !== null);
     }
 
     // Advertencias de estado (morosidad), independientes de check-ins: se muestran
