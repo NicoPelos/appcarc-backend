@@ -1,8 +1,9 @@
+import mongoose from 'mongoose';
 import Movimiento from '../models/Movimiento.js';
 import Socio from '../../socios/models/Socio.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 
-const buildDetalle = async (movimientos) => {
+const buildDetalle = async (movimientos, clubId) => {
   const socioIds = new Set();
   const etiquetaIds = new Set();
 
@@ -15,12 +16,18 @@ const buildDetalle = async (movimientos) => {
     }
   }
 
+  // clubId explícito en ambas queries: hoy el invariante "todo sourceId de un
+  // Movimiento referencia datos del mismo club" ya lo garantiza
+  // registrarCobro.service.js del lado de la escritura, pero cada query acá
+  // tiene que defenderse sola igual que el resto del módulo — si ese
+  // invariante se relaja en el futuro, esto deja de ser una fuga de datos de
+  // otro club (appcarc-backend#138).
   const [socios, etiquetas] = await Promise.all([
     socioIds.size
-      ? Socio.find({ _id: { $in: [...socioIds] } }, 'socioNumber nombre apellido dni').lean()
+      ? Socio.find({ _id: { $in: [...socioIds] }, clubId }, 'socioNumber nombre apellido dni').lean()
       : [],
     etiquetaIds.size
-      ? Etiqueta.find({ _id: { $in: [...etiquetaIds] } }, 'nombre').lean()
+      ? Etiqueta.find({ _id: { $in: [...etiquetaIds] }, clubId }, 'nombre').lean()
       : [],
   ]);
 
@@ -131,7 +138,7 @@ export const getMovimientosHandler = async (req, res) => {
     const filter = { clubId: req.user?.clubId, active: !showTrash };
     if (type && ['Ingreso', 'Egreso'].includes(type)) filter.type = type;
     if (paymentMethod && ['Efectivo', 'Transferencia', 'MercadoPago'].includes(paymentMethod)) filter.paymentMethod = paymentMethod;
-    if (socioId) filter.socioId = socioId;
+    if (socioId && typeof socioId === 'string' && mongoose.Types.ObjectId.isValid(socioId)) filter.socioId = socioId;
 
     if (search) {
       const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
@@ -161,7 +168,7 @@ export const getMovimientosHandler = async (req, res) => {
       ]),
     ]);
 
-    const movimientos = await buildDetalle(movimientosRaw);
+    const movimientos = await buildDetalle(movimientosRaw, req.user?.clubId);
 
     const subtotalesPorMedioPago = {};
     for (const { _id, total: montoTotal } of subtotalesAgg) {

@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getMovimientosHandler } from '../../handlers/getMovimientos.handler.js';
 import Movimiento from '../../models/Movimiento.js';
+import Socio from '../../../socios/models/Socio.js';
+import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 
 const mockRes = () => {
   const res = {};
@@ -149,6 +151,47 @@ describe('getMovimientosHandler', () => {
     const callArg = Movimiento.find.mock.calls[0][0];
     expect(callArg.date.$gte).toEqual(new Date('2026-01-01T00:00:00.000Z'));
     expect(callArg.date.$lte).toEqual(new Date('2026-01-31T23:59:59.999Z'));
+  });
+
+  it('should ignore a non-ObjectId socioId (mongo operator injection)', async () => {
+    vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(0);
+    vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([]));
+
+    const res = mockRes();
+    // qs interpreta ?socioId[$ne]=null como un objeto, no un string
+    await getMovimientosHandler({ query: { socioId: { $ne: 'null' } }, user: USER }, res);
+
+    const callArg = Movimiento.find.mock.calls[0][0];
+    expect(callArg).not.toHaveProperty('socioId');
+  });
+
+  it('should apply a valid ObjectId socioId', async () => {
+    vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(0);
+    vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([]));
+    const validId = '507f1f77bcf86cd799439011';
+
+    const res = mockRes();
+    await getMovimientosHandler({ query: { socioId: validId }, user: USER }, res);
+
+    expect(Movimiento.find).toHaveBeenCalledWith(expect.objectContaining({ socioId: validId }));
+  });
+
+  it('buildDetalle scopes Socio/Etiqueta lookups by clubId', async () => {
+    const mov = {
+      _id: 'mov1',
+      sourceModel: 'Cobro',
+      sourceId: { items: [{ socioId: 'socio1', etiquetaId: 'etq1', periodo: '2026-01', amount: 5000 }] },
+    };
+    vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(1);
+    vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([mov]));
+    vi.spyOn(Socio, 'find').mockReturnValue({ lean: vi.fn().mockResolvedValue([]) });
+    vi.spyOn(Etiqueta, 'find').mockReturnValue({ lean: vi.fn().mockResolvedValue([]) });
+
+    const res = mockRes();
+    await getMovimientosHandler({ query: {}, user: USER }, res);
+
+    expect(Socio.find).toHaveBeenCalledWith(expect.objectContaining({ clubId: USER.clubId }), expect.anything());
+    expect(Etiqueta.find).toHaveBeenCalledWith(expect.objectContaining({ clubId: USER.clubId }), expect.anything());
   });
 
   it('should return 500 on unexpected error', async () => {
