@@ -6,7 +6,7 @@ import VinculoFamiliar from '../../vinculos/models/VinculoFamiliar.js';
 import { resolveSocioFromQrTokenOrDni, findActiveSocioById, BusinessError } from '../../socios/services/socioQr.service.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 import { notifyRolesByPermiso, notifySocio } from '../../../services/pushNotification.service.js';
-import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC } from '../../../services/fechaArgentina.js';
+import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC, dentroDeVentanaDeGracia } from '../../../services/fechaArgentina.js';
 import { tienePermiso } from '../../../services/permisosCache.js';
 import { PERMISOS } from '../../../constants/permisos.js';
 
@@ -124,6 +124,14 @@ export const checkinEscuelitaHandler = async (req, res) => {
     const advertencias = [];
     const periodo = periodoDeFecha(fecha);
 
+    // Ventana de gracia: la cuota del mes en curso no se "reclama" (no genera
+    // advertencia) hasta pasado el día 10 — recién el 11 se la considera
+    // atrasada. Solo aplica al mes REAL en curso, no a un check-in cargado
+    // con fecha pasada (ahí el período ya está vencido hace tiempo, se
+    // avisa igual sin importar el día de hoy).
+    const hoy = new Date();
+    const enVentanaDeGracia = periodo === periodoDeFecha(hoy) && dentroDeVentanaDeGracia(hoy);
+
     // 3a. Verificar cuota social del mes (advertencia, no bloquea)
     const etiquetaSocial = await Etiqueta.findOne({ clubId, uso_sistema: 'cuota_social', active: true }).lean();
     const cuotaSocial = etiquetaSocial && await Cuota.findOne({
@@ -134,7 +142,7 @@ export const checkinEscuelitaHandler = async (req, res) => {
       estado: 'pagada',
     }).lean();
 
-    if (!cuotaSocial) {
+    if (!cuotaSocial && !enVentanaDeGracia) {
       advertencias.push({
         codigo: ADVERTENCIA.CUOTA_SOCIAL_IMPAGA,
         mensaje: `Sin cuota social pagada para ${periodo}`,
@@ -151,7 +159,7 @@ export const checkinEscuelitaHandler = async (req, res) => {
       estado: 'pagada',
     }).lean();
 
-    if (!cuotaPagada) {
+    if (!cuotaPagada && !enVentanaDeGracia) {
       advertencias.push({
         codigo: ADVERTENCIA.CUOTA_IMPAGA,
         mensaje: `Sin cuota de escuelita pagada para ${periodo}`,

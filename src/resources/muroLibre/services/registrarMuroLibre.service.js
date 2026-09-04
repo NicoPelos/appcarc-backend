@@ -7,6 +7,7 @@ import Movimiento from '../../movimientos/models/Movimiento.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
+import { dentroDeVentanaDeGracia } from '../../../services/fechaArgentina.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 const VALID_TIPO_PASE = ['diario', 'mensual'];
@@ -150,6 +151,11 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
       // Cuota social vigente (advertencia, no bloquea — solo para socios)
       if (socio) {
         const periodoActual = buildPeriodo(fecha);
+        // Ventana de gracia: el mes en curso no se reclama hasta pasado el
+        // día 10 — solo aplica si `fecha` es realmente el mes actual, no un
+        // check-in cargado con fecha pasada (ver mismo criterio en
+        // checkinEscuelita.handler.js).
+        const enVentanaDeGracia = periodoActual === buildPeriodo(new Date()) && dentroDeVentanaDeGracia(new Date());
         const etiquetaSocial = await Etiqueta.findOne({ clubId, uso_sistema: 'cuota_social', active: true }).lean();
         const cuotaSocial = etiquetaSocial && await Cuota.findOne({
           clubId,
@@ -160,7 +166,7 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
           active: true,
         }).session(session).lean();
 
-        if (!cuotaSocial) {
+        if (!cuotaSocial && !enVentanaDeGracia) {
           advertencias.push({
             codigo: ADVERTENCIA.CUOTA_SOCIAL_IMPAGA,
             mensaje: `Sin cuota social pagada para ${periodoActual}`,
@@ -208,9 +214,10 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
           active: true,
         }).session(session);
 
+        const enVentanaDeGraciaPaseMensual = periodoMensual === buildPeriodo(new Date()) && dentroDeVentanaDeGracia(new Date());
         if (cuotaMensualVigente) {
           estadoPagoOverride = 'exento';
-        } else if (String(body?.estadoPago || 'pendiente').trim().toLowerCase() !== 'pagado') {
+        } else if (String(body?.estadoPago || 'pendiente').trim().toLowerCase() !== 'pagado' && !enVentanaDeGraciaPaseMensual) {
           advertencias.push({
             codigo: ADVERTENCIA.PASE_MENSUAL_IMPAGO,
             mensaje: `Sin pase mensual pagado para ${periodoMensual}`,

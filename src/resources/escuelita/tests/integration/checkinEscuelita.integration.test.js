@@ -36,10 +36,14 @@ describe('POST /api/escuelita/checkin (integración)', () => {
     const socio = await createSocio();
     await inscribirEnEscuelita({ socio });
 
+    // Fecha fija de un mes ya vencido (no el mes real en curso) — evita
+    // depender de la ventana de gracia del mes actual (días 1-10, ver
+    // dentroDeVentanaDeGracia), que suprimiría esta advertencia si el test
+    // corriera esos días.
     const res = await request(app)
       .post('/api/escuelita/checkin')
       .set('Authorization', `Bearer ${token}`)
-      .send({ dni: socio.dni });
+      .send({ dni: socio.dni, fecha: '2026-02-15T15:00:00.000Z' });
 
     expect(res.status).toBe(201);
     expect(res.body.advertencias.some((a) => a.codigo === 'CUOTA_SOCIAL_IMPAGA')).toBe(true);

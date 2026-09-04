@@ -6,6 +6,7 @@ import { calcularDeuda } from '../resources/cuotas/services/calcularDeuda.servic
 import { notifyRolesByPermiso, notifyJobFailure } from '../services/pushNotification.service.js';
 import { ADVERTENCIA } from '../constants/advertenciaCodes.js';
 import { PERMISOS } from '../constants/permisos.js';
+import { dentroDeVentanaDeGracia } from '../services/fechaArgentina.js';
 
 const MESES_AVISO = 3;
 const ESTADOS_A_REVISAR = ['Activo', 'Adherente'];
@@ -23,11 +24,24 @@ const revisarClub = async (club) => {
   const abiertasPorSocio = new Map(abiertas.map((a) => [String(a.socioId), a]));
   const morosos = [];
 
+  const hoy = new Date();
+
   for (const socio of socios) {
     const deuda = await calcularDeuda({ socioId: socio._id, clubId });
     const cuotaSocial = deuda.suscripciones.find((s) => s.etiqueta?.uso_sistema === 'cuota_social');
-    if (cuotaSocial && cuotaSocial.mesesDeuda >= MESES_AVISO) {
-      morosos.push({ socio, mesesDeuda: cuotaSocial.mesesDeuda });
+    if (!cuotaSocial) continue;
+
+    // Ventana de gracia: el mes en curso no cuenta para el aviso de
+    // morosidad hasta pasado el día 10 — un socio que recién acumuló su 3er
+    // mes de deuda PORQUE arrancó el mes actual no se avisa todavía; uno que
+    // ya venía atrasado de antes (3+ meses sin contar el actual) se avisa
+    // igual, sin esperar al día 11.
+    const mesesDeuda = dentroDeVentanaDeGracia(hoy) && cuotaSocial.periodos.includes(cuotaSocial.periodoActual)
+      ? cuotaSocial.mesesDeuda - 1
+      : cuotaSocial.mesesDeuda;
+
+    if (mesesDeuda >= MESES_AVISO) {
+      morosos.push({ socio, mesesDeuda });
     }
   }
 

@@ -8,6 +8,19 @@
 
 export const ARG_OFFSET_MS = -3 * 60 * 60 * 1000;
 
+// Ventana de gracia para pagar la cuota del mes en curso antes de "reclamarla"
+// (advertencias de check-in, aviso de morosidad): la deuda del mes existe
+// desde el día 1 igual (se sigue mostrando en Cuotas/Deuda sin cambios), pero
+// no se la trata como algo a exigir hasta pasado el día 10 — recién el 11 se
+// puede considerar atrasada.
+export const DIA_LIMITE_PAGO_MENSUAL = 10;
+
+// Día del mes (1-31) de `fecha`, en huso horario argentino.
+export const diaDelMesArgentino = (fecha) => new Date(fecha.getTime() + ARG_OFFSET_MS).getUTCDate();
+
+// true si `fecha` todavía está dentro de la ventana de gracia del mes en curso.
+export const dentroDeVentanaDeGracia = (fecha) => diaDelMesArgentino(fecha) <= DIA_LIMITE_PAGO_MENSUAL;
+
 // 'YYYY-MM' de la fecha, en huso horario argentino.
 export const periodoDeFecha = (fecha) => {
   const local = new Date(fecha.getTime() + ARG_OFFSET_MS);

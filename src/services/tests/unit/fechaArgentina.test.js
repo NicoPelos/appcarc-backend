@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC } from '../../fechaArgentina.js';
+import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC, diaDelMesArgentino, dentroDeVentanaDeGracia } from '../../fechaArgentina.js';
 
 describe('periodoDeFecha', () => {
   it('devuelve el período del mes en horario argentino', () => {
@@ -29,6 +29,31 @@ describe('diaBoundsUTC', () => {
     const { start, end } = diaBoundsUTC(new Date('2026-02-10T02:59:00.000Z'));
     expect(start.toISOString()).toBe('2026-02-09T03:00:00.000Z');
     expect(end.toISOString()).toBe('2026-02-10T02:59:59.999Z');
+  });
+});
+
+describe('diaDelMesArgentino', () => {
+  it('devuelve el día del mes en horario argentino', () => {
+    expect(diaDelMesArgentino(new Date('2026-02-10T15:00:00.000Z'))).toBe(10);
+  });
+
+  it('un horario que en UTC ya es el día siguiente, en Argentina sigue siendo el día anterior', () => {
+    // 2026-02-11T02:00:00Z = 2026-02-10T23:00:00 en Argentina (UTC-3)
+    expect(diaDelMesArgentino(new Date('2026-02-11T02:00:00.000Z'))).toBe(10);
+  });
+});
+
+describe('dentroDeVentanaDeGracia', () => {
+  it('el día 10 todavía está dentro de la ventana', () => {
+    expect(dentroDeVentanaDeGracia(new Date('2026-02-10T15:00:00.000Z'))).toBe(true);
+  });
+
+  it('el día 11 ya está fuera de la ventana', () => {
+    expect(dentroDeVentanaDeGracia(new Date('2026-02-11T15:00:00.000Z'))).toBe(false);
+  });
+
+  it('el día 1 está dentro de la ventana', () => {
+    expect(dentroDeVentanaDeGracia(new Date('2026-02-01T15:00:00.000Z'))).toBe(true);
   });
 });
 

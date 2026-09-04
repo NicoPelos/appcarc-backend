@@ -192,7 +192,9 @@ describe('registrarMuroLibre service (unit)', () => {
     expect(result.movimiento).toBeNull();
   });
 
-  it('registra con advertencia PASE_MENSUAL_IMPAGO cuando no tiene pase mensual pagado', async () => {
+  it('registra con advertencia PASE_MENSUAL_IMPAGO cuando no tiene pase mensual pagado (fuera de la ventana de gracia)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-02-15T15:00:00.000Z')); // día 15 (ART) — fuera de la ventana
     mockSocioQuery({ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' });
     mockPrecioVigenteQuery({ monto: 8000 });
     // Primera llamada: cuota social — segunda: cuota mensual (sin pase)
@@ -201,6 +203,7 @@ describe('registrarMuroLibre service (unit)', () => {
       .mockReturnValueOnce({ session: vi.fn().mockResolvedValue(null) });
 
     const result = await registrarMuroLibre({ clubId: CLUB_ID, user: USER, body: { socioId: SOCIO_ID, tipoPase: 'mensual' } });
+    vi.useRealTimers();
 
     expect(result.advertencias).toEqual(expect.arrayContaining([
       expect.objectContaining({ codigo: 'PASE_MENSUAL_IMPAGO' }),
@@ -209,6 +212,21 @@ describe('registrarMuroLibre service (unit)', () => {
     // Al no estar suscripto todavía, el check-in lo suscribe igual (aunque quede pendiente)
     expect(suscripcionSaveSpy).toHaveBeenCalledTimes(1);
     expect(cuotaSaveSpy).not.toHaveBeenCalled();
+  });
+
+  it('NO genera PASE_MENSUAL_IMPAGO dentro de la ventana de gracia del mes en curso', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-02-05T15:00:00.000Z')); // día 5 (ART) — dentro de la ventana
+    mockSocioQuery({ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' });
+    mockPrecioVigenteQuery({ monto: 8000 });
+    Cuota.findOne = vi.fn()
+      .mockReturnValueOnce({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ estado: 'pagada' }) }) })
+      .mockReturnValueOnce({ session: vi.fn().mockResolvedValue(null) });
+
+    const result = await registrarMuroLibre({ clubId: CLUB_ID, user: USER, body: { socioId: SOCIO_ID, tipoPase: 'mensual' } });
+    vi.useRealTimers();
+
+    expect(result.advertencias).toEqual([]);
   });
 
   it('suscribe automáticamente y crea la Cuota pagada cuando el socio paga el pase mensual sin estar suscripto', async () => {

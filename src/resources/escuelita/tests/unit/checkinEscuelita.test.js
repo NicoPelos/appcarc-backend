@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { checkinEscuelitaHandler } from '../../handlers/checkinEscuelita.handler.js';
 
 vi.mock('../../../socios/services/socioQr.service.js', () => ({
@@ -80,12 +80,15 @@ describe('checkinEscuelitaHandler', () => {
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
-  it('registra con advertencias si no tiene cuota pagada', async () => {
+  it('registra con advertencias si no tiene cuota pagada (fuera de la ventana de gracia del mes en curso)', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-02-15T15:00:00.000Z')); // día 15 (ART) — fuera de la ventana
     Cuota.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
     const req = { user: mockUser, body: { token: 'tok' } };
     const res = mockRes();
 
     await checkinEscuelitaHandler(req, res);
+    vi.useRealTimers();
 
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
@@ -94,6 +97,39 @@ describe('checkinEscuelitaHandler', () => {
         expect.objectContaining({ codigo: 'CUOTA_IMPAGA' }),
       ]),
     }));
+  });
+
+  describe('ventana de gracia del mes en curso (día 10)', () => {
+    afterEach(() => vi.useRealTimers());
+
+    it('no genera CUOTA_SOCIAL_IMPAGA/CUOTA_IMPAGA del mes en curso dentro de la ventana de gracia', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-02-05T15:00:00.000Z')); // día 5 (ART) — dentro de la ventana
+      Cuota.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
+      const req = { user: mockUser, body: { token: 'tok' } };
+      const res = mockRes();
+
+      await checkinEscuelitaHandler(req, res);
+
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ advertencias: [] }));
+    });
+
+    it('sí avisa por un check-in cargado con FECHA PASADA aunque hoy esté dentro de la ventana — ese mes ya venció hace rato', async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-02-05T15:00:00.000Z')); // hoy: día 5 (ART), dentro de la ventana
+      Cuota.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
+      const req = { user: mockUser, body: { token: 'tok', fecha: '2026-01-10T15:00:00.000Z' } }; // check-in de enero
+      const res = mockRes();
+
+      await checkinEscuelitaHandler(req, res);
+
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+        advertencias: expect.arrayContaining([
+          expect.objectContaining({ codigo: 'CUOTA_SOCIAL_IMPAGA' }),
+          expect.objectContaining({ codigo: 'CUOTA_IMPAGA' }),
+        ]),
+      }));
+    });
   });
 
   it('registra con advertencia si alcanzó el límite de clases semanales', async () => {
