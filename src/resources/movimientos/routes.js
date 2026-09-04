@@ -6,6 +6,7 @@ import { updateMovimientoHandler } from './handlers/updateMovimiento.handler.js'
 import { upload, handleUploadError, uploadComprobanteHandler } from './handlers/uploadComprobante.handler.js';
 import { deleteComprobanteHandler } from './handlers/deleteComprobante.handler.js';
 import { mercadopagoCandidatosHandler } from './handlers/mercadopagoCandidatos.handler.js';
+import { conciliacionMercadopagoHandler } from './handlers/conciliacionMercadopago.handler.js';
 import { vincularMercadopagoHandler, desvincularMercadopagoHandler } from './handlers/mercadopagoVinculo.handler.js';
 import {
   mercadopagoSinVincularHandler, descartarMercadopagoHandler, descartarMercadopagoBulkHandler,
@@ -29,6 +30,7 @@ router.get('/mercadopago-sin-vincular', protect, authorize(PERMISOS.MOVIMIENTOS_
 router.post('/mercadopago-sin-vincular/descartar-bulk', protect, authorize(PERMISOS.MOVIMIENTOS_WRITE), descartarMercadopagoBulkHandler);
 router.post('/mercadopago-sin-vincular/:paymentId/descartar', protect, authorize(PERMISOS.MOVIMIENTOS_WRITE), descartarMercadopagoHandler);
 router.post('/mercadopago-sin-vincular/:paymentId/crear-egreso', protect, authorize(PERMISOS.MOVIMIENTOS_WRITE), crearEgresoDesdeMercadopagoHandler);
+router.get('/conciliacion-mercadopago', protect, authorize(PERMISOS.MOVIMIENTOS_READ), conciliacionMercadopagoHandler);
 router.get('/mercadopago-descartados', protect, authorize(PERMISOS.MOVIMIENTOS_READ), getMercadopagoDescartadosHandler);
 router.delete('/mercadopago-descartados/:paymentId', protect, authorize(PERMISOS.MOVIMIENTOS_WRITE), restaurarMercadopagoDescartadoHandler);
 
