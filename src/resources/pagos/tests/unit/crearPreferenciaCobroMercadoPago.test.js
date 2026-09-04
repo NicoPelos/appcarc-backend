@@ -22,6 +22,10 @@ const CLUB_ID = 'CARC';
 const SOCIO_ID = 'socio-1';
 const SUSCRIPCION_ID = 'sus-1';
 
+// "amount" en un item de suscripción ya es el TOTAL de ese item (mismo
+// contrato que registrarCobro.service.js, que comparte estos mismos items
+// armados en RegistrarCobroScreen) — acá 2 períodos por $3750 c/u = $7500
+// en total, NO $7500 por período.
 const baseArgs = () => ({
   clubId: CLUB_ID,
   requestedByUserId: 'user-1',
@@ -60,10 +64,41 @@ describe('crearPreferenciaCobroMercadoPago', () => {
     expect(PagoOnlineIntent).toHaveBeenCalledWith(expect.objectContaining({
       clubId: CLUB_ID,
       socioId: SOCIO_ID,
-      totalAmount: 15000,
+      totalAmount: 7500,
       preferenceId: 'pref-1',
     }));
     expect(mockIntentSave).toHaveBeenCalled();
+  });
+
+  it('BUG appcarc-backend#152: NO multiplica el amount de una suscripción por la cantidad de períodos — ya es el total', async () => {
+    const args = baseArgs();
+    // Caso real reportado: 8 cuotas de $6000 = $48.000 en total, mandado
+    // como amount=48000 (mismo formato que RegistrarCobroScreen). Antes del
+    // fix esto generaba una preferencia de $384.000 (48000 × 8).
+    args.items = [{
+      socioId: SOCIO_ID,
+      suscripcionId: SUSCRIPCION_ID,
+      periodos: ['2026-01', '2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07', '2026-08'],
+      amount: 48000,
+    }];
+
+    await crearPreferenciaCobroMercadoPago(args);
+
+    expect(PagoOnlineIntent).toHaveBeenCalledWith(expect.objectContaining({ totalAmount: 48000 }));
+  });
+
+  it('muro libre: sí multiplica el amount (importe por visita) por la cantidad real de visitas (asistenciaIds)', async () => {
+    const args = baseArgs();
+    args.items = [{
+      socioId: SOCIO_ID,
+      muroLibrePendiente: true,
+      asistenciaIds: ['asist-1', 'asist-2', 'asist-3'],
+      amount: 4000, // por visita
+    }];
+
+    await crearPreferenciaCobroMercadoPago(args);
+
+    expect(PagoOnlineIntent).toHaveBeenCalledWith(expect.objectContaining({ totalAmount: 12000 }));
   });
 
   it('excluye tarjeta/efectivo/cajero de la preferencia — solo deja transferencia y saldo en cuenta', async () => {

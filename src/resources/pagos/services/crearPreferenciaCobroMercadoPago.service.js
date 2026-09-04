@@ -28,13 +28,22 @@ const normalizeItemParaLink = (item, index, socioId) => {
   }
 
   const periodos = Array.isArray(item?.periodos) && item.periodos.length ? item.periodos.map(String) : undefined;
+  const asistenciaIds = Array.isArray(item?.asistenciaIds) && item.asistenciaIds.length ? item.asistenciaIds.map(String) : undefined;
   const cantidad = item?.cantidad == null ? undefined : Number(item.cantidad);
 
-  // "amount" es el importe unitario (por período o por visita), igual que en
-  // /api/cobros — el total que este item aporta a la preferencia de Mercado
-  // Pago depende de cuántos períodos/visitas cubre, no es directamente "amount".
-  const unidades = periodos?.length || cantidad || 1;
-  const montoItem = amount * unidades;
+  // BUG appcarc-backend#155: acá se multiplicaba "amount" por la cantidad de
+  // períodos/visitas asumiendo que era un importe unitario — pero
+  // RegistrarCobroScreen arma "amount" con el MISMO contrato que usa
+  // registrarCobro.service.js (Confirmar cobro, comparte los mismos items):
+  // para una suscripción, "amount" YA es el total de ese item repartido
+  // entre sus períodos, no hay que volver a multiplicarlo (una cuota de
+  // $6000 × 8 meses se mandaba como amount=48000, y esto lo convertía en
+  // $384.000). Para muro libre en cambio "amount" sí es el importe POR
+  // VISITA (ver registrarCobro.service.js, visitAmount se aplica tal cual a
+  // cada asistencia) — ahí corresponde multiplicar por la cantidad real de
+  // visitas (asistenciaIds, con "cantidad" como fallback legacy). Un cargo
+  // puntual es un único ítem, "amount" ya es su total.
+  const montoItem = suscripcionId ? amount : amount * (asistenciaIds?.length || cantidad || 1);
 
   return {
     normalizado: {
