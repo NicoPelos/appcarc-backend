@@ -37,7 +37,7 @@ import { tienePermiso } from '../../../../services/permisosCache.js';
 
 const mockUser = { clubId: 'CARC', email: 'admin@carc.com', id: 'u1', roles: ['secretaria'] };
 const mockSocio = { _id: 'socio1', nombre: 'Ana', apellido: 'García', dni: '12345678' };
-const mockPlan = { _id: 'plan1', nombre: 'PrincipiantesX2', atributos: { frecuenciaSemanal: 2 } };
+const mockPlan = { _id: 'plan1', nombre: 'PrincipiantesX2', atributos: { frecuenciaSemanal: 2 }, etiquetaId: 'etiqueta-escuelita-1' };
 const mockAlumno = { socioId: 'socio1', planId: mockPlan };
 
 const mockRes = () => {
@@ -78,6 +78,26 @@ describe('checkinEscuelitaHandler', () => {
     await checkinEscuelitaHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  it('BUG appcarc-backend#156: usa la etiqueta del plan del socio para chequear la cuota de escuelita, no una única etiqueta global', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-02-15T15:00:00.000Z')); // fuera de la ventana de gracia
+    // El socio está pagado, pero contra la etiqueta de SU plan
+    // ("etiqueta-escuelita-1", ver mockPlan) — no contra alguna otra
+    // etiqueta global "cuota_escuelita" que no sea la suya.
+    Cuota.findOne.mockImplementation((query) => ({
+      lean: vi.fn().mockResolvedValue(query.etiquetaId === 'etiqueta-escuelita-1' ? { estado: 'pagada' } : null),
+    }));
+    const req = { user: mockUser, body: { token: 'tok' } };
+    const res = mockRes();
+
+    await checkinEscuelitaHandler(req, res);
+    vi.useRealTimers();
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      advertencias: expect.not.arrayContaining([expect.objectContaining({ codigo: 'CUOTA_IMPAGA' })]),
+    }));
   });
 
   it('registra con advertencias si no tiene cuota pagada (fuera de la ventana de gracia del mes en curso)', async () => {

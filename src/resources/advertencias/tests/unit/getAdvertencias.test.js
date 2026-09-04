@@ -4,6 +4,7 @@ import Asistencia from '../../../asistencias/models/Asistencia.js';
 import Advertencia from '../../models/Advertencia.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
 import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
+import Escuelita from '../../../escuelita/models/Escuelita.js';
 
 const mockRes = () => {
   const res = {};
@@ -39,9 +40,18 @@ const buildAsistencia = (overrides = {}) => ({
   ...overrides,
 });
 
+// alumno.planId.etiquetaId — misma forma que devuelve Escuelita.find(...).populate('planId', 'etiquetaId').
+const buildAlumno = (etiquetaId = ETIQUETA_ESCUELITA_ID) => ({
+  socioId: SOCIO_ID,
+  planId: { etiquetaId },
+});
+
 describe('getAdvertenciasHandler', () => {
   beforeEach(() => {
     Advertencia.find = vi.fn().mockReturnValue(chainable([]));
+    Etiqueta.find = vi.fn().mockReturnValue(chainable([]));
+    Escuelita.find = vi.fn().mockReturnValue(chainable([]));
+    Cuota.find = vi.fn().mockReturnValue(chainable([]));
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -58,9 +68,9 @@ describe('getAdvertenciasHandler', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  it('should exclude a CUOTA_IMPAGA advertencia when the Cuota was later paid (worklist se autolimpia)', async () => {
+  it('should exclude a CUOTA_IMPAGA advertencia when the Cuota was later paid (worklist se autolimpia) — etiqueta resuelta por el plan actual del socio', async () => {
     Asistencia.find = vi.fn().mockReturnValue(chainable([buildAsistencia()]));
-    Etiqueta.find = vi.fn().mockReturnValue(chainable([{ _id: ETIQUETA_ESCUELITA_ID, uso_sistema: 'cuota_escuelita' }]));
+    Escuelita.find = vi.fn().mockReturnValue(chainable([buildAlumno()]));
     Cuota.find = vi.fn().mockReturnValue(chainable([
       { socioId: SOCIO_ID, etiquetaId: ETIQUETA_ESCUELITA_ID, periodo: '2026-09' },
     ]));
@@ -75,7 +85,7 @@ describe('getAdvertenciasHandler', () => {
 
   it('should keep a CUOTA_IMPAGA advertencia when the Cuota is still unpaid', async () => {
     Asistencia.find = vi.fn().mockReturnValue(chainable([buildAsistencia()]));
-    Etiqueta.find = vi.fn().mockReturnValue(chainable([{ _id: ETIQUETA_ESCUELITA_ID, uso_sistema: 'cuota_escuelita' }]));
+    Escuelita.find = vi.fn().mockReturnValue(chainable([buildAlumno()]));
     Cuota.find = vi.fn().mockReturnValue(chainable([])); // nada pagado
 
     const res = mockRes();
@@ -88,21 +98,37 @@ describe('getAdvertenciasHandler', () => {
     ]);
   });
 
-  it('should never re-check LIMITE_SEMANAL — se mantiene siempre aunque no haya Cuota que consultar', async () => {
-    const asistencia = buildAsistencia({
-      advertencias: [{ codigo: 'LIMITE_SEMANAL', mensaje: 'Ya registró 2 clases esa semana (límite: 1)' }],
-    });
-    Asistencia.find = vi.fn().mockReturnValue(chainable([asistencia]));
-    // Etiqueta/Cuota no deberían ni consultarse porque LIMITE_SEMANAL no es resoluble.
-    Etiqueta.find = vi.fn().mockReturnValue(chainable([]));
-    Cuota.find = vi.fn().mockReturnValue(chainable([]));
+  it('BUG appcarc-backend#156: no marca falso "pagada" cuando el pago quedó contra OTRA etiqueta de escuelita (otro plan) que la del plan actual del socio', async () => {
+    const OTRA_ETIQUETA_ID = '507f1f77bcf86cd799439099';
+    Asistencia.find = vi.fn().mockReturnValue(chainable([buildAsistencia()]));
+    Escuelita.find = vi.fn().mockReturnValue(chainable([buildAlumno(ETIQUETA_ESCUELITA_ID)]));
+    // Pagó, pero contra la etiqueta de otro plan (ej. quedó mal cargado, o
+    // cambió de plan) — no debe contar como pagada la del plan actual.
+    Cuota.find = vi.fn().mockReturnValue(chainable([
+      { socioId: SOCIO_ID, etiquetaId: OTRA_ETIQUETA_ID, periodo: '2026-09' },
+    ]));
 
     const res = mockRes();
     await getAdvertenciasHandler({ user: USER, query: {} }, res);
 
     const [payload] = res.json.mock.calls[0];
     expect(payload.advertencias).toHaveLength(1);
+  });
+
+  it('should never re-check LIMITE_SEMANAL — se mantiene siempre aunque no haya Cuota que consultar', async () => {
+    const asistencia = buildAsistencia({
+      advertencias: [{ codigo: 'LIMITE_SEMANAL', mensaje: 'Ya registró 2 clases esa semana (límite: 1)' }],
+    });
+    Asistencia.find = vi.fn().mockReturnValue(chainable([asistencia]));
+
+    const res = mockRes();
+    await getAdvertenciasHandler({ user: USER, query: {} }, res);
+
+    const [payload] = res.json.mock.calls[0];
+    expect(payload.advertencias).toHaveLength(1);
+    // LIMITE_SEMANAL no es resoluble: ni Etiqueta, ni Escuelita, ni Cuota deberían consultarse.
     expect(Etiqueta.find).not.toHaveBeenCalled();
+    expect(Escuelita.find).not.toHaveBeenCalled();
     expect(Cuota.find).not.toHaveBeenCalled();
   });
 
@@ -117,8 +143,8 @@ describe('getAdvertenciasHandler', () => {
     Asistencia.find = vi.fn().mockReturnValue(chainable([asistencia]));
     Etiqueta.find = vi.fn().mockReturnValue(chainable([
       { _id: ETIQUETA_SOCIAL_ID, uso_sistema: 'cuota_social' },
-      { _id: ETIQUETA_ESCUELITA_ID, uso_sistema: 'cuota_escuelita' },
     ]));
+    Escuelita.find = vi.fn().mockReturnValue(chainable([buildAlumno()]));
     // Solo se pagó la cuota social, no la de escuelita.
     Cuota.find = vi.fn().mockReturnValue(chainable([
       { socioId: SOCIO_ID, etiquetaId: ETIQUETA_SOCIAL_ID, periodo: '2026-09' },
@@ -134,15 +160,14 @@ describe('getAdvertenciasHandler', () => {
     ]);
   });
 
-  it('should not query Cuota/Etiqueta at all when no asistencia has a resolvable codigo', async () => {
+  it('should not query Cuota/Etiqueta/Escuelita at all when no asistencia has a resolvable codigo', async () => {
     Asistencia.find = vi.fn().mockReturnValue(chainable([]));
-    Etiqueta.find = vi.fn();
-    Cuota.find = vi.fn();
 
     const res = mockRes();
     await getAdvertenciasHandler({ user: USER, query: {} }, res);
 
     expect(Etiqueta.find).not.toHaveBeenCalled();
+    expect(Escuelita.find).not.toHaveBeenCalled();
     expect(Cuota.find).not.toHaveBeenCalled();
   });
 });

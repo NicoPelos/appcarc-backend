@@ -112,7 +112,7 @@ export const checkinEscuelitaHandler = async (req, res) => {
 
     // 2. Buscar inscripción activa en escuelita
     const alumno = await Escuelita.findOne({ clubId, socioId: socio._id, active: true })
-      .populate('planId', 'nombre atributos');
+      .populate('planId', 'nombre atributos etiquetaId');
 
     if (!alumno) {
       return res.status(404).json({ message: 'El socio no está inscripto en la escuelita' });
@@ -149,12 +149,19 @@ export const checkinEscuelitaHandler = async (req, res) => {
       });
     }
 
-    // 3b. Verificar cuota de escuelita del mes (advertencia, no bloquea)
-    const etiquetaEscuelita = await Etiqueta.findOne({ clubId, uso_sistema: 'cuota_escuelita', active: true }).lean();
-    const cuotaPagada = etiquetaEscuelita && await Cuota.findOne({
+    // 3b. Verificar cuota de escuelita del mes (advertencia, no bloquea).
+    // BUG appcarc-backend#156: acá se buscaba SIEMPRE la única etiqueta con
+    // uso_sistema 'cuota_escuelita' — pero hay varias etiquetas de cuota de
+    // escuelita distintas según el plan (X1 vs X2, Adultos, etc.), solo una
+    // de ellas tiene ese uso_sistema tageado. Para cualquier plan que use
+    // otra etiqueta (ej. AvanzadosX1, AdultosX1/X2) esto SIEMPRE daba "sin
+    // pagar" así hubiera pagado, porque chequeaba una etiqueta que no era la
+    // suya. La etiqueta correcta es la del plan en el que está inscripto.
+    const etiquetaEscuelitaId = plan?.etiquetaId ?? null;
+    const cuotaPagada = etiquetaEscuelitaId && await Cuota.findOne({
       clubId,
       socioId: socio._id,
-      etiquetaId: etiquetaEscuelita._id,
+      etiquetaId: etiquetaEscuelitaId,
       periodo,
       estado: 'pagada',
     }).lean();

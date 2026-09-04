@@ -2,6 +2,7 @@ import Asistencia from '../../asistencias/models/Asistencia.js';
 import Advertencia from '../models/Advertencia.js';
 import Cuota from '../../cuotas/models/Cuota.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
+import Escuelita from '../../escuelita/models/Escuelita.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 import { periodoDeFecha } from '../../../services/fechaArgentina.js';
 
@@ -15,9 +16,13 @@ const TIPOS_VALIDOS = ['escuelita', 'muro_libre', 'morosidad'];
 // worklist (desaparece sola a medida que se van pagando). LIMITE_SEMANAL
 // queda afuera a propósito: es un hecho puntual de comportamiento, no algo
 // que se "pague y resuelva".
+//
+// CUOTA_IMPAGA (escuelita) no tiene una única etiqueta global — depende del
+// plan del socio (X1 vs X2, Adultos, etc.), solo una de esas etiquetas tiene
+// uso_sistema 'cuota_escuelita' (appcarc-backend#156). Se resuelve aparte,
+// por socio, vía su inscripción activa → plan → etiquetaId.
 const USO_SISTEMA_POR_CODIGO = {
   [ADVERTENCIA.CUOTA_SOCIAL_IMPAGA]: 'cuota_social',
-  [ADVERTENCIA.CUOTA_IMPAGA]: 'cuota_escuelita',
   [ADVERTENCIA.PASE_MENSUAL_IMPAGO]: 'muro_libre_mensual_socio',
 };
 
@@ -118,18 +123,34 @@ export const getAdvertenciasHandler = async (req, res) => {
 
       const docs = await Asistencia.find(filter).populate('socioId', 'telefono').sort({ fecha: -1 }).lean();
 
-      const codigosResolubles = Object.keys(USO_SISTEMA_POR_CODIGO);
+      const codigosResolubles = [...Object.keys(USO_SISTEMA_POR_CODIGO), ADVERTENCIA.CUOTA_IMPAGA];
       const necesitaChequeo = docs.some((d) => d.advertencias.some((a) => codigosResolubles.includes(a.codigo)));
 
       let etiquetaIdPorUso = new Map();
+      let etiquetaEscuelitaPorSocio = new Map();
       let pagadasSet = new Set();
       if (necesitaChequeo) {
+        const socioIds = [...new Set(docs.filter((d) => d.socioId).map((d) => String(d.socioId._id ?? d.socioId)))];
+
         const usosSistema = [...new Set(Object.values(USO_SISTEMA_POR_CODIGO))];
         const etiquetas = await Etiqueta.find({ clubId, uso_sistema: { $in: usosSistema }, active: true }).lean();
         etiquetaIdPorUso = new Map(etiquetas.map((e) => [e.uso_sistema, String(e._id)]));
 
-        const socioIds = [...new Set(docs.filter((d) => d.socioId).map((d) => String(d.socioId._id ?? d.socioId)))];
-        const etiquetaIds = [...etiquetaIdPorUso.values()];
+        // CUOTA_IMPAGA no tiene una única etiqueta global — depende del plan
+        // de cada socio (X1/X2, Adultos, etc.) — se resuelve por su
+        // inscripción activa en escuelita.
+        const necesitaEscuelita = docs.some((d) => d.advertencias.some((a) => a.codigo === ADVERTENCIA.CUOTA_IMPAGA));
+        if (necesitaEscuelita && socioIds.length) {
+          const alumnos = await Escuelita.find({ clubId, socioId: { $in: socioIds }, active: true })
+            .populate('planId', 'etiquetaId')
+            .select('socioId planId')
+            .lean();
+          etiquetaEscuelitaPorSocio = new Map(
+            alumnos.filter((al) => al.planId?.etiquetaId).map((al) => [String(al.socioId), String(al.planId.etiquetaId)]),
+          );
+        }
+
+        const etiquetaIds = [...new Set([...etiquetaIdPorUso.values(), ...etiquetaEscuelitaPorSocio.values()])];
         if (socioIds.length && etiquetaIds.length) {
           const cuotasPagadas = await Cuota.find({
             clubId, estado: 'pagada', socioId: { $in: socioIds }, etiquetaId: { $in: etiquetaIds },
@@ -143,9 +164,11 @@ export const getAdvertenciasHandler = async (req, res) => {
           const socioIdStr = doc.socioId ? String(doc.socioId._id ?? doc.socioId) : null;
           const periodo = periodoDeAdvertencia(doc);
           const advertenciasVigentes = doc.advertencias.filter((a) => {
-            const usoSistema = USO_SISTEMA_POR_CODIGO[a.codigo];
-            if (!usoSistema) return true; // no resoluble (ej. LIMITE_SEMANAL): se mantiene siempre
-            const etiquetaId = etiquetaIdPorUso.get(usoSistema);
+            const etiquetaId = a.codigo === ADVERTENCIA.CUOTA_IMPAGA
+              ? (socioIdStr && etiquetaEscuelitaPorSocio.get(socioIdStr))
+              : etiquetaIdPorUso.get(USO_SISTEMA_POR_CODIGO[a.codigo] ?? '');
+            const esResoluble = a.codigo === ADVERTENCIA.CUOTA_IMPAGA || Boolean(USO_SISTEMA_POR_CODIGO[a.codigo]);
+            if (!esResoluble) return true; // no resoluble (ej. LIMITE_SEMANAL): se mantiene siempre
             if (!socioIdStr || !etiquetaId) return true; // sin datos para chequear, no se oculta por las dudas
             return !pagadasSet.has(`${socioIdStr}:${etiquetaId}:${periodo}`);
           });
