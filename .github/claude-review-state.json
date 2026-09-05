@@ -110,9 +110,9 @@
     "reviewedAt": "2026-08-28T18:23:59Z"
   },
   "src/resources/pagos": {
-    "sha": "02d5b7e1d83b80e8f17914271d3eb4faadf102b0",
+    "sha": "dd062280b7e80cd07e2d2b4a665c770869c68d0a",
     "reviewVersion": "2026-08",
-    "reviewedAt": "2026-08-29T12:33:00Z"
+    "reviewedAt": "2026-09-05T10:20:43Z"
   },
   "src/resources/planes": {
     "sha": "a2f0ca5d44f6c013f1d028666c73455322591456",
