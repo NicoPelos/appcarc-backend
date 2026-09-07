@@ -11,6 +11,11 @@ const pagoOnlineItemSchema = new mongoose.Schema({
   muroLibrePendiente: { type: Boolean, default: false },
   periodos: { type: [String], default: undefined },
   cantidad: { type: Number, default: undefined },
+  // Visitas puntuales elegidas por el socio/secretaría al generar el link
+  // (appcarc-backend#155) — sin esto, registrarCobro cae al fallback de
+  // "las N pendientes más viejas" al confirmar el pago desde el webhook,
+  // que puede no ser las mismas visitas que el socio realmente eligió.
+  asistenciaIds: { type: [String], default: undefined },
   amount: { type: Number, required: true, min: 0 },
   description: { type: String, default: '' },
 }, { _id: false });

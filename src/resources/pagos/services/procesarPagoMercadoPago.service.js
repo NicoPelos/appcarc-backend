@@ -19,6 +19,7 @@ const itemsParaRegistrarCobro = (intent) => intent.items.map((item) => ({
   ...(item.cargoPuntualId ? { cargoPuntualId: String(item.cargoPuntualId) } : {}),
   ...(item.muroLibrePendiente ? { muroLibrePendiente: true } : {}),
   ...(item.periodos?.length ? { periodos: item.periodos } : {}),
+  ...(item.asistenciaIds?.length ? { asistenciaIds: item.asistenciaIds } : {}),
   ...(item.cantidad != null ? { cantidad: item.cantidad } : {}),
   amount: item.amount,
   ...(item.description ? { description: item.description } : {}),

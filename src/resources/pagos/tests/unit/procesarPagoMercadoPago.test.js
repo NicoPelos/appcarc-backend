@@ -122,6 +122,29 @@ describe('procesarPagoMercadoPago', () => {
     expect(JSON.parse(options.body)).toEqual(expect.objectContaining({ expires: true }));
   });
 
+  it('appcarc-backend#155 (parte 2): reenvía asistenciaIds a registrarCobro, para marcar exactamente las visitas que el socio eligió', async () => {
+    const intent = buildIntent({
+      items: [{ socioId: 'socio-1', muroLibrePendiente: true, asistenciaIds: ['asist-1', 'asist-2'], amount: 4000 }],
+      totalAmount: 8000,
+    });
+    const movimiento = { mercadopagoVinculos: [], save: vi.fn().mockResolvedValue(undefined) };
+    PagoOnlineIntent.findOne.mockResolvedValue(intent);
+    PagoOnlineIntent.findOneAndUpdate.mockResolvedValue({ ...intent, estado: 'aprobado' });
+    registrarCobro.mockResolvedValue({ cobro: { _id: 'cobro-1' }, movimiento });
+
+    await procesarPagoMercadoPago({
+      clubId: 'CARC',
+      accessToken: 'TEST-token',
+      payment: { id: '999', status: 'approved', transaction_amount: 8000, external_reference: 'ext-ref-1' },
+    });
+
+    expect(registrarCobro).toHaveBeenCalledWith(expect.objectContaining({
+      body: expect.objectContaining({
+        items: [expect.objectContaining({ muroLibrePendiente: true, asistenciaIds: ['asist-1', 'asist-2'] })],
+      }),
+    }));
+  });
+
   it('pago rechazado: no intenta expirar la preferencia', async () => {
     const intent = buildIntent();
     PagoOnlineIntent.findOne.mockResolvedValue(intent);

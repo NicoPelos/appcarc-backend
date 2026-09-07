@@ -52,6 +52,7 @@ const normalizeItemParaLink = (item, index, socioId) => {
       cargoPuntualId,
       muroLibrePendiente,
       periodos,
+      asistenciaIds,
       cantidad,
       amount,
       description: String(item?.description || '').trim(),

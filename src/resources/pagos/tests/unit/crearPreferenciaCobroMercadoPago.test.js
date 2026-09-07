@@ -101,6 +101,22 @@ describe('crearPreferenciaCobroMercadoPago', () => {
     expect(PagoOnlineIntent).toHaveBeenCalledWith(expect.objectContaining({ totalAmount: 12000 }));
   });
 
+  it('appcarc-backend#155 (parte 2): persiste asistenciaIds en el intent, para poder marcar las visitas exactas al confirmar el pago', async () => {
+    const args = baseArgs();
+    args.items = [{
+      socioId: SOCIO_ID,
+      muroLibrePendiente: true,
+      asistenciaIds: ['asist-1', 'asist-2', 'asist-3'],
+      amount: 4000,
+    }];
+
+    await crearPreferenciaCobroMercadoPago(args);
+
+    expect(PagoOnlineIntent).toHaveBeenCalledWith(expect.objectContaining({
+      items: [expect.objectContaining({ asistenciaIds: ['asist-1', 'asist-2', 'asist-3'] })],
+    }));
+  });
+
   it('excluye tarjeta/efectivo/cajero de la preferencia — solo deja transferencia y saldo en cuenta', async () => {
     await crearPreferenciaCobroMercadoPago(baseArgs());
 
