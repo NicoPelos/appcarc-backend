@@ -67,6 +67,19 @@ describe('prepareSocioCreateData', () => {
     const result = prepareSocioCreateData({ calle: 'San Martín', altura: '200' }, USER);
     expect(result.domicilioCompleto).toBe('San Martín 200');
   });
+
+  it('asigna fechaDeAsociado = hoy cuando no viene en el body', () => {
+    const antes = Date.now();
+    const result = prepareSocioCreateData({ nombre: 'Juan' }, USER);
+    expect(result.fechaDeAsociado).toBeInstanceOf(Date);
+    expect(result.fechaDeAsociado.getTime()).toBeGreaterThanOrEqual(antes);
+  });
+
+  it('respeta fechaDeAsociado cuando viene en el body (ej. importación con fecha real)', () => {
+    const fecha = new Date('2019-03-15');
+    const result = prepareSocioCreateData({ nombre: 'Juan', fechaDeAsociado: fecha }, USER);
+    expect(result.fechaDeAsociado).toBe(fecha);
+  });
 });
 
 describe('prepareSocioUpdateData', () => {

@@ -38,6 +38,13 @@ export const prepareSocioCreateData = (body, user) => {
     data.domicilioCompleto = domicilioCompleto;
   }
 
+  // Si no viene explícita (ej. una importación con la fecha real del Excel
+  // viejo), se asume que el alta ocurre hoy — sin esto quedaba en null y
+  // había que completarla a mano después.
+  if (!data.fechaDeAsociado) {
+    data.fechaDeAsociado = new Date();
+  }
+
   return data;
 };
 
