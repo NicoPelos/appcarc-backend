@@ -11,6 +11,7 @@ vi.mock('../../../resources/cuotas/models/Cuota.js', () => ({ default: { find: v
 vi.mock('../../../resources/suscripciones/models/Suscripcion.js', () => ({ default: { find: vi.fn() } }));
 vi.mock('../../../resources/cobros/models/Cobro.js', () => ({ default: { find: vi.fn() } }));
 vi.mock('../../../resources/escuelita/models/Escuelita.js', () => ({ default: { find: vi.fn() } }));
+vi.mock('../../../resources/planes/models/Plan.js', () => ({ default: { find: vi.fn() } }));
 vi.mock('../../../resources/movimientos/models/Movimiento.js', () => ({
   default: { find: vi.fn() },
   CATEGORIAS_MOVIMIENTO: {
@@ -24,11 +25,15 @@ vi.mock('../../../resources/asistencias/models/Asistencia.js', () => ({ default:
 vi.mock('../../../resources/advertencias/models/Advertencia.js', () => ({ default: { countDocuments: vi.fn() } }));
 vi.mock('../../../resources/cuotas/services/calcularDeuda.service.js', () => ({ calcularDeuda: vi.fn() }));
 
-import { buildCuotasSocialesRows, buildCuotasEscuelitaRows, buildMovimientosRows } from '../../sheetsExport.service.js';
+import {
+  buildCuotasSocialesRows, buildCuotasEscuelitaRows, buildMovimientosRows,
+  buildDatosLargoRows, categoriaIngresoPorEtiqueta,
+} from '../../sheetsExport.service.js';
 import Socio from '../../../resources/socios/models/Socio.js';
 import Cuota from '../../../resources/cuotas/models/Cuota.js';
 import Suscripcion from '../../../resources/suscripciones/models/Suscripcion.js';
 import Escuelita from '../../../resources/escuelita/models/Escuelita.js';
+import Plan from '../../../resources/planes/models/Plan.js';
 import Etiqueta from '../../../resources/etiquetas/models/Etiqueta.js';
 import Movimiento from '../../../resources/movimientos/models/Movimiento.js';
 import { calcularDeuda } from '../../../resources/cuotas/services/calcularDeuda.service.js';
@@ -52,8 +57,12 @@ const last24Periodos = () => {
   return periods;
 };
 
-const deudaCon = (usoSistema, mesesDeuda, periodos = []) => ({
-  suscripciones: [{ etiqueta: { uso_sistema: usoSistema }, mesesDeuda, periodos }],
+// `etiquetaId` es el id que debe matchear con el que buildDeudaMap resuelve
+// vía etiquetaIdPorSocio (appcarc-backend#156) — antes solo importaba
+// uso_sistema, pero ahora el filtro es por _id de la etiqueta puntual del
+// socio/alumno.
+const deudaCon = (etiquetaId, usoSistema, mesesDeuda, periodos = []) => ({
+  suscripciones: [{ etiqueta: { _id: etiquetaId, uso_sistema: usoSistema }, mesesDeuda, periodos }],
   otrosCargos: [],
 });
 const deudaVacia = () => ({ suscripciones: [], otrosCargos: [] });
@@ -92,7 +101,7 @@ describe('buildCuotasSocialesRows', () => {
     ]));
     Cuota.find.mockReturnValue(chain([])); // sin Cuota 'pendiente' precargada
     Suscripcion.find.mockReturnValue(chain([]));
-    calcularDeuda.mockResolvedValue(deudaCon('cuota_social', 2, [periodos.at(-1), periodos.at(-2)]));
+    calcularDeuda.mockResolvedValue(deudaCon('etqSocial', 'cuota_social', 2, [periodos.at(-1), periodos.at(-2)]));
 
     const { rows } = await buildCuotasSocialesRows('CARC');
     const INFO_COLS = 5; // N°Socio, Apellido, Nombre, DNI, Estado
@@ -131,10 +140,9 @@ describe('buildCuotasEscuelitaRows', () => {
     Escuelita.find.mockReturnValue(chain([
       {
         socioId: { _id: 'alumno1', socioNumber: '3', apellido: 'Chico', nombre: 'C', dni: '3', estado: 'Adherente' },
-        planId: { nombre: 'Plan Escuelita' },
+        planId: { nombre: 'Plan Escuelita', etiquetaId: 'etqEscX2' },
       },
     ]));
-    Etiqueta.find.mockReturnValue(chain([{ _id: 'etqEsc' }]));
     Cuota.find.mockReturnValue(chain([]));
     Suscripcion.find.mockReturnValue(chain([
       { socioId: 'alumno1', fechaDesde: periodos[0], fechaHasta: periodos.at(-1), active: true, exento: true },
@@ -152,9 +160,25 @@ describe('buildCuotasEscuelitaRows', () => {
     expect(cells.every((c) => c === '✓')).toBe(true);
   });
 
+  it('BUG appcarc-backend#156: calcula la deuda con la etiqueta del PLAN del alumno, no con una única etiqueta global', async () => {
+    const periodos = last24Periodos();
+    Escuelita.find.mockReturnValue(chain([
+      {
+        socioId: { _id: 'alumno1', socioNumber: '9', apellido: 'X1', nombre: 'Alumno', dni: '9', estado: 'Activo' },
+        planId: { nombre: 'Plan Escuelita x 1', etiquetaId: 'etqEscX1' }, // sin uso_sistema seteado
+      },
+    ]));
+    Cuota.find.mockReturnValue(chain([]));
+    Suscripcion.find.mockReturnValue(chain([]));
+    calcularDeuda.mockResolvedValue(deudaCon('etqEscX1', null, 3, [periodos.at(-1)]));
+
+    const { rows } = await buildCuotasEscuelitaRows('CARC');
+
+    expect(rows[0].at(-1)).toBe(3);
+  });
+
   it('devuelve headers sin Deuda estimada cuando no hay alumnos', async () => {
     Escuelita.find.mockReturnValue(chain([]));
-    Etiqueta.find.mockReturnValue(chain([{ _id: 'etqEsc' }]));
 
     const { headers, rows } = await buildCuotasEscuelitaRows('CARC');
 
@@ -207,5 +231,51 @@ describe('buildMovimientosRows', () => {
     expect(rows).toHaveLength(2);
     expect(cierreRowIndices).toEqual([1]);
     expect(rows[1][0]).toBe('Cierre Junio 2026');
+  });
+});
+
+describe('buildDatosLargoRows', () => {
+  const mockPopulateSortLean = (result) => ({ populate: () => ({ sort: () => ({ lean: () => Promise.resolve(result) }) }) });
+
+  it('BUG appcarc-backend#156: incluye cuotas de planes de escuelita cuya etiqueta no tiene uso_sistema cuota_escuelita (ej. AvanzadosX1)', async () => {
+    Etiqueta.findOne.mockReturnValue({ lean: () => Promise.resolve({ _id: 'etqSocial' }) });
+    Plan.find.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([{ etiquetaId: 'etqEscX1' }, { etiquetaId: 'etqEscX2' }]) }) });
+    Etiqueta.find.mockReturnValue(chain([
+      { _id: 'etqSocial', nombre: 'Cuota Social' },
+      { _id: 'etqEscX1', nombre: 'Cuota Escuelita x 1' },
+    ]));
+    Cuota.find.mockReturnValue(mockPopulateSortLean([
+      {
+        socioId: { socioNumber: '9', apellido: 'X1', nombre: 'Alumno', estado: 'Activo' },
+        etiquetaId: 'etqEscX1',
+        periodo: '2026-09',
+        estado: 'pendiente',
+      },
+    ]));
+
+    const { rows } = await buildDatosLargoRows('CARC');
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toContain('Cuota Escuelita x 1');
+  });
+
+  it('devuelve filas vacías si no hay ninguna etiqueta social ni de escuelita', async () => {
+    Etiqueta.findOne.mockReturnValue({ lean: () => Promise.resolve(null) });
+    Plan.find.mockReturnValue({ select: () => ({ lean: () => Promise.resolve([]) }) });
+
+    const { rows } = await buildDatosLargoRows('CARC');
+
+    expect(rows).toEqual([]);
+  });
+});
+
+describe('categoriaIngresoPorEtiqueta', () => {
+  it('categoriza como Escuela Niños una etiqueta de escuelita sin uso_sistema seteado (ej. X1), por el nombre', () => {
+    expect(categoriaIngresoPorEtiqueta({ nombre: 'Cuota Escuelita x 1', usoSistema: null })).toBe('Escuela Niños');
+  });
+
+  it('categoriza por uso_sistema cuando está presente', () => {
+    expect(categoriaIngresoPorEtiqueta({ nombre: 'Cuota Escuelita', usoSistema: 'cuota_escuelita' })).toBe('Escuela Niños');
+    expect(categoriaIngresoPorEtiqueta({ nombre: 'Cuota Social', usoSistema: 'cuota_social' })).toBe('Cuota Social');
   });
 });

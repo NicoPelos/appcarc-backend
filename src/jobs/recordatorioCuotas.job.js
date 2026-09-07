@@ -1,5 +1,6 @@
 import cron from 'node-cron';
 import User from '../resources/usuarios/models/User.js';
+import Escuelita from '../resources/escuelita/models/Escuelita.js';
 import { calcularDeuda } from '../resources/cuotas/services/calcularDeuda.service.js';
 import { sendPushNotification, notifyJobFailure } from '../services/pushNotification.service.js';
 
@@ -35,7 +36,19 @@ export const enviarRecordatorios = async () => {
     try {
       const deuda = await calcularDeuda({ socioId: user.socioId, clubId: user.clubId });
       const social = deuda.suscripciones.find((s) => s.etiqueta?.uso_sistema === 'cuota_social') ?? null;
-      const escuelita = deuda.suscripciones.find((s) => s.etiqueta?.uso_sistema === 'cuota_escuelita') ?? null;
+
+      // BUG appcarc-backend#156 (mismo patrón que advertencias): la etiqueta
+      // de cuota de escuelita depende del plan del socio (X1/X2, Adultos,
+      // etc.) — no hay una única etiqueta global con uso_sistema
+      // 'cuota_escuelita'. Se resuelve por la inscripción activa → plan →
+      // etiquetaId, igual que en checkinEscuelita.handler.js.
+      const alumno = await Escuelita.findOne({ clubId: user.clubId, socioId: user.socioId, active: true })
+        .populate('planId', 'etiquetaId')
+        .lean();
+      const escuelitaEtiquetaId = alumno?.planId?.etiquetaId ? String(alumno.planId.etiquetaId) : null;
+      const escuelita = escuelitaEtiquetaId
+        ? deuda.suscripciones.find((s) => String(s.etiqueta?._id) === escuelitaEtiquetaId) ?? null
+        : null;
 
       if (!social?.mesesDeuda && !escuelita?.mesesDeuda) continue;
 

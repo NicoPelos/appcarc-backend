@@ -4,6 +4,7 @@ import Cuota from '../resources/cuotas/models/Cuota.js';
 import Suscripcion from '../resources/suscripciones/models/Suscripcion.js';
 import Cobro from '../resources/cobros/models/Cobro.js';
 import Escuelita from '../resources/escuelita/models/Escuelita.js';
+import Plan from '../resources/planes/models/Plan.js';
 import Movimiento, { CATEGORIAS_MOVIMIENTO } from '../resources/movimientos/models/Movimiento.js';
 import Horarios from '../resources/horarios/models/Horarios.js';
 import Etiqueta from '../resources/etiquetas/models/Etiqueta.js';
@@ -123,26 +124,35 @@ const buildExentoMap = async ({ clubId, etiquetaIds, periodos }) => {
   return map;
 };
 
-// Deuda "real" por socio para una etiqueta puntual (cuota_social o
-// cuota_escuelita), usando el mismo calcularDeuda que ya confía el resto del
-// sistema (job de morosidad, pantalla de deuda del socio) — en vez de contar
-// a mano cuántas Cuota quedaron con estado:'pendiente'. Esto importa porque
-// una Cuota 'pendiente' hoy solo existe si vino de la migración histórica del
-// Excel viejo: la deuda que se genera de acá en adelante nunca crea ese
-// registro, así que contar 'pendiente' subestima (o directamente no detecta)
-// deuda nueva. Un socio puede tener más de un tramo de suscripción a la misma
-// etiqueta (ver caso Zurita #191) — se suman los mesesDeuda y se unen los
-// períodos pendientes de todos los tramos que matchean.
+// Deuda "real" por socio para SU etiqueta puntual (cuota_social o la de
+// cuota_escuelita que le corresponda a su plan), usando el mismo
+// calcularDeuda que ya confía el resto del sistema (job de morosidad,
+// pantalla de deuda del socio) — en vez de contar a mano cuántas Cuota
+// quedaron con estado:'pendiente'. Esto importa porque una Cuota 'pendiente'
+// hoy solo existe si vino de la migración histórica del Excel viejo: la
+// deuda que se genera de acá en adelante nunca crea ese registro, así que
+// contar 'pendiente' subestima (o directamente no detecta) deuda nueva. Un
+// socio puede tener más de un tramo de suscripción a la misma etiqueta (ver
+// caso Zurita #191) — se suman los mesesDeuda y se unen los períodos
+// pendientes de todos los tramos que matchean.
+//
+// `etiquetaIdPorSocio` (no un único `usoSistema` global): hay VARIAS
+// etiquetas de cuota de escuelita, una por plan (X1/X2, Adultos, etc.), solo
+// una tiene uso_sistema 'cuota_escuelita' (appcarc-backend#156, mismo
+// patrón que advertencias y el recordatorio de cuotas). Para cuota social sí
+// hay una única etiqueta global — el caller le pasa el mismo id para todos.
 const CONCURRENCIA_DEUDA = 25;
-const buildDeudaMap = async ({ clubId, socios, usoSistema }) => {
+const buildDeudaMap = async ({ clubId, socios, etiquetaIdPorSocio }) => {
   const map = {};
   for (let i = 0; i < socios.length; i += CONCURRENCIA_DEUDA) {
     const chunk = socios.slice(i, i + CONCURRENCIA_DEUDA);
     await Promise.all(chunk.map(async (s) => {
       const sid = s._id.toString();
+      const etiquetaEsperada = etiquetaIdPorSocio.get(sid);
+      if (!etiquetaEsperada) { map[sid] = { pendientes: new Set(), mesesDeuda: 0 }; return; }
       try {
         const deuda = await calcularDeuda({ socioId: s._id, clubId });
-        const relevantes = deuda.suscripciones.filter((sub) => sub.etiqueta?.uso_sistema === usoSistema);
+        const relevantes = deuda.suscripciones.filter((sub) => String(sub.etiqueta?._id) === etiquetaEsperada);
         const pendientes = new Set();
         let mesesDeuda = 0;
         for (const sub of relevantes) {
@@ -162,7 +172,7 @@ const buildDeudaMap = async ({ clubId, socios, usoSistema }) => {
 // Cuotas Sociales como Cuotas Escuelita. Todos los estados van en la misma
 // pestaña, con una columna "Estado" para filtrar/pivotear desde Sheets en vez
 // de tener que abrir una pestaña distinta por cada uno.
-const buildCuotasMatrixRows = async ({ clubId, socios, etiquetaIds, usoSistema, periodos, extraHeaders = [], extraCols = () => [] }) => {
+const buildCuotasMatrixRows = async ({ clubId, socios, etiquetaIdPorSocio, periodos, extraHeaders = [], extraCols = () => [] }) => {
   const INFO_COLS = 4 + extraHeaders.length;
   const headers = ['N° Socio', 'Apellido', 'Nombre', 'DNI', ...extraHeaders, ...periodos.map(periodLabel), 'Meses adeudados'];
 
@@ -170,11 +180,17 @@ const buildCuotasMatrixRows = async ({ clubId, socios, etiquetaIds, usoSistema, 
     return { headers, rows: [], dataStartCol: INFO_COLS, dataEndCol: INFO_COLS + periodos.length, adeudadosCol: INFO_COLS + periodos.length };
   }
 
+  // Unión de todas las etiquetas relevantes entre los socios de esta matriz
+  // (para cuota social es una sola; para escuelita, una por plan) — cada
+  // Cuota/Suscripcion sigue quedando scopeada por socioId al armar el mapa,
+  // así que traer de más acá no mezcla la deuda de un socio con la de otro.
+  const etiquetaIds = [...new Set(etiquetaIdPorSocio.values())];
+
   const cuotaFilter = { clubId, periodo: { $in: periodos }, active: true, etiquetaId: { $in: etiquetaIds }, socioId: { $in: socios.map((s) => s._id) } };
   const [cuotas, exentoMap, deudaMap] = await Promise.all([
     Cuota.find(cuotaFilter).lean(),
     buildExentoMap({ clubId, etiquetaIds, periodos }),
-    buildDeudaMap({ clubId, socios, usoSistema }),
+    buildDeudaMap({ clubId, socios, etiquetaIdPorSocio }),
   ]);
 
   const map = {};
@@ -215,8 +231,11 @@ export const buildCuotasSocialesRows = async (clubId) => {
     Socio.find({ clubId, active: true }).sort({ apellido: 1, nombre: 1 }).lean(),
     Etiqueta.find({ clubId, uso_sistema: 'cuota_social', active: true }).lean(),
   ]);
+  // Una única etiqueta social para todo el club — mismo id para cada socio.
+  const etiquetaSocialId = etiquetas[0] ? String(etiquetas[0]._id) : null;
+  const etiquetaIdPorSocio = new Map(socios.map((s) => [String(s._id), etiquetaSocialId]));
   return buildCuotasMatrixRows({
-    clubId, socios, etiquetaIds: etiquetas.map((e) => e._id), usoSistema: 'cuota_social', periodos,
+    clubId, socios, etiquetaIdPorSocio, periodos,
     extraHeaders: ['Estado'], extraCols: (s) => [s.estado || ''],
   });
 };
@@ -225,14 +244,20 @@ export const buildCuotasEscuelitaRows = async (clubId) => {
   const periodos = generatePeriodos(24);
   const alumnos = await Escuelita.find({ clubId, active: true })
     .populate('socioId', 'socioNumber nombre apellido dni estado _id')
-    .populate('planId', 'nombre')
+    .populate('planId', 'nombre etiquetaId')
     .lean();
 
   const socios = alumnos.filter((a) => a.socioId).map((a) => ({ ...a.socioId, _planNombre: a.planId?.nombre || '' }));
-  const etiquetas = await Etiqueta.find({ clubId, uso_sistema: 'cuota_escuelita', active: true }).lean();
+  // Cada alumno usa la etiqueta de SU plan (X1/X2, Adultos, etc.) — no hay
+  // una única etiqueta global de cuota de escuelita (appcarc-backend#156).
+  const etiquetaIdPorSocio = new Map(
+    alumnos
+      .filter((a) => a.socioId && a.planId?.etiquetaId)
+      .map((a) => [String(a.socioId._id), String(a.planId.etiquetaId)]),
+  );
 
   return buildCuotasMatrixRows({
-    clubId, socios, etiquetaIds: etiquetas.map((e) => e._id), usoSistema: 'cuota_escuelita', periodos,
+    clubId, socios, etiquetaIdPorSocio, periodos,
     extraHeaders: ['Categoría', 'Estado'], extraCols: (s) => [s._planNombre || '', s.estado || ''],
   });
 };
@@ -413,16 +438,28 @@ const buildMuroLibreRows = async (clubId) => {
 // Pensada para que cualquiera arme sus propias tablas dinámicas o gráficos en
 // Sheets — las pestañas de matriz (una columna por mes) son perfectas para
 // leer a simple vista, pero imposibles de pivotear directamente.
-const buildDatosLargoRows = async (clubId) => {
+export const buildDatosLargoRows = async (clubId) => {
   const headers = ['N° Socio', 'Apellido', 'Nombre', 'Estado Socio', 'Etiqueta', 'Período', 'Estado Cuota', 'Monto', 'Fecha de Pago'];
   const ESTADO_LABEL = { pagada: 'Pagada', pendiente: 'Pendiente', anulada: 'Anulada' };
 
-  const etiquetas = await Etiqueta.find({ clubId, active: true, uso_sistema: { $in: ['cuota_social', 'cuota_escuelita'] } }).lean();
-  if (etiquetas.length === 0) return { headers, rows: [] };
+  // No hay una única etiqueta global de cuota de escuelita — hay una por
+  // plan (X1/X2, Adultos, etc.), appcarc-backend#156. Se junta la etiqueta
+  // social (única) con la de CADA plan de escuelita activo, en vez de
+  // buscar solo la que tiene uso_sistema 'cuota_escuelita'.
+  const [etiquetaSocial, planesEscuelita] = await Promise.all([
+    Etiqueta.findOne({ clubId, active: true, uso_sistema: 'cuota_social' }).lean(),
+    Plan.find({ clubId, active: true, tipo: 'escuelita' }).select('etiquetaId').lean(),
+  ]);
+  const etiquetaIds = [
+    ...(etiquetaSocial ? [etiquetaSocial._id] : []),
+    ...new Set(planesEscuelita.map((p) => p.etiquetaId).filter(Boolean).map(String)),
+  ];
+  if (etiquetaIds.length === 0) return { headers, rows: [] };
+  const etiquetas = await Etiqueta.find({ clubId, _id: { $in: etiquetaIds } }).lean();
   const etiquetaMap = {};
   etiquetas.forEach((e) => { etiquetaMap[e._id.toString()] = e.nombre; });
 
-  const cuotas = await Cuota.find({ clubId, active: true, etiquetaId: { $in: etiquetas.map((e) => e._id) } })
+  const cuotas = await Cuota.find({ clubId, active: true, etiquetaId: { $in: etiquetaIds } })
     .populate('socioId', 'socioNumber nombre apellido estado')
     .sort({ periodo: 1 })
     .lean();
@@ -450,10 +487,13 @@ const buildDatosLargoRows = async (clubId) => {
 // si no matchea nada específico, por si el nombre de la etiqueta menciona
 // "adultos" (las clases de adultos son Suscripcion normales, no tienen un
 // uso_sistema propio distinto de escuelita hoy).
-const categoriaIngresoPorEtiqueta = ({ nombre = '', usoSistema = '' }) => {
+export const categoriaIngresoPorEtiqueta = ({ nombre = '', usoSistema = '' }) => {
   if (usoSistema === 'cuota_social') return 'Cuota Social';
   if (/adultos/i.test(nombre)) return 'Escuela Adultos';
-  if (usoSistema === 'cuota_escuelita') return 'Escuela Niños';
+  // No solo la etiqueta con uso_sistema 'cuota_escuelita' — hay otras por
+  // plan (X1 vs X2, appcarc-backend#156) que no tienen ese uso_sistema
+  // seteado, pero sí dicen "escuelita" en el nombre.
+  if (usoSistema === 'cuota_escuelita' || /escuelita/i.test(nombre)) return 'Escuela Niños';
   if (usoSistema.startsWith('muro_libre')) return 'Muro Libre';
   return 'Otros';
 };
@@ -558,7 +598,9 @@ const buildResumenData = async (clubId) => {
   const sociosVigentes = await Socio.find({ clubId, active: true, estado: { $in: ['Activo', 'Adherente'] } }).select('_id').lean();
   const bandas = { 'Al día': 0, '3-5 meses': 0, '6-11 meses': 0, '12+ meses': 0 };
   if (etiquetaSocial) {
-    const deudaMap = await buildDeudaMap({ clubId, socios: sociosVigentes, usoSistema: 'cuota_social' });
+    const etiquetaSocialId = String(etiquetaSocial._id);
+    const etiquetaIdPorSocio = new Map(sociosVigentes.map((s) => [String(s._id), etiquetaSocialId]));
+    const deudaMap = await buildDeudaMap({ clubId, socios: sociosVigentes, etiquetaIdPorSocio });
     for (const s of sociosVigentes) {
       const meses = deudaMap[s._id.toString()]?.mesesDeuda || 0;
       if (meses >= 12) bandas['12+ meses']++;
