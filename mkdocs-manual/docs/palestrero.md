@@ -58,7 +58,7 @@ Igual que el profesor, cada hora que cargás queda asociada a tu nombre, y así 
 3. Elegí el tipo de tarea — la lista muestra todas las etiquetas de hora del club, así que elegí la que te corresponde a vos (por ejemplo, "Hora Palestrero").
 4. Confirmá — el formulario es el mismo que usa un profesor, solo cambia qué etiqueta corresponde pagarte.
 
-La pantalla también tiene una solapa `Resumen`, con el total de horas que cargaste cada mes agrupado por tipo de tarea. Y una solapa `Deuda`, que traduce esas horas a plata según el precio configurado — cuánto te corresponde cobrar.
+La pantalla también tiene una solapa `Resumen`, con el total de horas que cargaste cada mes agrupado por tipo de tarea. Hay una tercera solapa, `Deuda`, pero hoy no está habilitada para tu rol — quien te puede decir cuánto te corresponde cobrar es el admin (ver su manual, sección [Horas del staff](admin.md#9-horas-del-staff-deuda-a-pagar)).
 
 ## 3. Notificaciones
 
