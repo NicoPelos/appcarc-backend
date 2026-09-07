@@ -21,11 +21,13 @@ Cuando un socio paga (cuota social, escuelita o muro libre mensual), se registra
 1. Buscá al socio (por nombre o DNI) y entrá a su ficha.
 2. Tocá "Registrar cobro". Arriba de todo vas a ver la "Fecha del cobro" (por defecto hoy, editable si necesitás cargar un cobro retroactivo) y la forma de pago (`Efectivo` o `Transferencia`).
 3. Debajo, una sección por cada concepto pendiente del socio: una por cada cuota que tiene activa (social, escuelita, etc.), y si corresponde, una de "Muro Libre" (visitas sin pase mensual vigente) y una por cada cargo puntual atribuido (por ejemplo, una salida). Activá las que está pagando ahora con el interruptor de cada sección.
-4. Según el tipo de sección: en una cuota, tildá los períodos que corresponda entre los chips de meses adeudados — vienen todos tildados por defecto, pero podés destildar cualquiera, no hace falta que sean consecutivos; en Muro Libre, ingresá la cantidad de visitas que está pagando; en un cargo puntual, el monto se carga directo.
+4. Según el tipo de sección: en una cuota, tildá los períodos que corresponda entre los chips de meses adeudados — vienen todos tildados por defecto, pero podés destildar cualquiera, no hace falta que sean consecutivos; en Muro Libre, tildá o destildá individualmente cada visita pendiente (una chip por visita, con su fecha) — vienen todas tildadas por defecto, con un atajo para tildar "Todas" o "Ninguna" de una vez; en un cargo puntual, el monto se carga directo.
 5. Si paga un monto distinto al sugerido, podés ajustarlo a mano.
-6. Confirmá — se genera el cobro, y automáticamente el movimiento de caja correspondiente.
+6. Si una cuota está al día y no tiene tramos futuros pendientes, aparece un botón "Adelantar mes" para sumarle un mes que todavía no venció y cobrarlo por anticipado.
+7. Si el socio tiene hijos vinculados, arriba de todo vas a ver una chip "Agregar deuda de..." por cada uno — tocarla suma la deuda de ese hijo como una sección aparte, para cobrar todo junto en un solo movimiento.
+8. Confirmá — se genera el cobro, y automáticamente el movimiento de caja correspondiente. Si el socio tiene teléfono cargado, se te ofrece mandarle el detalle por WhatsApp.
 
-**Alternativa: cobrar por Mercado Pago.** En vez de confirmar el cobro manual, podés tocar "Generar link de pago" — arma un link de Mercado Pago con los mismos ítems tildados, para mandarle al socio. El cobro se registra solo, automáticamente, cuando el socio efectivamente paga.
+**Alternativa: cobrar por Mercado Pago.** En vez de confirmar el cobro manual, podés tocar "Generar link de pago" — arma un link de Mercado Pago con los mismos ítems tildados, para mandarle al socio. El cobro se registra solo, automáticamente, cuando el socio efectivamente paga. Esta opción no está disponible si sumaste la deuda de más de un socio (por ejemplo, un hijo vinculado) al mismo cobro.
 
 ## 2. Inscribir un alumno a la escuelita
 

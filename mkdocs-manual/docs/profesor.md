@@ -62,7 +62,7 @@ Cada hora que cargás queda asociada a tu nombre y a una etiqueta de pago ("Hora
 
 En la lista de tus registros, cada uno tiene un lápiz y un tacho al lado para editarlo o borrarlo si cargaste algo mal.
 
-La pantalla también tiene una solapa `Resumen`, con el total de horas que cargaste cada mes agrupado por tipo de tarea — útil para llevar la cuenta antes de que cierre el mes. Y una solapa `Deuda`, que traduce esas horas a plata según el precio configurado — cuánto te corresponde cobrar.
+La pantalla también tiene una solapa `Resumen`, con el total de horas que cargaste cada mes agrupado por tipo de tarea — útil para llevar la cuenta antes de que cierre el mes. Hay una tercera solapa, `Deuda`, pero hoy no está habilitada para tu rol — quien te puede decir cuánto te corresponde cobrar es el admin (ver su manual, sección [Horas del staff](admin.md#9-horas-del-staff-deuda-a-pagar)).
 
 ## 4. Notificaciones
 
