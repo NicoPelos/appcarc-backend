@@ -359,4 +359,25 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
   }
 };
 
+// Revierte la Cuota 'pagada' que un check-in de pase mensual generó como
+// efecto colateral (ver arriba, líneas 311-344) — sin esto, anular el
+// check-in (o el Movimiento asociado) revierte la plata pero deja al socio
+// figurando "al día" el resto del período, y puede volver a entrar gratis
+// (appcarc-backend#153). Se ubica por movimientoId (1:1 con el check-in que
+// la generó) en vez de necesitar un cuotaId nuevo en Asistencia — mismo
+// criterio que anularCobroConTrazabilidad usa con cobroId. No-op si no hay
+// ninguna Cuota con ese movimientoId (pase diario, o mensual que nunca se
+// pagó). Compartida entre deleteMuroLibre.handler.js (anular el check-in
+// directamente) y deleteMovimiento.handler.js (borrar el Movimiento
+// asociado) — mismas dos puertas que ya se desincronizaron una vez con
+// CargoPuntual/Asistencia en appcarc-backend#137.
+export const anularCuotaMuroLibreMensual = async ({ clubId, movimientoId, actor, session }) => {
+  if (!movimientoId) return;
+  await Cuota.updateMany(
+    { clubId, movimientoId },
+    { estado: 'anulada', updatedBy: actor },
+    { session },
+  );
+};
+
 export { BusinessError };

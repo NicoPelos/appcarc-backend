@@ -3,6 +3,7 @@ import Movimiento from '../models/Movimiento.js';
 import Cobro from '../../cobros/models/Cobro.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import { anularCobroConTrazabilidad } from '../../cobros/services/anularCobro.service.js';
+import { anularCuotaMuroLibreMensual } from '../../muroLibre/services/registrarMuroLibre.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
@@ -70,6 +71,14 @@ export const deleteMovimientoHandler = async (req, res) => {
           { active: false, updatedBy: actor },
           { session },
         );
+
+        // appcarc-backend#153 — mismo efecto colateral a revertir que en
+        // deleteMuroLibre.handler.js (ver el comentario en
+        // anularCuotaMuroLibreMensual), pero entrando por esta otra puerta
+        // (borrar el Movimiento en vez de anular el check-in directamente).
+        await anularCuotaMuroLibreMensual({
+          clubId: req.user?.clubId, movimientoId: movimiento._id, actor, session,
+        });
       }
     });
 

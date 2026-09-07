@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 
-import { BusinessError, registrarMuroLibre } from '../../services/registrarMuroLibre.service.js';
+import { BusinessError, registrarMuroLibre, anularCuotaMuroLibreMensual } from '../../services/registrarMuroLibre.service.js';
 import Socio from '../../../socios/models/Socio.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
 import Precios from '../../../cuotas/models/Precios.js';
@@ -372,5 +372,32 @@ describe('registrarMuroLibre service (unit)', () => {
     })).rejects.toMatchObject({ message: 'El pase mensual solo está disponible para socios' });
 
     expect(registroSaveSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('anularCuotaMuroLibreMensual', () => {
+  const SESSION = { fake: 'session' };
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('appcarc-backend#153: anula la Cuota que un check-in de pase mensual pagado generó, ubicándola por movimientoId', async () => {
+    Cuota.updateMany = vi.fn().mockResolvedValue({ modifiedCount: 1 });
+    const movimientoId = new mongoose.Types.ObjectId();
+
+    await anularCuotaMuroLibreMensual({ clubId: CLUB_ID, movimientoId, actor: 'secretaria@carc.test', session: SESSION });
+
+    expect(Cuota.updateMany).toHaveBeenCalledWith(
+      { clubId: CLUB_ID, movimientoId },
+      { estado: 'anulada', updatedBy: 'secretaria@carc.test' },
+      { session: SESSION },
+    );
+  });
+
+  it('no hace nada si no hay movimientoId (ej. pase diario, o mensual que nunca se pagó)', async () => {
+    Cuota.updateMany = vi.fn();
+
+    await anularCuotaMuroLibreMensual({ clubId: CLUB_ID, movimientoId: null, actor: 'secretaria@carc.test', session: SESSION });
+
+    expect(Cuota.updateMany).not.toHaveBeenCalled();
   });
 });

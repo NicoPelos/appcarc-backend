@@ -2,6 +2,7 @@ import Asistencia from '../../asistencias/models/Asistencia.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 import mongoose from 'mongoose';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { anularCuotaMuroLibreMensual } from '../services/registrarMuroLibre.service.js';
 
 /**
  * @openapi
@@ -52,6 +53,11 @@ export const deleteMuroLibreHandler = async (req, res) => {
           { active: false, updatedBy: actor },
           { session },
         );
+
+        // appcarc-backend#153 — ver el comentario en anularCuotaMuroLibreMensual.
+        await anularCuotaMuroLibreMensual({
+          clubId: req.user.clubId, movimientoId: registro.movimientoId, actor, session,
+        });
       }
 
       resultado = registro;
