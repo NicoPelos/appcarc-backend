@@ -150,6 +150,21 @@ describe('checkinMuroLibreHandler', () => {
       }));
     });
 
+    it('appcarc-backend#154: ignora la fecha del body en autoescaneo (no deja fabricar historial con fechas arbitrarias)', async () => {
+      vi.spyOn(socioQrService, 'getPaseMuroLibreVigente').mockResolvedValue({ suscripto: false, vigente: null });
+      const req = {
+        body: { tipoPase: 'diario', estadoPago: 'pendiente', fecha: '2020-01-01T12:00:00.000Z' },
+        user: { clubId: 'club1', id: 'user1', socioId: 'socio1', roles: ['socio'] },
+      };
+      const res = mockRes();
+
+      await checkinMuroLibreHandler(req, res);
+
+      expect(muroLibreService.registrarMuroLibre).toHaveBeenCalledWith(expect.objectContaining({
+        body: expect.objectContaining({ fecha: undefined }),
+      }));
+    });
+
     it('devuelve 403 si el usuario no tiene socio asociado', async () => {
       const req = { body: {}, user: { clubId: 'club1', id: 'user1', roles: ['algunRolSinSocio'] } };
       const res = mockRes();

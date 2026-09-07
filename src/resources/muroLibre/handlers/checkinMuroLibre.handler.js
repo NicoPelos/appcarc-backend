@@ -128,7 +128,13 @@ export const checkinMuroLibreHandler = async (req, res) => {
         amount: identificacionExplicita ? amount : undefined,
         enviarComprobanteWp,
         observaciones,
-        fecha,
+        // "fecha" es para que STAFF cargue asistencia de un día anterior
+        // (identificacionExplicita) — en el autoescaneo (self) se ignora y
+        // se deja que registrarMuroLibre use "ahora" por default, si no un
+        // socio podía mandar cualquier fecha pasada/futura vía request
+        // directo a la API y fabricar historial de asistencia a su gusto,
+        // ya que el único límite es uno por día (appcarc-backend#154).
+        fecha: identificacionExplicita ? fecha : undefined,
       },
       scannedBy: req.user?.id,
       checkinMethod: method,
