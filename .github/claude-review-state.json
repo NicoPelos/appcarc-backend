@@ -123,5 +123,10 @@
     "sha": "4301e1c348fcb12d76e3ff52ddea0728ec2240cd",
     "reviewVersion": "2026-08",
     "reviewedAt": "2026-09-01T11:25:29Z"
+  },
+  "src/resources/recursos": {
+    "sha": "4fd77182f705e3e7e949321e0ecea7c4a99d32e3",
+    "reviewVersion": "2026-08",
+    "reviewedAt": "2026-09-07T12:02:17Z"
   }
 }
