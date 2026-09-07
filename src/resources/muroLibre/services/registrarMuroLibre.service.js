@@ -256,8 +256,12 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         tipo: 'muro_libre',
         socioId: socio?._id ?? null,
         diaCheckin: socio ? buildDiaCheckin(fecha) : null,
-        scannedBy: body?.scannedBy || null,
-        checkinMethod: body?.checkinMethod || 'MANUAL',
+        // scannedBy/checkinMethod son parámetros de la función (calculados
+        // por el backend en checkinMuroLibre.handler.js según cómo se
+        // identificó al socio: QR/DNI/SELF) — no vienen del body, que es
+        // input del cliente sin sanitizar (appcarc-backend#152).
+        scannedBy: scannedBy || null,
+        checkinMethod: checkinMethod || 'MANUAL',
         nombre,
         apellido,
         dni,

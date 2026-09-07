@@ -169,6 +169,38 @@ describe('registrarMuroLibre service (unit)', () => {
     expect(result).toEqual({ registro: expect.anything(), movimiento: expect.anything(), advertencias: expect.any(Array) });
   });
 
+  it.each([
+    ['QR', 'staff-user-1'],
+    ['DNI', 'staff-user-1'],
+    ['SELF', 'socio-user-1'],
+  ])('appcarc-backend#152: persiste scannedBy/checkinMethod de los parámetros de la función, no de body (método %s)', async (checkinMethod, scannedByParam) => {
+    mockPrecioVigenteQuery({ monto: 3000 });
+
+    await registrarMuroLibre({
+      clubId: CLUB_ID, user: USER,
+      body: {
+        tipoPase: 'diario', nombre: 'Juan', apellido: 'Pérez', estadoPago: 'pagado', paymentMethod: 'Efectivo',
+        // valores arbitrarios en el body — no deberían usarse para nada.
+        scannedBy: 'valor-que-mando-el-cliente', checkinMethod: 'OTRO',
+      },
+      scannedBy: scannedByParam,
+      checkinMethod,
+    });
+
+    expect(savedRegistros[0]).toMatchObject({ scannedBy: scannedByParam, checkinMethod });
+  });
+
+  it('usa los defaults (scannedBy: null, checkinMethod: MANUAL) cuando no se pasan parámetros (alta manual de staff)', async () => {
+    mockPrecioVigenteQuery({ monto: 3000 });
+
+    await registrarMuroLibre({
+      clubId: CLUB_ID, user: USER,
+      body: { tipoPase: 'diario', nombre: 'Juan', apellido: 'Pérez', estadoPago: 'pagado', paymentMethod: 'Efectivo' },
+    });
+
+    expect(savedRegistros[0]).toMatchObject({ scannedBy: null, checkinMethod: 'MANUAL' });
+  });
+
   it('should register mensual attendance as exento when socio has a valid Cuota muro_libre', async () => {
     const socio = { _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' };
     mockSocioQuery(socio);
