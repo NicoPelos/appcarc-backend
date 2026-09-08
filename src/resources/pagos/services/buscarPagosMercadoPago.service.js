@@ -18,6 +18,17 @@ const MAX_RESULTADOS = 500;
  * encontrado 2026-08-25). `direccion: 'ingreso'` (default) filtra por
  * `collector_id`; `direccion: 'egreso'` filtra por `payer_id`, para vincular
  * pagos del club a proveedores hechos por MP.
+ *
+ * LIMITACIÓN CONOCIDA (verificado 2026-09-07): algunas transferencias
+ * salientes que sí aparecen en "Actividad" del panel de MP no vienen en
+ * `/v1/payments/search`, aunque se pida el rango de fechas completo sin
+ * ningún filtro nuestro — probablemente porque salieron por la red
+ * interoperable de Transferencias 3.0 (CVU/CBU, compensada por el BCRA vía
+ * COELSA) en vez del circuito interno de "pagos" de MP. Se probó también el
+ * reporte oficial de conciliación `/v1/account/settlement_report`
+ * ("Todas las transacciones") como alternativa: tampoco las incluye. No hay
+ * ninguna API pública de MP que las exponga — para esos casos puntuales, el
+ * Egreso se carga a mano en la app sin vínculo automático al pago real.
  */
 export const buscarPagosMercadoPago = async ({ accessToken, fecha, rangoDias = 5, desde, hasta, direccion = 'ingreso' }) => {
   let desdeDate;
