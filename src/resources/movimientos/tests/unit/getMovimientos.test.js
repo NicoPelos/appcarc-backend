@@ -99,6 +99,27 @@ describe('getMovimientosHandler', () => {
     expect(callArg).not.toHaveProperty('paymentMethod');
   });
 
+  it('should filter by categoria when provided', async () => {
+    vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(1);
+    vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([]));
+
+    const res = mockRes();
+    await getMovimientosHandler({ query: { categoria: 'Costos Fijos' }, user: USER }, res);
+
+    expect(Movimiento.find).toHaveBeenCalledWith(expect.objectContaining({ categoria: 'Costos Fijos' }));
+  });
+
+  it('should ignore an invalid categoria filter', async () => {
+    vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(0);
+    vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([]));
+
+    const res = mockRes();
+    await getMovimientosHandler({ query: { categoria: 'Inventada' }, user: USER }, res);
+
+    const callArg = Movimiento.find.mock.calls[0][0];
+    expect(callArg).not.toHaveProperty('categoria');
+  });
+
   it('should return subtotalesPorMedioPago aggregated over the whole filtered set', async () => {
     vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(0);
     vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([]));

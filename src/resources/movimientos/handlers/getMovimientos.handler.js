@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import Movimiento from '../models/Movimiento.js';
+import Movimiento, { CATEGORIAS_MOVIMIENTO } from '../models/Movimiento.js';
 import Socio from '../../socios/models/Socio.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
@@ -122,6 +122,12 @@ const buildDetalle = async (movimientos, clubId) => {
  *         required: false
  *         description: Filtrar por medio de pago
  *       - in: query
+ *         name: categoria
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Filtrar por categoría (solo aplica a movimientos cargados a mano — ver CATEGORIAS_MOVIMIENTO)
+ *       - in: query
  *         name: desde
  *         schema:
  *           type: string
@@ -144,7 +150,7 @@ const buildDetalle = async (movimientos, clubId) => {
 
 export const getMovimientosHandler = async (req, res) => {
   try {
-    const { page = 1, limit = 20, trash, type, paymentMethod, socioId, search, desde, hasta } = req.query;
+    const { page = 1, limit = 20, trash, type, paymentMethod, socioId, search, categoria, desde, hasta } = req.query;
     const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
     const pageSize = Math.min(Math.max(parseInt(limit, 10) || 20, 1), 100);
 
@@ -153,6 +159,7 @@ export const getMovimientosHandler = async (req, res) => {
     if (type && ['Ingreso', 'Egreso'].includes(type)) filter.type = type;
     if (paymentMethod && ['Efectivo', 'Transferencia', 'MercadoPago'].includes(paymentMethod)) filter.paymentMethod = paymentMethod;
     if (socioId && typeof socioId === 'string' && mongoose.Types.ObjectId.isValid(socioId)) filter.socioId = socioId;
+    if (categoria && [...CATEGORIAS_MOVIMIENTO.Ingreso, ...CATEGORIAS_MOVIMIENTO.Egreso].includes(categoria)) filter.categoria = categoria;
 
     if (search) {
       const regex = new RegExp(search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
