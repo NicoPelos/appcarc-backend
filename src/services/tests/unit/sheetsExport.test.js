@@ -271,11 +271,11 @@ describe('buildDatosLargoRows', () => {
 
 describe('categoriaIngresoPorEtiqueta', () => {
   it('categoriza como Escuela Niños una etiqueta de escuelita sin uso_sistema seteado (ej. X1), por el nombre', () => {
-    expect(categoriaIngresoPorEtiqueta({ nombre: 'Cuota Escuelita x 1', usoSistema: null })).toBe('Escuela Niños');
+    expect(categoriaIngresoPorEtiqueta({ nombre: 'Cuota Escuelita x 1', uso_sistema: null })).toBe('Escuela Niños');
   });
 
   it('categoriza por uso_sistema cuando está presente', () => {
-    expect(categoriaIngresoPorEtiqueta({ nombre: 'Cuota Escuelita', usoSistema: 'cuota_escuelita' })).toBe('Escuela Niños');
-    expect(categoriaIngresoPorEtiqueta({ nombre: 'Cuota Social', usoSistema: 'cuota_social' })).toBe('Cuota Social');
+    expect(categoriaIngresoPorEtiqueta({ nombre: 'Cuota Escuelita', uso_sistema: 'cuota_escuelita' })).toBe('Escuela Niños');
+    expect(categoriaIngresoPorEtiqueta({ nombre: 'Cuota Social', uso_sistema: 'cuota_social' })).toBe('Cuota Social');
   });
 });

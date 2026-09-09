@@ -5,13 +5,19 @@ import Suscripcion from '../resources/suscripciones/models/Suscripcion.js';
 import Cobro from '../resources/cobros/models/Cobro.js';
 import Escuelita from '../resources/escuelita/models/Escuelita.js';
 import Plan from '../resources/planes/models/Plan.js';
-import Movimiento, { CATEGORIAS_MOVIMIENTO } from '../resources/movimientos/models/Movimiento.js';
+import Movimiento from '../resources/movimientos/models/Movimiento.js';
 import Horarios from '../resources/horarios/models/Horarios.js';
 import Etiqueta from '../resources/etiquetas/models/Etiqueta.js';
 import Asistencia from '../resources/asistencias/models/Asistencia.js';
 import Advertencia from '../resources/advertencias/models/Advertencia.js';
 import { calcularDeuda } from '../resources/cuotas/services/calcularDeuda.service.js';
 import { ADVERTENCIA } from '../constants/advertenciaCodes.js';
+import {
+  getEtiquetaMap, categoriaIngresoPorEtiqueta, CATEGORIAS_INGRESO, CATEGORIAS_EGRESO,
+  buildIngresosEgresosPorCategoria,
+} from '../resources/movimientos/services/categoriaMovimiento.service.js';
+
+export { categoriaIngresoPorEtiqueta };
 
 const auth = new google.auth.GoogleAuth({
   keyFile: 'google-credentials.json',
@@ -65,15 +71,6 @@ const periodLabel = (p) => {
   const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
   const [year, month] = p.split('-');
   return `${MESES[parseInt(month, 10) - 1]}-${year.slice(2)}`;
-};
-
-// Mapa {etiquetaId: {nombre, uso_sistema}} de todas las etiquetas del club —
-// lo usan Cobros (para saber qué se cobró en cada item), Datos y Resumen.
-const getEtiquetaMap = async (clubId) => {
-  const etiquetas = await Etiqueta.find({ clubId }).lean();
-  const map = {};
-  for (const e of etiquetas) map[e._id.toString()] = { nombre: e.nombre, uso_sistema: e.uso_sistema };
-  return map;
 };
 
 // ─── Constructores de datos por pestaña ──────────────────────────────────────
@@ -482,94 +479,10 @@ export const buildDatosLargoRows = async (clubId) => {
 };
 
 // ─── Resumen (portada con números clave + gráficos) ──────────────────────────
-
-// Categoriza un item de Cobro (siempre tiene etiquetaId) por su uso_sistema o,
-// si no matchea nada específico, por si el nombre de la etiqueta menciona
-// "adultos" (las clases de adultos son Suscripcion normales, no tienen un
-// uso_sistema propio distinto de escuelita hoy).
-export const categoriaIngresoPorEtiqueta = ({ nombre = '', usoSistema = '' }) => {
-  if (usoSistema === 'cuota_social') return 'Cuota Social';
-  if (/adultos/i.test(nombre)) return 'Escuela Adultos';
-  // No solo la etiqueta con uso_sistema 'cuota_escuelita' — hay otras por
-  // plan (X1 vs X2, appcarc-backend#156) que no tienen ese uso_sistema
-  // seteado, pero sí dicen "escuelita" en el nombre.
-  if (usoSistema === 'cuota_escuelita' || /escuelita/i.test(nombre)) return 'Escuela Niños';
-  if (usoSistema.startsWith('muro_libre')) return 'Muro Libre';
-  return 'Otros';
-};
-
-// Los ingresos/egresos cargados a mano (sourceType:'manual') ya tienen un
-// campo Movimiento.categoria real (issue #55) — se usa directo. Estas dos
-// funciones de palabras clave quedan solo como red de seguridad para
-// registros viejos que quedaron sin categoria por algún motivo (no debería
-// pasar después del backfill, pero mejor no perder esa plata del resumen si
-// pasa).
-const categoriaIngresoManual = (m) => {
-  if (m.categoria) return m.categoria;
-  const c = (m.concept || '').toLowerCase();
-  if (/trekking|treking|treeking|viaje/.test(c)) return 'Viajes';
-  if (/muro|boulder/.test(c)) return 'Muro Libre';
-  if (/adulto/.test(c)) return 'Escuela Adultos';
-  if (/clases?\s*ni|escuelita|juvenil/.test(c)) return 'Escuela Niños';
-  if (/cuota social/.test(c)) return 'Cuota Social';
-  return 'Otros';
-};
-
-const categoriaEgresoManual = (m) => {
-  if (m.categoria) return m.categoria;
-  const c = (m.concept || '').toLowerCase();
-  if (/honorario/.test(c)) return 'Honorarios';
-  if (/alquiler|epec|federaci[oó]n patronal|federaci[oó]n andinista|impuesto/.test(c)) return 'Costos Fijos';
-  return 'Varios';
-};
-
-const CATEGORIAS_INGRESO = [
-  'Cuota Social', 'Escuela Niños', 'Escuela Adultos', 'Muro Libre',
-  ...CATEGORIAS_MOVIMIENTO.Ingreso,
-];
-const CATEGORIAS_EGRESO = [...CATEGORIAS_MOVIMIENTO.Egreso];
-
-const sumarEn = (map, key, monto) => { map[key] = (map[key] || 0) + (monto || 0); };
-
-const buildIngresosEgresosPorCategoria = async ({ clubId, desde, etiquetaMap }) => {
-  const ingresos = Object.fromEntries(CATEGORIAS_INGRESO.map((c) => [c, 0]));
-  const egresos = Object.fromEntries(CATEGORIAS_EGRESO.map((c) => [c, 0]));
-
-  const movimientos = await Movimiento.find({ clubId, active: true, date: { $gte: desde } })
-    .select('type sourceType sourceId concept categoria amount')
-    .lean();
-
-  const cobroIds = movimientos.filter((m) => m.sourceType === 'cobro' && m.sourceId).map((m) => m.sourceId);
-  const cobros = cobroIds.length
-    ? await Cobro.find({ _id: { $in: cobroIds } }).select('items').lean()
-    : [];
-  const cobroMap = Object.fromEntries(cobros.map((c) => [c._id.toString(), c]));
-
-  for (const m of movimientos) {
-    if (m.type === 'Ingreso') {
-      if (m.sourceType === 'cobro') {
-        const cobro = cobroMap[m.sourceId?.toString()];
-        if (cobro) {
-          for (const item of cobro.items) {
-            const etiqueta = etiquetaMap[item.etiquetaId?.toString()] || {};
-            sumarEn(ingresos, categoriaIngresoPorEtiqueta(etiqueta), item.amount);
-          }
-        }
-      } else if (m.sourceType === 'muro_libre') {
-        sumarEn(ingresos, 'Muro Libre', m.amount);
-      } else {
-        sumarEn(ingresos, categoriaIngresoManual(m), m.amount);
-      }
-    } else if (m.type === 'Egreso') {
-      sumarEn(egresos, categoriaEgresoManual(m), m.amount);
-    }
-  }
-
-  return {
-    ingresos: CATEGORIAS_INGRESO.map((c) => [c, ingresos[c]]),
-    egresos: CATEGORIAS_EGRESO.map((c) => [c, egresos[c]]),
-  };
-};
+// La categorización de ingresos/egresos (categoriaIngresoPorEtiqueta,
+// buildIngresosEgresosPorCategoria, etc.) vive en
+// resources/movimientos/services/categoriaMovimiento.service.js — compartida
+// con GET /api/movimientos/resumen-por-categoria (ver import más arriba).
 
 const RESUMEN_LAYOUT = {
   estadoHeaderRow: 4,    // fila 5 — A:B
