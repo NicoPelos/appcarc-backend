@@ -4,6 +4,12 @@ import mongoose from 'mongoose';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
+// 'pagado' queda afuera a propósito: pasar a/desde pagado implica crear o
+// revertir un Movimiento (y, si era pase mensual, la Cuota asociada — ver
+// appcarc-backend#153), que este endpoint no maneja. Solo se permite
+// alternar entre pendiente y exento, que nunca tuvieron Movimiento (ver
+// registrarMuroLibre.service.js: monto se fuerza a 0 en ambos casos).
+const ESTADOS_PAGO_EDITABLES = ['pendiente', 'exento'];
 
 /**
  * @openapi
@@ -30,6 +36,10 @@ const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
  *                 type: string
  *                 enum: [Efectivo, Transferencia]
  *               observaciones: { type: string }
+ *               estadoPago:
+ *                 type: string
+ *                 enum: [pendiente, exento]
+ *                 description: Solo se puede alternar entre pendiente y exento — un check-in pagado no se puede cambiar de estado desde acá
  *     responses:
  *       200:
  *         description: Registro actualizado
@@ -47,7 +57,7 @@ export const updateMuroLibreHandler = async (req, res) => {
     let registroAntes = null;
     await session.withTransaction(async () => {
       const { id } = req.params;
-      const { fecha, monto, formaPago, observaciones } = req.body;
+      const { fecha, monto, formaPago, observaciones, estadoPago } = req.body;
       const actor = req.user.email || req.user.id;
 
       const registro = await Asistencia.findOne({
@@ -100,6 +110,16 @@ export const updateMuroLibreHandler = async (req, res) => {
 
       if (observaciones !== undefined) {
         registro.observaciones = String(observaciones).trim();
+      }
+
+      if (estadoPago !== undefined) {
+        if (!ESTADOS_PAGO_EDITABLES.includes(estadoPago)) {
+          return res.status(400).json({ message: 'estadoPago debe ser pendiente o exento' });
+        }
+        if (!ESTADOS_PAGO_EDITABLES.includes(registro.estadoPago)) {
+          return res.status(400).json({ message: 'Un check-in pagado no se puede cambiar de estado desde acá' });
+        }
+        registro.estadoPago = estadoPago;
       }
 
       registro.updatedBy = actor;
