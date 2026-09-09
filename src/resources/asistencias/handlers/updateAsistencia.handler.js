@@ -1,4 +1,5 @@
 import Asistencia from '../models/Asistencia.js';
+import { esFechaFutura } from '../../../services/fechaArgentina.js';
 
 export const updateAsistenciaHandler = async (req, res) => {
   try {
@@ -9,6 +10,7 @@ export const updateAsistenciaHandler = async (req, res) => {
     if (fecha !== undefined) {
       const d = new Date(fecha);
       if (Number.isNaN(d.getTime())) return res.status(400).json({ message: 'La fecha es inválida' });
+      if (esFechaFutura(d)) return res.status(400).json({ message: 'La fecha de la asistencia no puede ser futura' });
       updates.fecha = d;
     }
 

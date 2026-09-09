@@ -8,7 +8,24 @@ const asistenciaSchema = new mongoose.Schema({
   apellido: { type: String, default: '' },
   dni: { type: String, default: '' },
   esSocio: { type: Boolean, required: true, index: true },
-  fecha: { type: Date, required: true, default: Date.now, index: true },
+  // Backstop a nivel de modelo: ninguna asistencia puede quedar fechada a
+  // futuro — encontramos un caso real (appcarc-backend#167) donde un dato
+  // mal cargado a mano dejó una "visita" con fecha varios días adelante,
+  // sin que ningún handler lo rechazara. Los handlers que reciben `fecha`
+  // del cliente además validan explícito antes de llegar acá (para dar un
+  // mensaje de error claro) — esto es la red de seguridad si alguno se
+  // olvida. Solo corre en save() de un documento; los `findOneAndUpdate`
+  // que toquen fecha necesitan `runValidators: true` para que aplique.
+  fecha: {
+    type: Date,
+    required: true,
+    default: Date.now,
+    index: true,
+    validate: {
+      validator: (v) => v.getTime() <= Date.now(),
+      message: 'La fecha de la asistencia no puede ser futura',
+    },
+  },
   // Día calendario (America/Argentina, YYYY-MM-DD) del check-in — solo se
   // completa para muro_libre con socio. Respalda el índice único de abajo
   // (appcarc-backend#121): el chequeo de duplicado en memoria de

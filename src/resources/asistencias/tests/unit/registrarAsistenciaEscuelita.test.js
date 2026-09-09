@@ -82,6 +82,16 @@ describe('registrarAsistenciaEscuelita service (unit)', () => {
     })).rejects.toMatchObject({ message: 'La fecha no es válida' });
   });
 
+  it('appcarc-backend#167: should fail with 400 when fecha is in the future', async () => {
+    await expect(registrarAsistenciaEscuelita({
+      clubId: CLUB_ID,
+      user: USER,
+      body: { socioId: SOCIO_ID, fecha: '2099-01-01T12:00:00.000Z' },
+    })).rejects.toMatchObject({ message: 'La fecha de la asistencia no puede ser futura' });
+
+    expect(mongoose.startSession).not.toHaveBeenCalled();
+  });
+
   it('should fail with 404 when socio does not exist', async () => {
     mockSocioQuery(null);
 

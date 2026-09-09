@@ -18,6 +18,15 @@ export const DIA_LIMITE_PAGO_MENSUAL = 10;
 // Día del mes (1-31) de `fecha`, en huso horario argentino.
 export const diaDelMesArgentino = (fecha) => new Date(fecha.getTime() + ARG_OFFSET_MS).getUTCDate();
 
+// Ninguna asistencia (escuelita, muro libre) puede quedar fechada a futuro —
+// caso real (appcarc-backend#167): un check-in cargado a mano con la fecha
+// mal tipeada quedó con una "visita" varios días adelante en el historial
+// del socio, sin que nada lo rechazara. Usado por los handlers/servicios que
+// reciben `fecha` del cliente, además del validador a nivel de modelo en
+// Asistencia.js (que es la red de seguridad, no el punto de chequeo
+// principal — este export es el que da el mensaje de error claro).
+export const esFechaFutura = (fecha) => fecha.getTime() > Date.now();
+
 // true si `fecha` todavía está dentro de la ventana de gracia del mes en curso.
 export const dentroDeVentanaDeGracia = (fecha) => diaDelMesArgentino(fecha) <= DIA_LIMITE_PAGO_MENSUAL;
 

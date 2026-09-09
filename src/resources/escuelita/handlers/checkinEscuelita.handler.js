@@ -6,7 +6,7 @@ import VinculoFamiliar from '../../vinculos/models/VinculoFamiliar.js';
 import { resolveSocioFromQrTokenOrDni, findActiveSocioById, BusinessError } from '../../socios/services/socioQr.service.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 import { notifyRolesByPermiso, notifySocio } from '../../../services/pushNotification.service.js';
-import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC, dentroDeVentanaDeGracia } from '../../../services/fechaArgentina.js';
+import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC, dentroDeVentanaDeGracia, esFechaFutura } from '../../../services/fechaArgentina.js';
 import { tienePermiso } from '../../../services/permisosCache.js';
 import { PERMISOS } from '../../../constants/permisos.js';
 
@@ -59,6 +59,9 @@ export const checkinEscuelitaHandler = async (req, res) => {
     const fecha = fechaRaw ? new Date(fechaRaw) : new Date();
     if (Number.isNaN(fecha.getTime())) {
       return res.status(400).json({ message: 'La fecha es inválida' });
+    }
+    if (esFechaFutura(fecha)) {
+      return res.status(400).json({ message: 'La fecha de la asistencia no puede ser futura' });
     }
 
     // La decisión de qué flujo usar depende de si LA REQUEST trae token/dni

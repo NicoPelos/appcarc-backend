@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Asistencia from '../models/Asistencia.js';
 import Escuelita from '../../escuelita/models/Escuelita.js';
 import Socio from '../../socios/models/Socio.js';
+import { esFechaFutura } from '../../../services/fechaArgentina.js';
 
 class BusinessError extends Error {
   constructor(message, status = 400) {
@@ -23,6 +24,7 @@ export const registrarAsistenciaEscuelita = async ({ clubId, user, body }) => {
 
   const fecha = fechaRaw ? new Date(fechaRaw) : new Date();
   if (Number.isNaN(fecha.getTime())) throw new BusinessError('La fecha no es válida');
+  if (esFechaFutura(fecha)) throw new BusinessError('La fecha de la asistencia no puede ser futura');
 
   const session = await mongoose.startSession();
   try {

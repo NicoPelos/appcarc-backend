@@ -114,6 +114,13 @@ describe('registrarMuroLibre service (unit)', () => {
     expect(mongoose.startSession).not.toHaveBeenCalled();
   });
 
+  it('appcarc-backend#167: rechaza una fecha futura', async () => {
+    await expect(registrarMuroLibre({ clubId: CLUB_ID, user: USER, body: { tipoPase: 'diario', fecha: '2099-01-01T12:00:00.000Z' } }))
+      .rejects.toMatchObject({ message: 'La fecha de la asistencia no puede ser futura' });
+
+    expect(mongoose.startSession).not.toHaveBeenCalled();
+  });
+
   it('should fail with 404 when socioId is provided but socio does not exist', async () => {
     mockSocioQuery(null);
 

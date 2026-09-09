@@ -2,6 +2,7 @@ import Asistencia from '../../asistencias/models/Asistencia.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 import mongoose from 'mongoose';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { esFechaFutura } from '../../../services/fechaArgentina.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 // 'pagado' queda afuera a propósito: pasar a/desde pagado implica crear o
@@ -73,6 +74,9 @@ export const updateMuroLibreHandler = async (req, res) => {
         const d = new Date(fecha);
         if (isNaN(d.getTime())) {
           return res.status(400).json({ message: 'Fecha inválida' });
+        }
+        if (esFechaFutura(d)) {
+          return res.status(400).json({ message: 'La fecha de la asistencia no puede ser futura' });
         }
         registro.fecha = d;
       }

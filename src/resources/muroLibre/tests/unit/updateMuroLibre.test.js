@@ -124,4 +124,16 @@ describe('updateMuroLibreHandler', () => {
     expect(registro.observaciones).toBe('ok');
     expect(res.status).toHaveBeenCalledWith(200);
   });
+
+  it('appcarc-backend#167: rechaza editar la fecha a una futura', async () => {
+    const registro = makeRegistro();
+    vi.spyOn(Asistencia, 'findOne').mockReturnValue({ session: vi.fn().mockResolvedValue(registro) });
+    const res = mockRes();
+
+    await updateMuroLibreHandler({ params: { id: 'reg1' }, body: { fecha: '2099-01-01T12:00:00.000Z' }, user: USER }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'La fecha de la asistencia no puede ser futura' });
+    expect(registro.save).not.toHaveBeenCalled();
+  });
 });

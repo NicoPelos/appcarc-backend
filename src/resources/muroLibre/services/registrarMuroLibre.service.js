@@ -7,7 +7,7 @@ import Movimiento from '../../movimientos/models/Movimiento.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
-import { dentroDeVentanaDeGracia } from '../../../services/fechaArgentina.js';
+import { dentroDeVentanaDeGracia, esFechaFutura } from '../../../services/fechaArgentina.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 const VALID_TIPO_PASE = ['diario', 'mensual'];
@@ -73,6 +73,9 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
   const fecha = body?.fecha ? new Date(body.fecha) : new Date();
   if (Number.isNaN(fecha.getTime())) {
     throw new BusinessError('La fecha de muro libre es inválida');
+  }
+  if (esFechaFutura(fecha)) {
+    throw new BusinessError('La fecha de la asistencia no puede ser futura');
   }
 
   const session = await mongoose.startSession();

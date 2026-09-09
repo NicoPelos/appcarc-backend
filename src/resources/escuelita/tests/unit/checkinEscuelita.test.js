@@ -178,6 +178,17 @@ describe('checkinEscuelitaHandler', () => {
     expect(Asistencia.create).not.toHaveBeenCalled();
   });
 
+  it('appcarc-backend#167: rechaza una fecha futura', async () => {
+    const req = { user: mockUser, body: { token: 'tok', fecha: '2099-01-01T12:00:00.000Z' } };
+    const res = mockRes();
+
+    await checkinEscuelitaHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'La fecha de la asistencia no puede ser futura' });
+    expect(Asistencia.create).not.toHaveBeenCalled();
+  });
+
   it('registra la asistencia con la fecha pasada, no con la de hoy', async () => {
     const req = { user: mockUser, body: { token: 'tok', fecha: '2026-02-10T15:00:00.000Z' } };
     const res = mockRes();
