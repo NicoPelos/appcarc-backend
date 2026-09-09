@@ -309,6 +309,7 @@ describe('calcularDeuda', () => {
       etiquetaId: { nombre: 'Trekking a Cerro Negro' },
       description: 'Viaje del 15/8',
       montoEsperadoSnapshot: 200000,
+      estado: 'pendiente',
     }]));
 
     const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
@@ -319,6 +320,8 @@ describe('calcularDeuda', () => {
       nombre: 'Trekking a Cerro Negro',
       descripcion: 'Viaje del 15/8',
       totalDeuda: 200000,
+      estado: 'pendiente',
+      montoPagado: 0,
     }]);
     expect(mockCargoPuntualFind).toHaveBeenCalledWith(expect.objectContaining({
       clubId: 'CARC', socioId: 'socio_001', estado: { $in: ['pendiente', 'parcial'] }, active: true,
@@ -341,6 +344,8 @@ describe('calcularDeuda', () => {
     expect(result.otrosCargos).toEqual([expect.objectContaining({
       cargoPuntualId: 'cargo_001',
       totalDeuda: 15000,
+      estado: 'parcial',
+      montoPagado: 15000,
     })]);
   });
 

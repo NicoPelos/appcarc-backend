@@ -93,6 +93,8 @@ const calcularCargosPuntuales = async ({ socioId, clubId }) => {
     nombre: c.etiquetaId?.nombre ?? 'Cargo puntual',
     descripcion: c.description,
     totalDeuda: c.montoEsperadoSnapshot - (c.montoPagadoSnapshot || 0),
+    estado: c.estado,
+    montoPagado: c.montoPagadoSnapshot || 0,
   }));
 };
 
