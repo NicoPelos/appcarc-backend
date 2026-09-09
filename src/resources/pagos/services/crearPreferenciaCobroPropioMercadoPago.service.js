@@ -33,11 +33,15 @@ const normalizeItemPropio = async ({ item, index, clubId, socioId, date }) => {
   if (cargoPuntualId) {
     const cargo = await CargoPuntual.findOne({ _id: cargoPuntualId, socioId, clubId, active: true }).lean();
     if (!cargo) throw new BusinessError('Cargo puntual no encontrado', 404);
-    if (cargo.estado !== 'pendiente') {
+    if (!['pendiente', 'parcial'].includes(cargo.estado)) {
       throw new BusinessError(`El cargo "${cargo.description}" ya está ${cargo.estado}`, 409);
     }
 
-    const amount = cargo.montoEsperadoSnapshot;
+    // Si ya tiene una seña pagada (estado 'parcial'), se cobra el SALDO
+    // restante, no el total de nuevo — igual que acá el socio nunca elige
+    // el monto, esto también cierra el cargo por completo al confirmarse
+    // (appcarc-backend#168): el autoservicio no ofrece pagar "otra seña".
+    const amount = cargo.montoEsperadoSnapshot - (cargo.montoPagadoSnapshot || 0);
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new BusinessError('El cargo puntual no tiene un monto válido configurado');
     }

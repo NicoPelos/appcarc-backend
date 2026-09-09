@@ -165,6 +165,17 @@ describe('crearPreferenciaCobroPropioMercadoPago', () => {
     await expect(crearPreferenciaCobroPropioMercadoPago(args)).rejects.toMatchObject({ status: 409 });
   });
 
+  it('appcarc-backend#168: un cargo parcial (con una seña ya pagada) cobra el SALDO restante, no el total', async () => {
+    CargoPuntual.findOne = vi.fn().mockReturnValue({
+      lean: vi.fn().mockResolvedValue({ _id: 'cargo-1', estado: 'parcial', montoEsperadoSnapshot: 30000, montoPagadoSnapshot: 15000, description: 'Remera' }),
+    });
+    const args = { ...baseArgs(), items: [{ socioId: SOCIO_ID, cargoPuntualId: 'cargo-1' }] };
+
+    await crearPreferenciaCobroPropioMercadoPago(args);
+
+    expect(PagoOnlineIntent).toHaveBeenCalledWith(expect.objectContaining({ totalAmount: 15000 }));
+  });
+
   it('suma las visitas pendientes de Muro Libre desde su precioSugeridoSnapshot', async () => {
     Asistencia.find = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([{ precioSugeridoSnapshot: 2000 }, { precioSugeridoSnapshot: 2500 }]) });
     const args = { ...baseArgs(), items: [{ socioId: SOCIO_ID, muroLibrePendiente: true }] };

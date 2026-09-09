@@ -106,7 +106,9 @@ const normalizeItem = async ({ item, index, clubId, date, precioCache, session =
     if (!cargo) {
       throw new BusinessError(`Cargo puntual ${cargoPuntualId} no encontrado para el socio ${socioId}`, 404);
     }
-    if (cargo.estado !== 'pendiente') {
+    // 'parcial' también es cobrable (el resto del saldo) — solo 'pagada' y
+    // 'anulada' están cerrados de verdad.
+    if (!['pendiente', 'parcial'].includes(cargo.estado)) {
       throw new BusinessError(`El cargo puntual "${cargo.description}" del socio ${socioId} ya está ${cargo.estado}`, 409);
     }
 
@@ -122,6 +124,10 @@ const normalizeItem = async ({ item, index, clubId, date, precioCache, session =
       etiquetaId: String(cargo.etiquetaId),
       periodo: cargo.periodo,
       amount: unitAmount,
+      // Flag explícito, nunca inferido comparando amount contra lo esperado
+      // (appcarc-backend#168) — sin esto, cualquier monto cierra el cargo
+      // como pagado, igual que siempre (ajuste de precio).
+      esPagoParcial: Boolean(item?.esPagoParcial),
       precioSugeridoSnapshot: precioSugeridoSnapshot ?? cargo.precioSugeridoSnapshot,
       description: String(item?.description || '').trim() || cargo.description,
     }];
@@ -328,7 +334,7 @@ export const registrarCobro = async ({ clubId, user, body }) => {
           active: true,
         }).session(session)
         : [];
-      const cargoYaResuelto = cargosPuntualesDb.find((c) => c.estado !== 'pendiente');
+      const cargoYaResuelto = cargosPuntualesDb.find((c) => !['pendiente', 'parcial'].includes(c.estado));
       if (cargoYaResuelto) {
         throw new BusinessError(`El cargo puntual "${cargoYaResuelto.description}" ya está ${cargoYaResuelto.estado}`, 409);
       }
@@ -426,8 +432,22 @@ export const registrarCobro = async ({ clubId, user, body }) => {
       const cargosPuntuales = [];
       for (const item of itemsCargoPuntual) {
         const cargo = cargosPuntualesDb.find((c) => String(c._id) === item.cargoPuntualId);
-        cargo.estado = 'pagada';
-        cargo.montoPagadoSnapshot = item.amount;
+
+        cargo.pagos.push({
+          monto: item.amount,
+          fecha: date,
+          paymentMethod,
+          cobroId: cobro._id,
+          movimientoId: movimiento._id,
+        });
+        cargo.montoPagadoSnapshot = (cargo.montoPagadoSnapshot || 0) + item.amount;
+        // Sin esPagoParcial, cualquier monto cierra el cargo — mismo
+        // comportamiento de siempre (ajuste de precio, arriba o abajo del
+        // sugerido). Con esPagoParcial, solo se cierra si lo pagado
+        // acumulado ya alcanza lo esperado (la última cuota de una seña
+        // también cierra el cargo, tenga o no el flag).
+        const quedaSaldo = item.esPagoParcial && cargo.montoPagadoSnapshot < cargo.montoEsperadoSnapshot;
+        cargo.estado = quedaSaldo ? 'parcial' : 'pagada';
         cargo.paymentMethod = paymentMethod;
         cargo.fechaPago = date;
         cargo.cobroId = cobro._id;

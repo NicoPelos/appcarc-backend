@@ -54,7 +54,7 @@ describe('anularCobro handler (unit)', () => {
     Cobro.findOne = vi.fn();
     Movimiento.findByIdAndUpdate = vi.fn().mockResolvedValue(null);
     Cuota.updateMany = vi.fn().mockResolvedValue(null);
-    CargoPuntual.updateMany = vi.fn().mockResolvedValue(null);
+    CargoPuntual.find = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue([]) });
     Asistencia.updateMany = vi.fn().mockResolvedValue(null);
   });
 
@@ -131,19 +131,7 @@ describe('anularCobro handler (unit)', () => {
       { session: sessionMock },
     );
 
-    expect(CargoPuntual.updateMany).toHaveBeenCalledWith(
-      { cobroId: cobro._id, clubId: CLUB_ID },
-      {
-        estado: 'pendiente',
-        montoPagadoSnapshot: 0,
-        paymentMethod: null,
-        fechaPago: null,
-        cobroId: null,
-        movimientoId: null,
-        updatedBy: USER.email,
-      },
-      { session: sessionMock },
-    );
+    expect(CargoPuntual.find).toHaveBeenCalledWith({ clubId: CLUB_ID, 'pagos.cobroId': cobro._id, active: true });
 
     expect(Asistencia.updateMany).toHaveBeenCalledWith(
       { cobroId: cobro._id, clubId: CLUB_ID },
@@ -190,5 +178,67 @@ describe('anularCobro handler (unit)', () => {
     expect(Movimiento.findByIdAndUpdate).not.toHaveBeenCalled();
     expect(Cuota.updateMany).toHaveBeenCalledTimes(1);
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  describe('appcarc-backend#168: revertir un pago parcial de CargoPuntual', () => {
+    const buildCargoConPagos = (pagos) => ({
+      _id: 'cargo1',
+      estado: 'pagada',
+      montoEsperadoSnapshot: 30000,
+      montoPagadoSnapshot: pagos.reduce((s, p) => s + p.monto, 0),
+      pagos: [...pagos],
+      save: vi.fn(async function () { return this; }),
+    });
+
+    it('vuelve a pendiente si el pago revertido era el único', async () => {
+      const cobro = buildActiveCobro();
+      Cobro.findOne.mockReturnValue({ session: vi.fn().mockResolvedValue(cobro) });
+
+      const cargo = buildCargoConPagos([
+        { monto: 30000, fecha: new Date(), paymentMethod: 'Efectivo', cobroId: cobro._id, movimientoId: MOVIMIENTO_ID },
+      ]);
+      CargoPuntual.find = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue([cargo]) });
+
+      await anularCobroHandler(buildReq(), buildRes());
+
+      expect(cargo.estado).toBe('pendiente');
+      expect(cargo.montoPagadoSnapshot).toBe(0);
+      expect(cargo.pagos).toHaveLength(0);
+      expect(cargo.cobroId).toBeNull();
+      expect(cargo.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('queda parcial (no pendiente) si revertir la seña deja el saldo pagado por otro cobro', async () => {
+      const cobro = buildActiveCobro(); // este cobro es la SEÑA que se anula
+      Cobro.findOne.mockReturnValue({ session: vi.fn().mockResolvedValue(cobro) });
+
+      const otroMovimientoId = new mongoose.Types.ObjectId();
+      const cargo = buildCargoConPagos([
+        { monto: 15000, fecha: new Date('2026-07-01'), paymentMethod: 'Efectivo', cobroId: cobro._id, movimientoId: MOVIMIENTO_ID },
+        { monto: 15000, fecha: new Date('2026-07-15'), paymentMethod: 'Transferencia', cobroId: 'cobro-saldo', movimientoId: otroMovimientoId },
+      ]);
+      CargoPuntual.find = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue([cargo]) });
+
+      await anularCobroHandler(buildReq(), buildRes());
+
+      // Quedó solo el pago del saldo — la deuda ya no está completa
+      // (montoEsperado 30000, pagado 15000), pero tampoco volvió a
+      // "pendiente puro": hay un pago real vigente.
+      expect(cargo.estado).toBe('parcial');
+      expect(cargo.montoPagadoSnapshot).toBe(15000);
+      expect(cargo.pagos).toHaveLength(1);
+      expect(cargo.pagos[0].cobroId).toBe('cobro-saldo');
+      expect(cargo.cobroId).toBe('cobro-saldo');
+    });
+
+    it('no toca cargos cuyo pago pertenece a otro cobro', async () => {
+      const cobro = buildActiveCobro();
+      Cobro.findOne.mockReturnValue({ session: vi.fn().mockResolvedValue(cobro) });
+      CargoPuntual.find = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue([]) });
+
+      await anularCobroHandler(buildReq(), buildRes());
+
+      expect(CargoPuntual.find).toHaveBeenCalledWith({ clubId: CLUB_ID, 'pagos.cobroId': cobro._id, active: true });
+    });
   });
 });

@@ -40,6 +40,17 @@ describe('anularCargoPuntual service (unit)', () => {
       .rejects.toMatchObject({ status: 409 });
   });
 
+  it('appcarc-backend#168: should anular a cargo puntual parcial (saldo restante se descarta, lo ya pagado queda como está)', async () => {
+    const cargo = buildCargo({ estado: 'parcial', montoPagadoSnapshot: 15000, montoEsperadoSnapshot: 30000 });
+    CargoPuntual.findOne.mockResolvedValue(cargo);
+
+    await anularCargoPuntual({ clubId: CLUB_ID, user: USER, id: CARGO_ID });
+
+    expect(cargo.estado).toBe('anulada');
+    expect(cargo.active).toBe(false);
+    expect(cargo.montoPagadoSnapshot).toBe(15000); // lo ya cobrado no se toca
+  });
+
   it('should anular a pendiente cargo puntual', async () => {
     const cargo = buildCargo();
     CargoPuntual.findOne.mockResolvedValue(cargo);

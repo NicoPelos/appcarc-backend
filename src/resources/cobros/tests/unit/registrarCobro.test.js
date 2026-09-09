@@ -411,7 +411,7 @@ describe('registrarCobro service (unit)', () => {
       Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
 
       const cargoDoc = {
-        _id: CARGO_PUNTUAL_ID, estado: 'pendiente',
+        _id: CARGO_PUNTUAL_ID, estado: 'pendiente', montoEsperadoSnapshot: 200000, montoPagadoSnapshot: 0, pagos: [],
         save: vi.fn(async function () { return this; }),
       };
       CargoPuntual.find.mockReturnValue(buildSessionQuery([cargoDoc]));
@@ -442,7 +442,7 @@ describe('registrarCobro service (unit)', () => {
       Cuota.find.mockReturnValue(buildSessionQuery([]));
 
       const cargoDoc = {
-        _id: CARGO_PUNTUAL_ID, estado: 'pendiente',
+        _id: CARGO_PUNTUAL_ID, estado: 'pendiente', montoEsperadoSnapshot: 200000, montoPagadoSnapshot: 0, pagos: [],
         save: vi.fn(async function () { return this; }),
       };
       CargoPuntual.find.mockReturnValue(buildSessionQuery([cargoDoc]));
@@ -455,6 +455,93 @@ describe('registrarCobro service (unit)', () => {
       expect(result.cuotas).toHaveLength(1);
       expect(result.cargosPuntuales).toHaveLength(1);
       expect(savedMovimientos[0].amount).toBe(15000 + 200000);
+    });
+
+    it('appcarc-backend#168: sin esPagoParcial, cualquier monto cierra el cargo (ajuste de precio, comportamiento sin cambios)', async () => {
+      mockCargoPuntualVigente({
+        _id: CARGO_PUNTUAL_ID, etiquetaId: ETIQUETA_ID, periodo: '2026-07',
+        description: 'Remera', estado: 'pendiente', montoEsperadoSnapshot: 30000,
+      });
+      Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+
+      const cargoDoc = {
+        _id: CARGO_PUNTUAL_ID, estado: 'pendiente', montoEsperadoSnapshot: 30000, montoPagadoSnapshot: 0, pagos: [],
+        save: vi.fn(async function () { return this; }),
+      };
+      CargoPuntual.find.mockReturnValue(buildSessionQuery([cargoDoc]));
+
+      // Con descuento — bien por debajo de lo esperado, sin el flag.
+      await registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [{ ...cargoPuntualItem, amount: 20000 }] },
+      });
+
+      expect(cargoDoc.estado).toBe('pagada');
+      expect(cargoDoc.montoPagadoSnapshot).toBe(20000);
+      expect(cargoDoc.pagos).toHaveLength(1);
+    });
+
+    it('appcarc-backend#168: con esPagoParcial y el monto no alcanza lo esperado, queda parcial con saldo', async () => {
+      mockCargoPuntualVigente({
+        _id: CARGO_PUNTUAL_ID, etiquetaId: ETIQUETA_ID, periodo: '2026-07',
+        description: 'Remera', estado: 'pendiente', montoEsperadoSnapshot: 30000,
+      });
+      Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+
+      const cargoDoc = {
+        _id: CARGO_PUNTUAL_ID, estado: 'pendiente', montoEsperadoSnapshot: 30000, montoPagadoSnapshot: 0, pagos: [],
+        save: vi.fn(async function () { return this; }),
+      };
+      CargoPuntual.find.mockReturnValue(buildSessionQuery([cargoDoc]));
+
+      await registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [{ ...cargoPuntualItem, amount: 15000, esPagoParcial: true }] },
+      });
+
+      expect(cargoDoc.estado).toBe('parcial');
+      expect(cargoDoc.montoPagadoSnapshot).toBe(15000);
+      expect(cargoDoc.pagos).toHaveLength(1);
+      expect(cargoDoc.pagos[0]).toMatchObject({ monto: 15000, paymentMethod: 'Efectivo' });
+    });
+
+    it('appcarc-backend#168: permite cobrar el saldo de un cargo parcial (segundo pago), y lo cierra si llega a lo esperado', async () => {
+      mockCargoPuntualVigente({
+        _id: CARGO_PUNTUAL_ID, etiquetaId: ETIQUETA_ID, periodo: '2026-07',
+        description: 'Remera', estado: 'parcial', montoEsperadoSnapshot: 30000,
+      });
+      Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+
+      const cargoDoc = {
+        _id: CARGO_PUNTUAL_ID,
+        estado: 'parcial',
+        montoEsperadoSnapshot: 30000,
+        montoPagadoSnapshot: 15000,
+        pagos: [{ monto: 15000, fecha: new Date('2026-07-01'), paymentMethod: 'Efectivo', cobroId: 'cobro-vieja', movimientoId: 'mov-viejo' }],
+        save: vi.fn(async function () { return this; }),
+      };
+      CargoPuntual.find.mockReturnValue(buildSessionQuery([cargoDoc]));
+
+      await registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Transferencia', items: [{ ...cargoPuntualItem, amount: 15000 }] },
+      });
+
+      expect(cargoDoc.estado).toBe('pagada');
+      expect(cargoDoc.montoPagadoSnapshot).toBe(30000);
+      expect(cargoDoc.pagos).toHaveLength(2);
+    });
+
+    it('appcarc-backend#168: rechaza cobrar un cargo ya cerrado (pagada/anulada), pero permite uno parcial', async () => {
+      mockCargoPuntualVigente({
+        _id: CARGO_PUNTUAL_ID, etiquetaId: ETIQUETA_ID, periodo: '2026-07',
+        description: 'Remera', estado: 'anulada', montoEsperadoSnapshot: 30000,
+      });
+
+      await expect(registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [cargoPuntualItem] },
+      })).rejects.toMatchObject({ status: 409 });
     });
   });
 

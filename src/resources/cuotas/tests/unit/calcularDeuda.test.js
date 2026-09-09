@@ -321,8 +321,27 @@ describe('calcularDeuda', () => {
       totalDeuda: 200000,
     }]);
     expect(mockCargoPuntualFind).toHaveBeenCalledWith(expect.objectContaining({
-      clubId: 'CARC', socioId: 'socio_001', estado: 'pendiente', active: true,
+      clubId: 'CARC', socioId: 'socio_001', estado: { $in: ['pendiente', 'parcial'] }, active: true,
     }));
+  });
+
+  it('appcarc-backend#168: un cargo puntual parcial muestra el SALDO restante, no el monto original', async () => {
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
+    mockCargoPuntualFind.mockReturnValue(chainableCargoPuntual([{
+      _id: 'cargo_001',
+      etiquetaId: { nombre: 'Remera' },
+      description: 'Remera adulto sin imagen',
+      montoEsperadoSnapshot: 30000,
+      montoPagadoSnapshot: 15000,
+      estado: 'parcial',
+    }]));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result.otrosCargos).toEqual([expect.objectContaining({
+      cargoPuntualId: 'cargo_001',
+      totalDeuda: 15000,
+    })]);
   });
 
   it('otrosCargos combina muro libre pendiente y varios cargos puntuales', async () => {

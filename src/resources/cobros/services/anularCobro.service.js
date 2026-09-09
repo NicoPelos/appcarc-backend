@@ -25,19 +25,33 @@ export const anularCobroConTrazabilidad = async ({ cobro, clubId, actor, motivo,
     { session },
   );
 
-  await CargoPuntual.updateMany(
-    { cobroId: cobro._id, clubId },
-    {
-      estado: 'pendiente',
-      montoPagadoSnapshot: 0,
-      paymentMethod: null,
-      fechaPago: null,
-      cobroId: null,
-      movimientoId: null,
-      updatedBy: actor,
-    },
-    { session },
-  );
+  // Un CargoPuntual puede tener más de un pago real contra él (seña + saldo,
+  // appcarc-backend#168) — hay que revertir SOLO el pago que corresponde a
+  // este Cobro (buscando dentro de `pagos`, no por el campo `cobroId` de
+  // primer nivel, que solo refleja el ÚLTIMO pago) y recalcular el estado
+  // según lo que quede, en vez de resetear el cargo entero a 'pendiente'.
+  const cargosAfectados = await CargoPuntual.find({ clubId, 'pagos.cobroId': cobro._id, active: true }).session(session);
+  for (const cargo of cargosAfectados) {
+    cargo.pagos = cargo.pagos.filter((p) => String(p.cobroId) !== String(cobro._id));
+    cargo.montoPagadoSnapshot = cargo.pagos.reduce((sum, p) => sum + p.monto, 0);
+
+    if (cargo.pagos.length === 0) {
+      cargo.estado = 'pendiente';
+      cargo.paymentMethod = null;
+      cargo.fechaPago = null;
+      cargo.cobroId = null;
+      cargo.movimientoId = null;
+    } else {
+      cargo.estado = cargo.montoPagadoSnapshot >= cargo.montoEsperadoSnapshot ? 'pagada' : 'parcial';
+      const ultimoPago = cargo.pagos[cargo.pagos.length - 1];
+      cargo.paymentMethod = ultimoPago.paymentMethod;
+      cargo.fechaPago = ultimoPago.fecha;
+      cargo.cobroId = ultimoPago.cobroId;
+      cargo.movimientoId = ultimoPago.movimientoId;
+    }
+    cargo.updatedBy = actor;
+    await cargo.save({ session });
+  }
 
   await Asistencia.updateMany(
     { cobroId: cobro._id, clubId },

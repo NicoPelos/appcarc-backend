@@ -12,7 +12,10 @@ export const anularCargoPuntual = async ({ clubId, user, id, motivo }) => {
   const cargo = await CargoPuntual.findOne({ _id: id, clubId, active: true });
   if (!cargo) throw new BusinessError('Cargo puntual no encontrado', 404);
 
-  if (cargo.estado !== 'pendiente') {
+  // 'parcial' también se puede anular (ej. se canceló el viaje después de
+  // cobrar la seña) — lo ya pagado queda como está, tal como pasó, solo se
+  // deja de reclamar el saldo restante (appcarc-backend#168).
+  if (!['pendiente', 'parcial'].includes(cargo.estado)) {
     throw new BusinessError(`El cargo ya está ${cargo.estado}, no se puede anular directamente`, 409);
   }
 

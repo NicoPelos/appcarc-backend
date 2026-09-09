@@ -40,7 +40,7 @@ describe('deleteMovimientoHandler', () => {
     vi.spyOn(mongoose, 'startSession').mockResolvedValue(sessionMock);
     Cobro.findOne = vi.fn();
     Cuota.updateMany = vi.fn().mockResolvedValue(null);
-    CargoPuntual.updateMany = vi.fn().mockResolvedValue(null);
+    CargoPuntual.find = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue([]) });
     Asistencia.updateMany = vi.fn().mockResolvedValue(null);
     Asistencia.findOneAndUpdate = vi.fn().mockResolvedValue(null);
   });
@@ -99,11 +99,7 @@ describe('deleteMovimientoHandler', () => {
       { estado: 'anulada', updatedBy: USER.email },
       { session: sessionMock },
     );
-    expect(CargoPuntual.updateMany).toHaveBeenCalledWith(
-      { cobroId: COBRO_ID, clubId: USER.clubId },
-      expect.objectContaining({ estado: 'pendiente', cobroId: null, movimientoId: null }),
-      { session: sessionMock },
-    );
+    expect(CargoPuntual.find).toHaveBeenCalledWith({ clubId: USER.clubId, 'pagos.cobroId': COBRO_ID, active: true });
     expect(Asistencia.updateMany).toHaveBeenCalledWith(
       { cobroId: COBRO_ID, clubId: USER.clubId },
       expect.objectContaining({ estadoPago: 'pendiente', cobroId: null, movimientoId: null }),

@@ -74,10 +74,13 @@ const calcularCargoMuroLibre = async ({ socioId, clubId }) => {
  * puntual es un concepto distinto con su propio importe.
  */
 const calcularCargosPuntuales = async ({ socioId, clubId }) => {
+  // 'parcial': ya se cobró una seña, queda el saldo real pendiente — se
+  // muestra igual que un pendiente normal, pero por el SALDO restante, no
+  // por el monto original (appcarc-backend#168).
   const pendientes = await CargoPuntual.find({
     clubId,
     socioId,
-    estado: 'pendiente',
+    estado: { $in: ['pendiente', 'parcial'] },
     active: true,
   })
     .populate('etiquetaId', 'nombre')
@@ -89,7 +92,7 @@ const calcularCargosPuntuales = async ({ socioId, clubId }) => {
     cargoPuntualId: c._id,
     nombre: c.etiquetaId?.nombre ?? 'Cargo puntual',
     descripcion: c.description,
-    totalDeuda: c.montoEsperadoSnapshot,
+    totalDeuda: c.montoEsperadoSnapshot - (c.montoPagadoSnapshot || 0),
   }));
 };
 
