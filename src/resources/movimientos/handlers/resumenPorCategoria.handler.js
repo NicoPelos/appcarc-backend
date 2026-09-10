@@ -1,4 +1,4 @@
-import { getEtiquetaMap, buildIngresosEgresosPorCategoria } from '../services/categoriaMovimiento.service.js';
+import { getEtiquetaMap, buildIngresosEgresosPorCategoria, buildDetalleCategoria } from '../services/categoriaMovimiento.service.js';
 
 const DIAS_DEFAULT = 365;
 const MESES_LABEL = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -107,6 +107,82 @@ export const resumenPorCategoriaMensualHandler = async (req, res) => {
   } catch (error) {
     console.error('Error calculando el resumen mensual por categoría:', error);
     res.status(500).json({ message: 'Error al calcular el resumen mensual por categoría' });
+  }
+};
+
+// Fechas ya calculadas por el caller (`req.query.desde`/`hasta`) pueden venir
+// como fecha sola ("2026-08-01", desde un <input type=date>) o como ISO
+// completo con hora (el `desde`/`hasta` que ya devuelve resumen-por-categoria
+// y que el Dashboard reenvía tal cual al abrir el detalle de una porción de
+// la torta) — completar la hora solo hace falta en el primer caso.
+const parseFechaHasta = (raw) => {
+  if (!raw) return new Date();
+  return String(raw).includes('T') ? new Date(raw) : new Date(`${raw}T23:59:59.999Z`);
+};
+const parseFechaDesde = (raw, hastaDate) => {
+  if (!raw) return new Date(hastaDate.getTime() - DIAS_DEFAULT * 24 * 60 * 60 * 1000);
+  return String(raw).includes('T') ? new Date(raw) : new Date(`${raw}T00:00:00.000Z`);
+};
+
+/**
+ * @openapi
+ * /api/movimientos/resumen-por-categoria/detalle:
+ *   get:
+ *     summary: Listado item por item de los movimientos que componen una categoría (appcarc-backend#171)
+ *     tags: [Movimientos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: tipo
+ *         schema: { type: string, enum: [Ingreso, Egreso], default: Ingreso }
+ *       - in: query
+ *         name: categoria
+ *         required: true
+ *         schema: { type: string }
+ *       - in: query
+ *         name: periodo
+ *         description: Mes puntual YYYY-MM (alternativa a desde/hasta, para el gráfico mes a mes)
+ *         schema: { type: string }
+ *       - in: query
+ *         name: desde
+ *         schema: { type: string }
+ *       - in: query
+ *         name: hasta
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Listado de movimientos/items de esa categoría, más recientes primero
+ */
+export const resumenPorCategoriaDetalleHandler = async (req, res) => {
+  try {
+    const clubId = req.user?.clubId;
+    const tipo = req.query.tipo === 'Egreso' ? 'Egreso' : 'Ingreso';
+    const categoria = String(req.query.categoria || '').trim();
+    if (!categoria) return res.status(400).json({ message: 'Falta el parámetro categoria' });
+
+    let desde;
+    let hasta;
+    if (req.query.periodo) {
+      const [y, m] = String(req.query.periodo).split('-').map(Number);
+      if (!y || !m || m < 1 || m > 12) {
+        return res.status(400).json({ message: 'periodo inválido, formato esperado YYYY-MM' });
+      }
+      desde = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0));
+      hasta = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
+    } else {
+      hasta = parseFechaHasta(req.query.hasta);
+      desde = parseFechaDesde(req.query.desde, hasta);
+    }
+
+    const etiquetaMap = await getEtiquetaMap(clubId);
+    const detalle = await buildDetalleCategoria({ clubId, tipo, categoria, desde, hasta, etiquetaMap });
+    const total = detalle.reduce((sum, d) => sum + d.monto, 0);
+
+    res.json({ tipo, categoria, desde, hasta, total, detalle });
+  } catch (error) {
+    console.error('Error calculando el detalle por categoría:', error);
+    res.status(500).json({ message: 'Error al calcular el detalle por categoría' });
   }
 };
 

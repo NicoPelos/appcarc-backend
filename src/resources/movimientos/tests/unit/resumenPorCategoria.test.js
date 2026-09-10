@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { resumenPorCategoriaHandler, resumenPorCategoriaMensualHandler } from '../../handlers/resumenPorCategoria.handler.js';
+import { resumenPorCategoriaHandler, resumenPorCategoriaMensualHandler, resumenPorCategoriaDetalleHandler } from '../../handlers/resumenPorCategoria.handler.js';
 import * as categoriaMovimientoService from '../../services/categoriaMovimiento.service.js';
 
 const mockRes = () => {
@@ -121,6 +121,82 @@ describe('resumenPorCategoriaMensualHandler', () => {
 
     const res = mockRes();
     await resumenPorCategoriaMensualHandler({ query: {}, user: USER }, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+describe('appcarc-backend#171: resumenPorCategoriaDetalleHandler', () => {
+  it('devuelve el detalle y el total de la categoría pedida', async () => {
+    vi.spyOn(categoriaMovimientoService, 'getEtiquetaMap').mockResolvedValue({});
+    const buildSpy = vi.spyOn(categoriaMovimientoService, 'buildDetalleCategoria').mockResolvedValue([
+      { tipo: 'Ingreso', categoria: 'Otros', monto: 10000, concepto: 'Inscripcion', socioNombre: 'Ana Gómez', movimientoId: 'mov1', fecha: new Date('2026-08-05') },
+      { tipo: 'Ingreso', categoria: 'Otros', monto: 66000, concepto: 'Cobro de cuotas', socioNombre: 'Julieta Tobar', movimientoId: 'mov3', fecha: new Date('2026-08-10') },
+    ]);
+
+    const res = mockRes();
+    await resumenPorCategoriaDetalleHandler({ query: { categoria: 'Otros', desde: '2026-08-01', hasta: '2026-08-31' }, user: USER }, res);
+
+    expect(buildSpy).toHaveBeenCalledWith(expect.objectContaining({ tipo: 'Ingreso', categoria: 'Otros' }));
+    const body = res.json.mock.calls[0][0];
+    expect(body.total).toBe(76000);
+    expect(body.detalle).toHaveLength(2);
+  });
+
+  it('devuelve 400 si falta categoria', async () => {
+    const res = mockRes();
+    await resumenPorCategoriaDetalleHandler({ query: {}, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('acepta tipo=Egreso', async () => {
+    vi.spyOn(categoriaMovimientoService, 'getEtiquetaMap').mockResolvedValue({});
+    const buildSpy = vi.spyOn(categoriaMovimientoService, 'buildDetalleCategoria').mockResolvedValue([]);
+
+    const res = mockRes();
+    await resumenPorCategoriaDetalleHandler({ query: { categoria: 'Varios', tipo: 'Egreso' }, user: USER }, res);
+
+    expect(buildSpy).toHaveBeenCalledWith(expect.objectContaining({ tipo: 'Egreso', categoria: 'Varios' }));
+  });
+
+  it('con periodo=YYYY-MM, arma el rango del mes calendario completo', async () => {
+    vi.spyOn(categoriaMovimientoService, 'getEtiquetaMap').mockResolvedValue({});
+    const buildSpy = vi.spyOn(categoriaMovimientoService, 'buildDetalleCategoria').mockResolvedValue([]);
+
+    const res = mockRes();
+    await resumenPorCategoriaDetalleHandler({ query: { categoria: 'Otros', periodo: '2026-08' }, user: USER }, res);
+
+    const { desde, hasta } = buildSpy.mock.calls[0][0];
+    expect(desde.toISOString()).toBe('2026-08-01T00:00:00.000Z');
+    expect(hasta.toISOString()).toBe('2026-08-31T23:59:59.999Z');
+  });
+
+  it('devuelve 400 si periodo tiene formato inválido', async () => {
+    const res = mockRes();
+    await resumenPorCategoriaDetalleHandler({ query: { categoria: 'Otros', periodo: 'no-es-un-periodo' }, user: USER }, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('acepta desde/hasta ya con hora (ISO completo), como los que devuelve resumen-por-categoria', async () => {
+    vi.spyOn(categoriaMovimientoService, 'getEtiquetaMap').mockResolvedValue({});
+    const buildSpy = vi.spyOn(categoriaMovimientoService, 'buildDetalleCategoria').mockResolvedValue([]);
+
+    const res = mockRes();
+    await resumenPorCategoriaDetalleHandler({
+      query: { categoria: 'Otros', desde: '2026-01-01T00:00:00.000Z', hasta: '2026-08-31T23:59:59.999Z' },
+      user: USER,
+    }, res);
+
+    const { desde, hasta } = buildSpy.mock.calls[0][0];
+    expect(desde.toISOString()).toBe('2026-01-01T00:00:00.000Z');
+    expect(hasta.toISOString()).toBe('2026-08-31T23:59:59.999Z');
+  });
+
+  it('devuelve 500 ante un error inesperado', async () => {
+    vi.spyOn(categoriaMovimientoService, 'getEtiquetaMap').mockRejectedValue(new Error('DB down'));
+
+    const res = mockRes();
+    await resumenPorCategoriaDetalleHandler({ query: { categoria: 'Otros' }, user: USER }, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
   });

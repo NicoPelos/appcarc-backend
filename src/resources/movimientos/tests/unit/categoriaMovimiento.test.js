@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   getEtiquetaMap, categoriaIngresoPorEtiqueta, categoriaIngresoManual, categoriaEgresoManual,
-  buildIngresosEgresosPorCategoria,
+  buildIngresosEgresosPorCategoria, buildDetalleCategoria,
 } from '../../services/categoriaMovimiento.service.js';
 import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 import Cobro from '../../../cobros/models/Cobro.js';
@@ -103,5 +103,74 @@ describe('buildIngresosEgresosPorCategoria', () => {
     expect(findMock).toHaveBeenCalledWith(expect.objectContaining({
       date: { $gte: desde, $lte: hasta },
     }));
+  });
+});
+
+describe('appcarc-backend#171: buildDetalleCategoria', () => {
+  it('devuelve solo las entradas de la categoría/tipo pedidos, item por item', async () => {
+    vi.spyOn(Movimiento, 'find').mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      lean: vi.fn().mockResolvedValue([
+        {
+          _id: 'mov1', type: 'Ingreso', sourceType: 'cobro', sourceId: 'cobro1',
+          date: new Date('2026-08-05'), socioNombre: 'Ana Gómez', paymentMethod: 'Efectivo',
+        },
+        { _id: 'mov2', type: 'Ingreso', sourceType: 'muro_libre', amount: 4000, date: new Date('2026-08-06'), socioNombre: 'Visita', paymentMethod: 'Efectivo' },
+        {
+          _id: 'mov3', type: 'Ingreso', sourceType: 'manual', categoria: 'Otros', concept: 'Cobro de cuotas',
+          amount: 66000, date: new Date('2026-08-10'), socioNombre: 'Julieta Tobar', paymentMethod: 'MercadoPago',
+        },
+        { _id: 'mov4', type: 'Egreso', sourceType: 'manual', categoria: 'Otros', concept: 'Varios', amount: 5000, date: new Date('2026-08-07'), socioNombre: '', paymentMethod: 'Efectivo' },
+      ]),
+    });
+    vi.spyOn(Cobro, 'find').mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      lean: vi.fn().mockResolvedValue([
+        {
+          _id: 'cobro1',
+          items: [
+            { etiquetaId: 'etqInscripcion', amount: 10000 },
+            { etiquetaId: 'etqSocial', amount: 6000 },
+          ],
+        },
+      ]),
+    });
+
+    const etiquetaMap = {
+      etqInscripcion: { nombre: 'Inscripcion', uso_sistema: null },
+      etqSocial: { nombre: 'Cuota Social', uso_sistema: 'cuota_social' },
+    };
+
+    const detalle = await buildDetalleCategoria({
+      clubId: CLUB_ID, tipo: 'Ingreso', categoria: 'Otros', desde: new Date('2026-08-01'), etiquetaMap,
+    });
+
+    // El item de "Cuota Social" del mismo cobro NO debe aparecer (otra
+    // categoría), tampoco Muro Libre ni el egreso "Otros" (otro tipo) — solo
+    // el item "Inscripcion" del cobro y el movimiento manual "Otros".
+    expect(detalle).toHaveLength(2);
+    expect(detalle).toContainEqual(expect.objectContaining({
+      tipo: 'Ingreso', categoria: 'Otros', monto: 10000, concepto: 'Inscripcion', socioNombre: 'Ana Gómez', movimientoId: 'mov1',
+    }));
+    expect(detalle).toContainEqual(expect.objectContaining({
+      tipo: 'Ingreso', categoria: 'Otros', monto: 66000, concepto: 'Cobro de cuotas', socioNombre: 'Julieta Tobar', movimientoId: 'mov3',
+    }));
+  });
+
+  it('ordena el detalle por fecha descendente (más reciente primero)', async () => {
+    vi.spyOn(Movimiento, 'find').mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      lean: vi.fn().mockResolvedValue([
+        { _id: 'mov1', type: 'Egreso', sourceType: 'manual', categoria: 'Varios', concept: '', amount: 1000, date: new Date('2026-08-01'), socioNombre: '', paymentMethod: 'Efectivo' },
+        { _id: 'mov2', type: 'Egreso', sourceType: 'manual', categoria: 'Varios', concept: '', amount: 2000, date: new Date('2026-08-20'), socioNombre: '', paymentMethod: 'Efectivo' },
+      ]),
+    });
+    vi.spyOn(Cobro, 'find').mockReturnValue({ select: vi.fn().mockReturnThis(), lean: vi.fn().mockResolvedValue([]) });
+
+    const detalle = await buildDetalleCategoria({
+      clubId: CLUB_ID, tipo: 'Egreso', categoria: 'Varios', desde: new Date('2026-08-01'), etiquetaMap: {},
+    });
+
+    expect(detalle.map((d) => d.movimientoId)).toEqual(['mov2', 'mov1']);
   });
 });

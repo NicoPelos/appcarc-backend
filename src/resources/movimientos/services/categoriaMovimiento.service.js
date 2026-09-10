@@ -77,17 +77,20 @@ export const CATEGORIAS_EGRESO = [...CATEGORIAS_MOVIMIENTO.Egreso];
 
 const sumarEn = (map, key, monto) => { map[key] = (map[key] || 0) + (monto || 0); };
 
+// Núcleo compartido por buildIngresosEgresosPorCategoria (solo totales) y
+// buildDetalleCategoria (appcarc-backend#171, listado item por item para
+// poder auditar de dónde sale cada categoría) — hace las mismas dos
+// consultas y clasifica cada entrada una sola vez, `onEntry` decide qué
+// hacer con cada una (sumar, o filtrar y guardar).
+//
 // `hasta` es opcional (sin tope superior) para no romper al caller original
 // (sheetsExport.service.js, ventana fija de 12 meses hacia atrás desde hoy).
-export const buildIngresosEgresosPorCategoria = async ({ clubId, desde, hasta, etiquetaMap }) => {
-  const ingresos = Object.fromEntries(CATEGORIAS_INGRESO.map((c) => [c, 0]));
-  const egresos = Object.fromEntries(CATEGORIAS_EGRESO.map((c) => [c, 0]));
-
+const recorrerMovimientosPorCategoria = async ({ clubId, desde, hasta, etiquetaMap }, onEntry) => {
   const dateFilter = { $gte: desde };
   if (hasta) dateFilter.$lte = hasta;
 
   const movimientos = await Movimiento.find({ clubId, active: true, date: dateFilter })
-    .select('type sourceType sourceId concept categoria amount')
+    .select('type sourceType sourceId concept categoria amount date socioNombre paymentMethod')
     .lean();
 
   const cobroIds = movimientos.filter((m) => m.sourceType === 'cobro' && m.sourceId).map((m) => m.sourceId);
@@ -103,21 +106,60 @@ export const buildIngresosEgresosPorCategoria = async ({ clubId, desde, hasta, e
         if (cobro) {
           for (const item of cobro.items) {
             const etiqueta = etiquetaMap[item.etiquetaId?.toString()] || {};
-            sumarEn(ingresos, categoriaIngresoPorEtiqueta(etiqueta), item.amount);
+            onEntry({
+              tipo: 'Ingreso',
+              categoria: categoriaIngresoPorEtiqueta(etiqueta),
+              monto: item.amount || 0,
+              fecha: m.date,
+              movimientoId: m._id,
+              socioNombre: m.socioNombre,
+              concepto: etiqueta.nombre || m.concept,
+              paymentMethod: m.paymentMethod,
+            });
           }
         }
       } else if (m.sourceType === 'muro_libre') {
-        sumarEn(ingresos, 'Muro Libre', m.amount);
+        onEntry({
+          tipo: 'Ingreso', categoria: 'Muro Libre', monto: m.amount || 0, fecha: m.date,
+          movimientoId: m._id, socioNombre: m.socioNombre, concepto: m.concept, paymentMethod: m.paymentMethod,
+        });
       } else {
-        sumarEn(ingresos, categoriaIngresoManual(m), m.amount);
+        onEntry({
+          tipo: 'Ingreso', categoria: categoriaIngresoManual(m), monto: m.amount || 0, fecha: m.date,
+          movimientoId: m._id, socioNombre: m.socioNombre, concepto: m.concept, paymentMethod: m.paymentMethod,
+        });
       }
     } else if (m.type === 'Egreso') {
-      sumarEn(egresos, categoriaEgresoManual(m), m.amount);
+      onEntry({
+        tipo: 'Egreso', categoria: categoriaEgresoManual(m), monto: m.amount || 0, fecha: m.date,
+        movimientoId: m._id, socioNombre: m.socioNombre, concepto: m.concept, paymentMethod: m.paymentMethod,
+      });
     }
   }
+};
+
+export const buildIngresosEgresosPorCategoria = async ({ clubId, desde, hasta, etiquetaMap }) => {
+  const ingresos = Object.fromEntries(CATEGORIAS_INGRESO.map((c) => [c, 0]));
+  const egresos = Object.fromEntries(CATEGORIAS_EGRESO.map((c) => [c, 0]));
+
+  await recorrerMovimientosPorCategoria({ clubId, desde, hasta, etiquetaMap }, (entry) => {
+    sumarEn(entry.tipo === 'Ingreso' ? ingresos : egresos, entry.categoria, entry.monto);
+  });
 
   return {
     ingresos: CATEGORIAS_INGRESO.map((c) => [c, ingresos[c]]),
     egresos: CATEGORIAS_EGRESO.map((c) => [c, egresos[c]]),
   };
+};
+
+// Listado item por item de una sola categoría — para el detalle que se abre
+// al hacer click en una porción de la torta o una barra del gráfico mes a
+// mes en el Dashboard (appcarc-backend#171), en vez de quedarse solo con el
+// total agregado.
+export const buildDetalleCategoria = async ({ clubId, tipo, categoria, desde, hasta, etiquetaMap }) => {
+  const detalle = [];
+  await recorrerMovimientosPorCategoria({ clubId, desde, hasta, etiquetaMap }, (entry) => {
+    if (entry.tipo === tipo && entry.categoria === categoria) detalle.push(entry);
+  });
+  return detalle.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
 };
