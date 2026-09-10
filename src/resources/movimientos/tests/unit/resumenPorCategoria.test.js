@@ -124,6 +124,59 @@ describe('resumenPorCategoriaMensualHandler', () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
   });
+
+  describe('appcarc-backend#172: rango explícito desde/hasta (YYYY-MM)', () => {
+    it('enumera cada mes calendario entre desde y hasta, inclusive', async () => {
+      vi.spyOn(categoriaMovimientoService, 'getEtiquetaMap').mockResolvedValue({});
+      const buildSpy = vi.spyOn(categoriaMovimientoService, 'buildIngresosEgresosPorCategoria').mockResolvedValue({ ingresos: [], egresos: [] });
+
+      const res = mockRes();
+      await resumenPorCategoriaMensualHandler({ query: { desde: '2026-06', hasta: '2026-08' }, user: USER }, res);
+
+      expect(buildSpy).toHaveBeenCalledTimes(3);
+      const body = res.json.mock.calls[0][0];
+      expect(body.meses.map((m) => m.periodo)).toEqual(['2026-06', '2026-07', '2026-08']);
+    });
+
+    it('cruza el fin de año correctamente', async () => {
+      vi.spyOn(categoriaMovimientoService, 'getEtiquetaMap').mockResolvedValue({});
+      vi.spyOn(categoriaMovimientoService, 'buildIngresosEgresosPorCategoria').mockResolvedValue({ ingresos: [], egresos: [] });
+
+      const res = mockRes();
+      await resumenPorCategoriaMensualHandler({ query: { desde: '2025-11', hasta: '2026-02' }, user: USER }, res);
+
+      const body = res.json.mock.calls[0][0];
+      expect(body.meses.map((m) => m.periodo)).toEqual(['2025-11', '2025-12', '2026-01', '2026-02']);
+    });
+
+    it('ignora el parámetro meses cuando vienen desde/hasta', async () => {
+      vi.spyOn(categoriaMovimientoService, 'getEtiquetaMap').mockResolvedValue({});
+      const buildSpy = vi.spyOn(categoriaMovimientoService, 'buildIngresosEgresosPorCategoria').mockResolvedValue({ ingresos: [], egresos: [] });
+
+      const res = mockRes();
+      await resumenPorCategoriaMensualHandler({ query: { meses: '2', desde: '2026-01', hasta: '2026-04' }, user: USER }, res);
+
+      expect(buildSpy).toHaveBeenCalledTimes(4);
+    });
+
+    it('devuelve 400 con formato inválido', async () => {
+      const res = mockRes();
+      await resumenPorCategoriaMensualHandler({ query: { desde: '2026-13', hasta: '2026-08' }, user: USER }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    it('devuelve 400 si desde es posterior a hasta', async () => {
+      const res = mockRes();
+      await resumenPorCategoriaMensualHandler({ query: { desde: '2026-08', hasta: '2026-01' }, user: USER }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    it('devuelve 400 si el rango supera los 36 meses', async () => {
+      const res = mockRes();
+      await resumenPorCategoriaMensualHandler({ query: { desde: '2020-01', hasta: '2026-08' }, user: USER }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+  });
 });
 
 describe('appcarc-backend#171: resumenPorCategoriaDetalleHandler', () => {

@@ -4,6 +4,8 @@ const DIAS_DEFAULT = 365;
 const MESES_LABEL = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 const MESES_DEFAULT = 6;
 const MESES_MAX = 24;
+const MESES_MAX_RANGO = 36;
+const PERIODO_REGEX = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 // Construye los límites UTC de cada uno de los últimos `cantidad` meses
 // calendario (incluyendo el actual) — Date.UTC no depende del timezone del
@@ -21,6 +23,29 @@ const buildMesesRango = (cantidad) => {
     const hasta = new Date(Date.UTC(y, m + 1, 0, 23, 59, 59, 999)); // día 0 del mes siguiente = último día de este mes
     const periodo = `${desde.getUTCFullYear()}-${String(desde.getUTCMonth() + 1).padStart(2, '0')}`;
     meses.push({ periodo, desde, hasta });
+  }
+  return meses;
+};
+
+// Alternativa a buildMesesRango cuando el caller pide un rango calendario
+// explícito (appcarc-backend#172, vista dedicada para comparar categorías
+// mes a mes en cualquier ventana, no solo "los últimos N meses desde hoy"
+// como hace el gráfico del Dashboard) — enumera cada mes entre `desdePeriodo`
+// y `hastaPeriodo` (ambos "YYYY-MM"), inclusive.
+const enumerarMesesEntre = (desdePeriodo, hastaPeriodo) => {
+  const [y1, m1] = desdePeriodo.split('-').map(Number);
+  const [y2, m2] = hastaPeriodo.split('-').map(Number);
+  const meses = [];
+  let y = y1;
+  let m = m1;
+  while (y < y2 || (y === y2 && m <= m2)) {
+    const desde = new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0));
+    const hasta = new Date(Date.UTC(y, m, 0, 23, 59, 59, 999));
+    const periodo = `${y}-${String(m).padStart(2, '0')}`;
+    meses.push({ periodo, desde, hasta });
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+    if (meses.length > MESES_MAX_RANGO) break; // corte de seguridad, se valida el tope antes de llegar acá
   }
   return meses;
 };
@@ -79,7 +104,16 @@ export const resumenPorCategoriaHandler = async (req, res) => {
  *     parameters:
  *       - in: query
  *         name: meses
+ *         description: Cantidad de meses hacia atrás desde hoy (ignorado si se pasan desde/hasta)
  *         schema: { type: integer, minimum: 1, maximum: 24, default: 6 }
+ *       - in: query
+ *         name: desde
+ *         description: Mes inicial YYYY-MM, para un rango calendario explícito (appcarc-backend#172)
+ *         schema: { type: string }
+ *       - in: query
+ *         name: hasta
+ *         description: Mes final YYYY-MM, inclusive
+ *         schema: { type: string }
  *     responses:
  *       200:
  *         description: Un objeto por mes, con las listas de categoría/monto de ese mes
@@ -87,10 +121,27 @@ export const resumenPorCategoriaHandler = async (req, res) => {
 export const resumenPorCategoriaMensualHandler = async (req, res) => {
   try {
     const clubId = req.user?.clubId;
-    const cantidad = Math.min(Math.max(parseInt(req.query.meses, 10) || MESES_DEFAULT, 1), MESES_MAX);
+
+    let rangos;
+    if (req.query.desde || req.query.hasta) {
+      const desdePeriodo = String(req.query.desde || '');
+      const hastaPeriodo = String(req.query.hasta || '');
+      if (!PERIODO_REGEX.test(desdePeriodo) || !PERIODO_REGEX.test(hastaPeriodo)) {
+        return res.status(400).json({ message: 'desde/hasta deben tener formato YYYY-MM' });
+      }
+      if (desdePeriodo > hastaPeriodo) {
+        return res.status(400).json({ message: 'desde no puede ser posterior a hasta' });
+      }
+      rangos = enumerarMesesEntre(desdePeriodo, hastaPeriodo);
+      if (rangos.length > MESES_MAX_RANGO) {
+        return res.status(400).json({ message: `El rango no puede superar los ${MESES_MAX_RANGO} meses` });
+      }
+    } else {
+      const cantidad = Math.min(Math.max(parseInt(req.query.meses, 10) || MESES_DEFAULT, 1), MESES_MAX);
+      rangos = buildMesesRango(cantidad);
+    }
 
     const etiquetaMap = await getEtiquetaMap(clubId);
-    const rangos = buildMesesRango(cantidad);
 
     const resultados = await Promise.all(
       rangos.map(({ desde, hasta }) => buildIngresosEgresosPorCategoria({ clubId, desde, hasta, etiquetaMap })),
