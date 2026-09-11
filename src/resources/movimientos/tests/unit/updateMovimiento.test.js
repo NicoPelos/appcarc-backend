@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { updateMovimientoHandler } from '../../handlers/updateMovimiento.handler.js';
 import Movimiento from '../../models/Movimiento.js';
+import Evento from '../../../eventos/models/Evento.js';
+
+vi.mock('../../../eventos/models/Evento.js', () => ({
+  default: { findOne: vi.fn() },
+}));
+
+const EVENTO_ID = '507f1f77bcf86cd799439055';
 
 const mockRes = () => {
   const res = {};
@@ -29,6 +36,10 @@ const makeMovimiento = (overrides = {}) => ({
 });
 
 describe('updateMovimientoHandler', () => {
+  beforeEach(() => {
+    Evento.findOne.mockReset();
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -178,5 +189,49 @@ describe('updateMovimientoHandler', () => {
     const res = mockRes();
     await updateMovimientoHandler({ params: { id: 'mov1' }, body: {}, user: USER }, res);
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  describe('appcarc-backend#180: eventoId', () => {
+    it('taguea el evento aunque el movimiento no sea manual (independiente de sourceType)', async () => {
+      const mov = makeMovimiento({ sourceType: 'cobro' });
+      vi.spyOn(Movimiento, 'findOne').mockResolvedValue(mov);
+      Evento.findOne.mockResolvedValue({ _id: EVENTO_ID });
+
+      const res = mockRes();
+      await updateMovimientoHandler({ params: { id: 'mov1' }, body: { eventoId: EVENTO_ID }, user: USER }, res);
+
+      expect(String(mov.eventoId)).toBe(EVENTO_ID);
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('permite destaguear mandando eventoId: null', async () => {
+      const mov = makeMovimiento({ eventoId: EVENTO_ID });
+      vi.spyOn(Movimiento, 'findOne').mockResolvedValue(mov);
+
+      const res = mockRes();
+      await updateMovimientoHandler({ params: { id: 'mov1' }, body: { eventoId: null }, user: USER }, res);
+
+      expect(mov.eventoId).toBeNull();
+      expect(Evento.findOne).not.toHaveBeenCalled();
+    });
+
+    it('retorna 404 si el evento no existe', async () => {
+      const mov = makeMovimiento();
+      vi.spyOn(Movimiento, 'findOne').mockResolvedValue(mov);
+      Evento.findOne.mockResolvedValue(null);
+
+      const res = mockRes();
+      await updateMovimientoHandler({ params: { id: 'mov1' }, body: { eventoId: EVENTO_ID }, user: USER }, res);
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it('retorna 400 si eventoId no es un ObjectId válido', async () => {
+      const mov = makeMovimiento();
+      vi.spyOn(Movimiento, 'findOne').mockResolvedValue(mov);
+
+      const res = mockRes();
+      await updateMovimientoHandler({ params: { id: 'mov1' }, body: { eventoId: 'invalido' }, user: USER }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
   });
 });

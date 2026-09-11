@@ -75,6 +75,9 @@ describe('registrarPagoEventoParticipante service (unit)', () => {
     expect(savedMovimientos[0]).toMatchObject({
       type: 'Ingreso', amount: 20000, categoria: 'Viajes', sourceType: 'evento_participante', socioId: null,
     });
+    // appcarc-backend#180: eventoId seteado directo en el Movimiento, no
+    // solo derivable vía sourceId -> EventoParticipante -> eventoId.
+    expect(String(savedMovimientos[0].eventoId)).toBe(EVENTO_ID);
     expect(result.participante).toBe(participante);
   });
 

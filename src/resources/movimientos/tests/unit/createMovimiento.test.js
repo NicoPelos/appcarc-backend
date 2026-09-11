@@ -1,6 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMovimientoHandler } from '../../handlers/createMovimiento.handler.js';
 import Movimiento from '../../models/Movimiento.js';
+import Evento from '../../../eventos/models/Evento.js';
+
+vi.mock('../../../eventos/models/Evento.js', () => ({
+  default: { findOne: vi.fn() },
+}));
+
+const EVENTO_ID = '507f1f77bcf86cd799439055';
 
 const mockRes = () => {
   const res = {};
@@ -23,6 +30,7 @@ const USER = { id: 'user1', email: 'admin@carc.test', clubId: 'club1' };
 describe('createMovimientoHandler', () => {
   beforeEach(() => {
     vi.spyOn(Movimiento.prototype, 'save').mockResolvedValue(undefined);
+    Evento.findOne.mockReset();
   });
 
   afterEach(() => {
@@ -139,5 +147,38 @@ describe('createMovimientoHandler', () => {
     const res = mockRes();
     await createMovimientoHandler({ body: BASE_BODY, user: USER }, res);
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  describe('appcarc-backend#180: eventoId opcional', () => {
+    it('acepta un eventoId válido y lo taguea', async () => {
+      Evento.findOne.mockResolvedValue({ _id: EVENTO_ID });
+      const res = mockRes();
+      await createMovimientoHandler({ body: { ...BASE_BODY, eventoId: EVENTO_ID }, user: USER }, res);
+
+      expect(Evento.findOne).toHaveBeenCalledWith({ _id: EVENTO_ID, clubId: 'club1', active: true });
+      expect(res.status).toHaveBeenCalledWith(201);
+      const created = res.json.mock.calls[0][0];
+      expect(String(created.eventoId)).toBe(EVENTO_ID);
+    });
+
+    it('sin eventoId, queda null (no rompe el caso normal)', async () => {
+      const res = mockRes();
+      await createMovimientoHandler({ body: BASE_BODY, user: USER }, res);
+      const created = res.json.mock.calls[0][0];
+      expect(created.eventoId).toBeNull();
+    });
+
+    it('retorna 404 si el evento no existe o es de otro club', async () => {
+      Evento.findOne.mockResolvedValue(null);
+      const res = mockRes();
+      await createMovimientoHandler({ body: { ...BASE_BODY, eventoId: EVENTO_ID }, user: USER }, res);
+      expect(res.status).toHaveBeenCalledWith(404);
+    });
+
+    it('retorna 400 si eventoId no es un ObjectId válido', async () => {
+      const res = mockRes();
+      await createMovimientoHandler({ body: { ...BASE_BODY, eventoId: 'invalido' }, user: USER }, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
   });
 });

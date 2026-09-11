@@ -12,6 +12,7 @@ import { updateEventoParticipanteHandler } from './handlers/updateEventoParticip
 import { anularEventoParticipanteHandler } from './handlers/anularEventoParticipante.handler.js';
 import { registrarPagoEventoParticipanteHandler } from './handlers/registrarPagoEventoParticipante.handler.js';
 import { anularPagoEventoParticipanteHandler } from './handlers/anularPagoEventoParticipante.handler.js';
+import { getResumenEconomicoEventoHandler } from './handlers/getResumenEconomicoEvento.handler.js';
 
 const router = express.Router();
 
@@ -20,6 +21,7 @@ router.post('/', protect, authorize(PERMISOS.EVENTOS_WRITE), crearEventoHandler)
 router.get('/:id', protect, authorize(PERMISOS.EVENTOS_READ), getEventoHandler);
 router.put('/:id', protect, authorize(PERMISOS.EVENTOS_WRITE), updateEventoHandler);
 router.post('/:id/cerrar', protect, authorize(PERMISOS.EVENTOS_WRITE), cerrarEventoHandler);
+router.get('/:id/resumen-economico', protect, authorize(PERMISOS.EVENTOS_READ), getResumenEconomicoEventoHandler);
 
 router.get('/:eventoId/participantes', protect, authorize(PERMISOS.EVENTOS_READ), getEventoParticipantesHandler);
 router.post('/:eventoId/participantes', protect, authorize(PERMISOS.EVENTOS_WRITE), crearEventoParticipanteHandler);

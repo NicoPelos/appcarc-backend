@@ -1,4 +1,6 @@
+import mongoose from 'mongoose';
 import Movimiento, { CATEGORIAS_MOVIMIENTO } from '../models/Movimiento.js';
+import Evento from '../../eventos/models/Evento.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
@@ -55,7 +57,7 @@ const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 export const updateMovimientoHandler = async (req, res) => {
   try {
     const { id } = req.params;
-    const { type, amount, concept, categoria, paymentMethod, description, date } = req.body;
+    const { type, amount, concept, categoria, paymentMethod, description, date, eventoId } = req.body;
 
     const movimiento = await Movimiento.findOne({ _id: id, clubId: req.user?.clubId, active: true });
     if (!movimiento) return res.status(404).json({ message: 'Movimiento no encontrado' });
@@ -113,6 +115,23 @@ export const updateMovimientoHandler = async (req, res) => {
         return res.status(400).json({ message: 'La fecha del movimiento es inválida' });
       }
       movimiento.date = d;
+    }
+
+    // eventoId es independiente de sourceType — taguear (o destaguear) a qué
+    // evento pertenece un movimiento no toca su plata/origen, así que se
+    // permite incluso en movimientos generados automáticamente (ej. "este
+    // cobro en realidad era del viaje", appcarc-backend#180).
+    if (eventoId !== undefined) {
+      if (eventoId === null) {
+        movimiento.eventoId = null;
+      } else {
+        if (!mongoose.Types.ObjectId.isValid(eventoId)) {
+          return res.status(400).json({ message: 'eventoId inválido' });
+        }
+        const evento = await Evento.findOne({ _id: eventoId, clubId: req.user?.clubId, active: true });
+        if (!evento) return res.status(404).json({ message: 'Evento no encontrado' });
+        movimiento.eventoId = evento._id;
+      }
     }
 
     if (type !== undefined) movimiento.type = type;

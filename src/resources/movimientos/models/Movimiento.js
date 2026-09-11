@@ -81,6 +81,19 @@ const MovimientoSchema = new mongoose.Schema({
     enum: ['Cobro', 'Asistencia', 'EventoParticipante'],
     default: null,
   },
+  // Evento al que pertenece este movimiento (appcarc-backend#180-182) — no
+  // solo los ingresos de un participante (a esos se les setea automático,
+  // ver registrarPagoEventoParticipante.service.js), también cualquier otro
+  // ingreso/egreso relacionado cargado a mano en Registrar Movimiento (ej.
+  // pagarle al proveedor de las remeras de un evento). Independiente de
+  // sourceType/sourceModel: un movimiento manual (sourceType:'manual') puede
+  // igual tener eventoId seteado.
+  eventoId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Evento',
+    default: null,
+    index: true,
+  },
   description: {
     type: String,
     default: '',

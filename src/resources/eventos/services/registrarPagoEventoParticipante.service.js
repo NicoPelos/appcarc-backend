@@ -79,6 +79,10 @@ export const registrarPagoEventoParticipante = async ({
         sourceType: 'evento_participante',
         sourceId: participante._id,
         sourceModel: 'EventoParticipante',
+        // appcarc-backend#180: seteado directo (no solo derivable vía
+        // sourceId -> EventoParticipante -> eventoId) para que el resumen
+        // económico del evento (#181) sea un solo Movimiento.find({eventoId}).
+        eventoId: evento._id,
         date,
         createdBy: responsable,
         updatedBy: responsable,

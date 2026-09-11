@@ -1,4 +1,6 @@
+import mongoose from 'mongoose';
 import Movimiento, { CATEGORIAS_MOVIMIENTO } from '../models/Movimiento.js';
+import Evento from '../../eventos/models/Evento.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
@@ -80,6 +82,7 @@ export const createMovimientoHandler = async (req, res) => {
       socioNombre,
       description,
       date,
+      eventoId,
     } = req.body;
 
     if (!type || !['Ingreso', 'Egreso'].includes(type)) {
@@ -111,6 +114,16 @@ export const createMovimientoHandler = async (req, res) => {
       return res.status(400).json({ message: 'La fecha del movimiento es inválida' });
     }
 
+    let eventoIdValidado = null;
+    if (eventoId) {
+      if (!mongoose.Types.ObjectId.isValid(eventoId)) {
+        return res.status(400).json({ message: 'eventoId inválido' });
+      }
+      const evento = await Evento.findOne({ _id: eventoId, clubId: req.user.clubId, active: true });
+      if (!evento) return res.status(404).json({ message: 'Evento no encontrado' });
+      eventoIdValidado = evento._id;
+    }
+
     const movimiento = new Movimiento({
       clubId: req.user.clubId,
       userId: req.user.id,
@@ -123,6 +136,7 @@ export const createMovimientoHandler = async (req, res) => {
       socioNombre: socioNombre || '',
       description: description || '',
       date: movementDate,
+      eventoId: eventoIdValidado,
       createdBy: req.user.email || req.user.id,
       updatedBy: req.user.email || req.user.id,
     });
