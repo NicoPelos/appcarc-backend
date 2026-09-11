@@ -2,6 +2,7 @@ import Cuota from '../models/Cuota.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import CargoPuntual from '../../cargosPuntuales/models/CargoPuntual.js';
+import EventoParticipante from '../../eventos/models/EventoParticipante.js';
 import { findPrecioVigente } from './findPrecioVigente.service.js';
 
 const periodoHoy = () => {
@@ -98,13 +99,44 @@ const calcularCargosPuntuales = async ({ socioId, clubId }) => {
   }));
 };
 
+/**
+ * Eventos (viajes, cursos, ventas puntuales — appcarc-backend#173/#178) en
+ * los que este socio es participante y todavía debe algo. Mismo criterio y
+ * mismo shape que calcularCargosPuntuales (appcarc-backend#176): así el
+ * botón "Enviar estado de cuotas" (que ya itera `otrosCargos` genérico) y
+ * las pantallas de mobile/web que ya saben mostrar un `estado: 'parcial'`
+ * (appcarc-backend#171) no necesitan tocarse para esto.
+ */
+const calcularEventosPendientes = async ({ socioId, clubId }) => {
+  const pendientes = await EventoParticipante.find({
+    clubId,
+    socioId,
+    estado: { $in: ['pendiente', 'parcial'] },
+    active: true,
+  })
+    .populate('eventoId', 'nombre descripcion')
+    .sort({ createdAt: 1 })
+    .lean();
+
+  return pendientes.map((p) => ({
+    tipo: 'evento',
+    eventoId: p.eventoId?._id ?? p.eventoId,
+    nombre: p.eventoId?.nombre ?? 'Evento',
+    descripcion: p.eventoId?.descripcion || '',
+    totalDeuda: p.montoEsperadoSnapshot - (p.montoPagadoSnapshot || 0),
+    estado: p.estado,
+    montoPagado: p.montoPagadoSnapshot || 0,
+  }));
+};
+
 const calcularOtrosCargos = async ({ socioId, clubId }) => {
-  const [muroLibre, cargosPuntuales] = await Promise.all([
+  const [muroLibre, cargosPuntuales, eventos] = await Promise.all([
     calcularCargoMuroLibre({ socioId, clubId }),
     calcularCargosPuntuales({ socioId, clubId }),
+    calcularEventosPendientes({ socioId, clubId }),
   ]);
 
-  return [muroLibre, ...cargosPuntuales].filter(Boolean);
+  return [muroLibre, ...cargosPuntuales, ...eventos].filter(Boolean);
 };
 
 /**

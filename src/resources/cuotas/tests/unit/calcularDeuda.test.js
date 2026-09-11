@@ -7,6 +7,7 @@ const mockPreciosFindOne = vi.fn();
 const mockSuscripcionFind = vi.fn();
 const mockAsistenciaFind = vi.fn();
 const mockCargoPuntualFind = vi.fn();
+const mockEventoParticipanteFind = vi.fn();
 
 vi.mock('../../models/Cuota.js', () => ({
   default: {
@@ -39,6 +40,12 @@ vi.mock('../../../cargosPuntuales/models/CargoPuntual.js', () => ({
   },
 }));
 
+vi.mock('../../../eventos/models/EventoParticipante.js', () => ({
+  default: {
+    find: (...args) => mockEventoParticipanteFind(...args),
+  },
+}));
+
 const chainableAsistencia = (result = []) => ({
   select: vi.fn().mockReturnThis(),
   sort: vi.fn().mockReturnThis(),
@@ -46,6 +53,12 @@ const chainableAsistencia = (result = []) => ({
 });
 
 const chainableCargoPuntual = (result = []) => ({
+  populate: vi.fn().mockReturnThis(),
+  sort: vi.fn().mockReturnThis(),
+  lean: vi.fn().mockResolvedValue(result),
+});
+
+const chainableEventoParticipante = (result = []) => ({
   populate: vi.fn().mockReturnThis(),
   sort: vi.fn().mockReturnThis(),
   lean: vi.fn().mockResolvedValue(result),
@@ -83,6 +96,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockAsistenciaFind.mockReturnValue(chainableAsistencia([]));
   mockCargoPuntualFind.mockReturnValue(chainableCargoPuntual([]));
+  mockEventoParticipanteFind.mockReturnValue(chainableEventoParticipante([]));
 });
 
 describe('calcularDeuda', () => {
@@ -365,5 +379,75 @@ describe('calcularDeuda', () => {
     expect(result.otrosCargos[0].tipo).toBe('muro_libre');
     expect(result.otrosCargos[1]).toMatchObject({ tipo: 'cargo_puntual', cargoPuntualId: 'cargo_001', nombre: 'Inscripción' });
     expect(result.otrosCargos[2]).toMatchObject({ tipo: 'cargo_puntual', cargoPuntualId: 'cargo_002', nombre: 'Cargo puntual' });
+  });
+
+  it('appcarc-backend#176: otrosCargos incluye un evento pendiente en el que el socio es participante', async () => {
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
+    mockEventoParticipanteFind.mockReturnValue(chainableEventoParticipante([{
+      _id: 'participante_001',
+      eventoId: { _id: 'evento_001', nombre: 'Trekking a Cerro Negro', descripcion: 'Salida del sábado' },
+      nombre: 'Nahuel',
+      apellido: 'Nicolai',
+      montoEsperadoSnapshot: 20000,
+      estado: 'pendiente',
+    }]));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result.otrosCargos).toEqual([{
+      tipo: 'evento',
+      eventoId: 'evento_001',
+      nombre: 'Trekking a Cerro Negro',
+      descripcion: 'Salida del sábado',
+      totalDeuda: 20000,
+      estado: 'pendiente',
+      montoPagado: 0,
+    }]);
+    expect(mockEventoParticipanteFind).toHaveBeenCalledWith(expect.objectContaining({
+      clubId: 'CARC', socioId: 'socio_001', estado: { $in: ['pendiente', 'parcial'] }, active: true,
+    }));
+  });
+
+  it('appcarc-backend#176: un evento parcial (seña pagada) muestra el SALDO restante', async () => {
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
+    mockEventoParticipanteFind.mockReturnValue(chainableEventoParticipante([{
+      _id: 'participante_001',
+      eventoId: { _id: 'evento_001', nombre: 'Trekking a Cerro Negro' },
+      nombre: 'Nahuel',
+      apellido: 'Nicolai',
+      montoEsperadoSnapshot: 20000,
+      montoPagadoSnapshot: 8000,
+      estado: 'parcial',
+    }]));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result.otrosCargos).toEqual([expect.objectContaining({
+      totalDeuda: 12000, estado: 'parcial', montoPagado: 8000,
+    })]);
+  });
+
+  it('otrosCargos combina muro libre, cargos puntuales y eventos', async () => {
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([]));
+    mockAsistenciaFind.mockReturnValue(chainableAsistencia([
+      { _id: 'asis_001', fecha: '2026-06-01T12:00:00Z', precioSugeridoSnapshot: 2000 },
+    ]));
+    mockCargoPuntualFind.mockReturnValue(chainableCargoPuntual([
+      { _id: 'cargo_001', etiquetaId: { nombre: 'Inscripción' }, description: 'Inscripción 2026', montoEsperadoSnapshot: 5000 },
+    ]));
+    mockEventoParticipanteFind.mockReturnValue(chainableEventoParticipante([{
+      _id: 'participante_001',
+      eventoId: { _id: 'evento_001', nombre: 'Trekking a Cerro Negro' },
+      nombre: 'Nahuel',
+      montoEsperadoSnapshot: 20000,
+      estado: 'pendiente',
+    }]));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result.otrosCargos).toHaveLength(3);
+    expect(result.otrosCargos[0].tipo).toBe('muro_libre');
+    expect(result.otrosCargos[1].tipo).toBe('cargo_puntual');
+    expect(result.otrosCargos[2].tipo).toBe('evento');
   });
 });
