@@ -4,6 +4,7 @@ import Cobro from '../../cobros/models/Cobro.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import { anularCobroConTrazabilidad } from '../../cobros/services/anularCobro.service.js';
 import { anularCuotaMuroLibreMensual } from '../../muroLibre/services/registrarMuroLibre.service.js';
+import { anularPagoEventoParticipante } from '../../eventos/services/anularPagoEventoParticipante.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 /**
@@ -77,6 +78,14 @@ export const deleteMovimientoHandler = async (req, res) => {
         // anularCuotaMuroLibreMensual), pero entrando por esta otra puerta
         // (borrar el Movimiento en vez de anular el check-in directamente).
         await anularCuotaMuroLibreMensual({
+          clubId: req.user?.clubId, movimientoId: movimiento._id, actor, session,
+        });
+      } else if (movimiento.sourceModel === 'EventoParticipante' && movimiento.sourceId) {
+        // Mismo motivo que las ramas de arriba: si alguien borra este
+        // Movimiento desde la pantalla de Movimientos en vez de anular el
+        // pago desde la planilla del evento, el participante no puede
+        // quedar "pagado" con la plata ya borrada (appcarc-backend#175).
+        await anularPagoEventoParticipante({
           clubId: req.user?.clubId, movimientoId: movimiento._id, actor, session,
         });
       }

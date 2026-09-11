@@ -7,6 +7,11 @@ import Cuota from '../../../cuotas/models/Cuota.js';
 import CargoPuntual from '../../../cargosPuntuales/models/CargoPuntual.js';
 import Asistencia from '../../../asistencias/models/Asistencia.js';
 
+vi.mock('../../../eventos/services/anularPagoEventoParticipante.service.js', () => ({
+  anularPagoEventoParticipante: vi.fn(),
+}));
+import { anularPagoEventoParticipante } from '../../../eventos/services/anularPagoEventoParticipante.service.js';
+
 const mockRes = () => {
   const res = {};
   res.status = vi.fn(() => res);
@@ -137,6 +142,21 @@ describe('deleteMovimientoHandler', () => {
       { estado: 'anulada', updatedBy: USER.email },
       { session: sessionMock },
     );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('appcarc-backend#175: should also revert the EventoParticipante payment, when deleting the movimiento directly', async () => {
+    const participanteId = new mongoose.Types.ObjectId();
+    const mov = makeMovimiento({ sourceType: 'evento_participante', sourceModel: 'EventoParticipante', sourceId: participanteId });
+    vi.spyOn(Movimiento, 'findOne').mockReturnValue({ session: vi.fn().mockResolvedValue(mov) });
+    anularPagoEventoParticipante.mockResolvedValue({ estado: 'pendiente' });
+
+    const res = mockRes();
+    await deleteMovimientoHandler({ params: { id: 'mov1' }, user: USER }, res);
+
+    expect(anularPagoEventoParticipante).toHaveBeenCalledWith({
+      clubId: USER.clubId, movimientoId: mov._id, actor: USER.email, session: sessionMock,
+    });
     expect(res.status).toHaveBeenCalledWith(200);
   });
 

@@ -10,6 +10,8 @@ import { crearEventoParticipanteHandler } from './handlers/crearEventoParticipan
 import { getEventoParticipantesHandler } from './handlers/getEventoParticipantes.handler.js';
 import { updateEventoParticipanteHandler } from './handlers/updateEventoParticipante.handler.js';
 import { anularEventoParticipanteHandler } from './handlers/anularEventoParticipante.handler.js';
+import { registrarPagoEventoParticipanteHandler } from './handlers/registrarPagoEventoParticipante.handler.js';
+import { anularPagoEventoParticipanteHandler } from './handlers/anularPagoEventoParticipante.handler.js';
 
 const router = express.Router();
 
@@ -23,5 +25,8 @@ router.get('/:eventoId/participantes', protect, authorize(PERMISOS.EVENTOS_READ)
 router.post('/:eventoId/participantes', protect, authorize(PERMISOS.EVENTOS_WRITE), crearEventoParticipanteHandler);
 router.put('/:eventoId/participantes/:participanteId', protect, authorize(PERMISOS.EVENTOS_WRITE), updateEventoParticipanteHandler);
 router.post('/:eventoId/participantes/:participanteId/anular', protect, authorize(PERMISOS.EVENTOS_DELETE), anularEventoParticipanteHandler);
+
+router.post('/:eventoId/participantes/:participanteId/pagos', protect, authorize(PERMISOS.EVENTOS_WRITE), registrarPagoEventoParticipanteHandler);
+router.delete('/:eventoId/participantes/:participanteId/pagos/:movimientoId', protect, authorize(PERMISOS.EVENTOS_DELETE), anularPagoEventoParticipanteHandler);
 
 export default router;

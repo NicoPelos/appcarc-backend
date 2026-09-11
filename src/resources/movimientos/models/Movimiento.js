@@ -68,7 +68,7 @@ const MovimientoSchema = new mongoose.Schema({
   },
   sourceType: {
     type: String,
-    enum: ['manual', 'cobro', 'muro_libre'],
+    enum: ['manual', 'cobro', 'muro_libre', 'evento_participante'],
     default: 'manual',
   },
   sourceId: {
@@ -78,7 +78,7 @@ const MovimientoSchema = new mongoose.Schema({
   },
   sourceModel: {
     type: String,
-    enum: ['Cobro', 'Asistencia'],
+    enum: ['Cobro', 'Asistencia', 'EventoParticipante'],
     default: null,
   },
   description: {
