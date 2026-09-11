@@ -97,11 +97,9 @@ export const PERMISOS = {
 
   // Eventos (viajes, cursos, ventas puntuales — appcarc-backend#178): roster
   // de participantes socios y no socios, cada uno con su propio pago/seña.
-  // EVENTOS_DELETE se agrega en appcarc-backend#174/#175 cuando exista una
-  // ruta real de "anular participante"/"anular pago" que lo use — hasta
-  // entonces sería un permiso muerto (ver permisosConsistencia.test.js).
-  EVENTOS_READ:  'eventos:read',
-  EVENTOS_WRITE: 'eventos:write',
+  EVENTOS_READ:   'eventos:read',
+  EVENTOS_WRITE:  'eventos:write',
+  EVENTOS_DELETE: 'eventos:delete',
 };
 
 export const TODOS_LOS_PERMISOS = Object.values(PERMISOS);
@@ -129,5 +127,5 @@ export const PERMISOS_POR_CATEGORIA = [
   { categoria: 'Usuarios', permisos: [PERMISOS.USUARIOS_WRITE] },
   { categoria: 'Roles', permisos: [PERMISOS.ROLES_READ, PERMISOS.ROLES_WRITE, PERMISOS.ROLES_DELETE] },
   { categoria: 'Recursos externos', permisos: [PERMISOS.RECURSOS_READ, PERMISOS.RECURSOS_WRITE, PERMISOS.RECURSOS_DELETE] },
-  { categoria: 'Eventos', permisos: [PERMISOS.EVENTOS_READ, PERMISOS.EVENTOS_WRITE] },
+  { categoria: 'Eventos', permisos: [PERMISOS.EVENTOS_READ, PERMISOS.EVENTOS_WRITE, PERMISOS.EVENTOS_DELETE] },
 ];
