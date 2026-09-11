@@ -397,6 +397,7 @@ describe('calcularDeuda', () => {
     expect(result.otrosCargos).toEqual([{
       tipo: 'evento',
       eventoId: 'evento_001',
+      participanteId: 'participante_001',
       nombre: 'Trekking a Cerro Negro',
       descripcion: 'Salida del sábado',
       totalDeuda: 20000,

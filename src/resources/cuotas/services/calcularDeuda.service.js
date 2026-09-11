@@ -121,6 +121,9 @@ const calcularEventosPendientes = async ({ socioId, clubId }) => {
   return pendientes.map((p) => ({
     tipo: 'evento',
     eventoId: p.eventoId?._id ?? p.eventoId,
+    // Necesario para poder cobrarlo desde Registrar Cobro (appcarc-backend#175
+    // espera participanteId, no alcanza con el eventoId) — appCARC-mobile#141.
+    participanteId: p._id,
     nombre: p.eventoId?.nombre ?? 'Evento',
     descripcion: p.eventoId?.descripcion || '',
     totalDeuda: p.montoEsperadoSnapshot - (p.montoPagadoSnapshot || 0),
