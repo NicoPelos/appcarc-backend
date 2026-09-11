@@ -45,6 +45,9 @@ const eventoParticipanteSchema = new mongoose.Schema({
   // roster, y no se ve afectado si el socio edita su nombre después.
   nombre: { type: String, required: true },
   apellido: { type: String, default: '' },
+  // Detalle libre (talle, modelo, etc.) — para casos como venta de remeras
+  // donde el monto no dice por sí solo qué compuso el pedido.
+  notas: { type: String, default: '' },
   montoEsperadoSnapshot: { type: Number, required: true, min: 0 },
   montoPagadoSnapshot: { type: Number, default: 0, min: 0 },
   estado: {

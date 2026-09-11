@@ -4,11 +4,15 @@ import { updateEventoParticipanteHandler } from '../../handlers/updateEventoPart
 vi.mock('../../models/EventoParticipante.js', () => ({
   default: { findOne: vi.fn() },
 }));
+vi.mock('../../../socios/models/Socio.js', () => ({
+  default: { findOne: vi.fn() },
+}));
 vi.mock('../../../audit/services/audit.service.js', () => ({
   logAudit: vi.fn(),
 }));
 
 import EventoParticipante from '../../models/EventoParticipante.js';
+import Socio from '../../../socios/models/Socio.js';
 
 const EVENTO_ID = '507f1f77bcf86cd799439011';
 const PARTICIPANTE_ID = '507f1f77bcf86cd799439013';
@@ -106,6 +110,69 @@ describe('updateEventoParticipanteHandler', () => {
     const participante = buildParticipante({ estado: 'anulada' });
     EventoParticipante.findOne.mockResolvedValue(participante);
     const req = { user: mockUser, params: { eventoId: EVENTO_ID, participanteId: PARTICIPANTE_ID }, body: { monto: 1 } };
+    const res = mockRes();
+    await updateEventoParticipanteHandler(req, res);
+    expect(res.status).toHaveBeenCalledWith(409);
+  });
+
+  it('actualiza las notas', async () => {
+    const participante = buildParticipante();
+    EventoParticipante.findOne.mockResolvedValue(participante);
+
+    const req = { user: mockUser, params: { eventoId: EVENTO_ID, participanteId: PARTICIPANTE_ID }, body: { notas: '1 con imagen, talle M' } };
+    const res = mockRes();
+    await updateEventoParticipanteHandler(req, res);
+
+    expect(participante.notas).toBe('1 con imagen, talle M');
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('vincula el participante a un socio existente', async () => {
+    const participante = buildParticipante({ socioId: null });
+    EventoParticipante.findOne
+      .mockResolvedValueOnce(participante) // el propio participante
+      .mockResolvedValueOnce(null); // nadie más del roster tiene ese socioId
+    Socio.findOne.mockResolvedValue({ _id: '507f1f77bcf86cd799439099', nombre: 'Ana', apellido: 'Gómez' });
+
+    const req = { user: mockUser, params: { eventoId: EVENTO_ID, participanteId: PARTICIPANTE_ID }, body: { socioId: '507f1f77bcf86cd799439099' } };
+    const res = mockRes();
+    await updateEventoParticipanteHandler(req, res);
+
+    expect(participante.socioId).toBe('507f1f77bcf86cd799439099');
+    expect(participante.nombre).toBe('Ana');
+    expect(participante.apellido).toBe('Gómez');
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('retorna 400 si el participante ya es socio y se intenta vincular a otro', async () => {
+    const participante = buildParticipante({ socioId: '507f1f77bcf86cd799439098' });
+    EventoParticipante.findOne.mockResolvedValue(participante);
+
+    const req = { user: mockUser, params: { eventoId: EVENTO_ID, participanteId: PARTICIPANTE_ID }, body: { socioId: '507f1f77bcf86cd799439097' } };
+    const res = mockRes();
+    await updateEventoParticipanteHandler(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('retorna 404 si el socio a vincular no existe', async () => {
+    const participante = buildParticipante({ socioId: null });
+    EventoParticipante.findOne.mockResolvedValueOnce(participante);
+    Socio.findOne.mockResolvedValue(null);
+
+    const req = { user: mockUser, params: { eventoId: EVENTO_ID, participanteId: PARTICIPANTE_ID }, body: { socioId: '507f1f77bcf86cd799439096' } };
+    const res = mockRes();
+    await updateEventoParticipanteHandler(req, res);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  it('retorna 409 si el socio a vincular ya está en el roster', async () => {
+    const participante = buildParticipante({ socioId: null });
+    EventoParticipante.findOne
+      .mockResolvedValueOnce(participante)
+      .mockResolvedValueOnce({ _id: 'otroParticipante' });
+    Socio.findOne.mockResolvedValue({ _id: '507f1f77bcf86cd799439099', nombre: 'Ana', apellido: 'Gómez' });
+
+    const req = { user: mockUser, params: { eventoId: EVENTO_ID, participanteId: PARTICIPANTE_ID }, body: { socioId: '507f1f77bcf86cd799439099' } };
     const res = mockRes();
     await updateEventoParticipanteHandler(req, res);
     expect(res.status).toHaveBeenCalledWith(409);

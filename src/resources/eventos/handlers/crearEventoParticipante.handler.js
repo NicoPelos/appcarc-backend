@@ -32,6 +32,9 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *               monto:
  *                 type: number
  *                 description: Monto esperado — si no se manda, usa Evento.precioSugerido
+ *               notas:
+ *                 type: string
+ *                 description: Detalle libre (talle, modelo, etc.), opcional
  *     responses:
  *       201:
  *         description: Participante agregado
@@ -53,7 +56,7 @@ export const crearEventoParticipanteHandler = async (req, res) => {
     if (!evento) return res.status(404).json({ message: 'Evento no encontrado' });
     if (evento.estado === 'cerrado') return res.status(409).json({ message: 'El evento está cerrado, no se pueden agregar participantes' });
 
-    const { socioId, monto } = req.body;
+    const { socioId, monto, notas } = req.body;
     let { nombre, apellido } = req.body;
 
     if (socioId && (nombre || apellido)) {
@@ -93,6 +96,7 @@ export const crearEventoParticipanteHandler = async (req, res) => {
       socioId: resolvedSocioId,
       nombre: nombre.trim(),
       apellido: (apellido || '').trim(),
+      notas: (notas || '').trim(),
       montoEsperadoSnapshot: montoEsperado,
       createdBy: actor,
       updatedBy: actor,

@@ -73,6 +73,14 @@ describe('crearEventoParticipanteHandler', () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
+  it('guarda las notas si se mandan', async () => {
+    Evento.findOne.mockResolvedValue(buildEvento());
+    const req = { user: mockUser, params: { eventoId: EVENTO_ID }, body: { nombre: 'Juan', monto: 20000, notas: '1 con imagen, talle M' } };
+    const res = mockRes();
+    await crearEventoParticipanteHandler(req, res);
+    expect(EventoParticipante).toHaveBeenCalledWith(expect.objectContaining({ notas: '1 con imagen, talle M' }));
+  });
+
   it('usa el monto del body por sobre el precioSugerido del evento', async () => {
     Evento.findOne.mockResolvedValue(buildEvento({ precioSugerido: 15000 }));
     const req = { user: mockUser, params: { eventoId: EVENTO_ID }, body: { nombre: 'Juan', monto: 12000 } };
