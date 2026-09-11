@@ -3,7 +3,7 @@ import { crearEventoHandler } from '../../handlers/crearEvento.handler.js';
 
 vi.mock('../../models/Evento.js', () => ({
   default: vi.fn(),
-  CATEGORIAS_EVENTO: ['Viajes', 'Eventos', 'Ventas / Reventa', 'Subsidios / Donaciones', 'Otros'],
+  CATEGORIAS_EVENTO: ['Viajes', 'Ventas / Reventa', 'Subsidios / Donaciones', 'Otros'],
 }));
 vi.mock('../../../audit/services/audit.service.js', () => ({
   logAudit: vi.fn(),
@@ -51,7 +51,7 @@ describe('crearEventoHandler', () => {
   });
 
   it('precioSugerido es opcional (queda null si no se envía)', async () => {
-    const req = { user: mockUser, body: { nombre: 'Curso de nudos', categoria: 'Eventos', fecha: '2026-10-01' } };
+    const req = { user: mockUser, body: { nombre: 'Curso de nudos', categoria: 'Otros', fecha: '2026-10-01' } };
     const res = mockRes();
 
     await crearEventoHandler(req, res);

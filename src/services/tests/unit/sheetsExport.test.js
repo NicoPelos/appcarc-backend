@@ -15,7 +15,7 @@ vi.mock('../../../resources/planes/models/Plan.js', () => ({ default: { find: vi
 vi.mock('../../../resources/movimientos/models/Movimiento.js', () => ({
   default: { find: vi.fn() },
   CATEGORIAS_MOVIMIENTO: {
-    Ingreso: ['Viajes', 'Eventos', 'Ventas / Reventa', 'Subsidios / Donaciones', 'Otros'],
+    Ingreso: ['Viajes', 'Ventas / Reventa', 'Subsidios / Donaciones', 'Otros'],
     Egreso: ['Honorarios', 'Costos Fijos', 'Varios'],
   },
 }));

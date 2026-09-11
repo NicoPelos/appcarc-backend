@@ -6,8 +6,11 @@ import mongoose from 'mongoose';
 // necesitan que alguien elija una categoría de texto. Distinta lista según
 // type porque "Honorarios" no tiene sentido para un ingreso, ni "Viajes"
 // para un egreso. Ver issue #55.
+// "Eventos" no está como categoría: se solapa con eventoId (ver Evento.js) —
+// un ingreso/egreso ligado a un evento ya se distingue por ese tag, no
+// necesita además una categoría genérica que no agrega información.
 export const CATEGORIAS_MOVIMIENTO = {
-  Ingreso: ['Viajes', 'Eventos', 'Ventas / Reventa', 'Subsidios / Donaciones', 'Otros'],
+  Ingreso: ['Viajes', 'Ventas / Reventa', 'Subsidios / Donaciones', 'Otros'],
   Egreso: ['Honorarios', 'Costos Fijos', 'Varios'],
 };
 

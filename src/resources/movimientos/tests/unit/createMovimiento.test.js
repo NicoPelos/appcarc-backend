@@ -68,7 +68,7 @@ describe('createMovimientoHandler', () => {
     const res = mockRes();
     await createMovimientoHandler({ body: { ...BASE_BODY, categoria: undefined }, user: USER }, res);
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: 'La categoría debe ser una de: Viajes, Eventos, Ventas / Reventa, Subsidios / Donaciones, Otros' });
+    expect(res.json).toHaveBeenCalledWith({ message: 'La categoría debe ser una de: Viajes, Ventas / Reventa, Subsidios / Donaciones, Otros' });
   });
 
   it('should return 400 when categoria no corresponde al type (Honorarios es de Egreso, no de Ingreso)', async () => {

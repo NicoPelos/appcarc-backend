@@ -3,7 +3,7 @@ import { updateEventoHandler } from '../../handlers/updateEvento.handler.js';
 
 vi.mock('../../models/Evento.js', () => ({
   default: { findOne: vi.fn() },
-  CATEGORIAS_EVENTO: ['Viajes', 'Eventos', 'Ventas / Reventa', 'Subsidios / Donaciones', 'Otros'],
+  CATEGORIAS_EVENTO: ['Viajes', 'Ventas / Reventa', 'Subsidios / Donaciones', 'Otros'],
 }));
 vi.mock('../../../audit/services/audit.service.js', () => ({
   logAudit: vi.fn(),
