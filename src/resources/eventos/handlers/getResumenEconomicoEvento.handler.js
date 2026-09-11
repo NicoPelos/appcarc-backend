@@ -32,7 +32,7 @@ export const getResumenEconomicoEventoHandler = async (req, res) => {
     if (!evento) return res.status(404).json({ message: 'Evento no encontrado' });
 
     const movimientos = await Movimiento.find({ eventoId: id, clubId: req.user.clubId, active: true })
-      .select('type amount concept categoria date paymentMethod')
+      .select('type amount concept categoria date paymentMethod sourceType')
       .sort({ date: 1 })
       .lean();
 
