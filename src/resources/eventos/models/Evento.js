@@ -1,12 +1,14 @@
 import mongoose from 'mongoose';
-import { CATEGORIAS_MOVIMIENTO } from '../../movimientos/models/Movimiento.js';
 
-// Mismas categorías de ingreso que ya usa Movimiento — así el dinero que
-// entra por un Evento categoriza automáticamente en el Dashboard / vista
-// "Ingresos por categoría" (appcarc-backend#171/#172) sin tocar esa lógica:
-// basta con que registrarPagoEventoParticipante.service.js (appcarc-backend#175)
-// copie `evento.categoria` al `Movimiento.categoria` que genera cada pago.
-export const CATEGORIAS_EVENTO = CATEGORIAS_MOVIMIENTO.Ingreso;
+// Categorías propias del Evento — independientes de CATEGORIAS_MOVIMIENTO.Ingreso
+// (que sirve para "Registrar Movimiento" manual, un caso de uso distinto: no
+// todas tienen sentido en ambos lados, ej. "Charla / Curso" no es una forma
+// de categorizar un ingreso manual, y "Subsidios / Donaciones" no es un tipo
+// de evento). El "Ingresos por categoría" del Dashboard agrupa por lo que
+// haya en `Movimiento.categoria` sin una lista fija, así que copiar
+// `evento.categoria` ahí (registrarPagoEventoParticipante.service.js,
+// appcarc-backend#175) sigue funcionando aunque las listas difieran.
+export const CATEGORIAS_EVENTO = ['Viajes', 'Charla / Curso', 'Ventas / Reventa', 'Otros'];
 
 export const ESTADOS_EVENTO = ['abierto', 'cerrado'];
 

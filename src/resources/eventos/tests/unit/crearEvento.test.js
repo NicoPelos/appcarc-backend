@@ -3,7 +3,7 @@ import { crearEventoHandler } from '../../handlers/crearEvento.handler.js';
 
 vi.mock('../../models/Evento.js', () => ({
   default: vi.fn(),
-  CATEGORIAS_EVENTO: ['Viajes', 'Ventas / Reventa', 'Subsidios / Donaciones', 'Otros'],
+  CATEGORIAS_EVENTO: ['Viajes', 'Charla / Curso', 'Ventas / Reventa', 'Otros'],
 }));
 vi.mock('../../../audit/services/audit.service.js', () => ({
   logAudit: vi.fn(),
