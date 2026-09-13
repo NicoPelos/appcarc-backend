@@ -1,10 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+vi.mock('../../../../services/clubActivoCache.js', () => ({
+  invalidarClubActivo: vi.fn(),
+}));
 import { getClubsHandler }    from '../../handlers/getClubs.handler.js';
 import { createClubHandler }  from '../../handlers/createClub.handler.js';
 import { suspendClubHandler } from '../../handlers/suspendClub.handler.js';
 import Club from '../../../clubs/models/Club.js';
 import User from '../../../usuarios/models/User.js';
 import Socio from '../../../socios/models/Socio.js';
+import { invalidarClubActivo } from '../../../../services/clubActivoCache.js';
 
 const mockRes = () => {
   const res = {};
@@ -79,7 +83,7 @@ describe('Super — clubs handlers (unit)', () => {
   });
 
   it('suspendClubHandler togglea active', async () => {
-    const fakeClub = { _id: 'c1', active: true, suspendidoAt: null, save: vi.fn() };
+    const fakeClub = { _id: 'c1', slug: 'carc', active: true, suspendidoAt: null, save: vi.fn() };
     Club.findById.mockResolvedValue(fakeClub);
     const req = { params: { id: 'c1' } };
     const res = mockRes();
@@ -87,5 +91,14 @@ describe('Super — clubs handlers (unit)', () => {
     expect(fakeClub.active).toBe(false);
     expect(fakeClub.save).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('suspendClubHandler invalida el cache de esClubActivo (appcarc-backend#169)', async () => {
+    const fakeClub = { _id: 'c1', slug: 'carc', active: true, suspendidoAt: null, save: vi.fn() };
+    Club.findById.mockResolvedValue(fakeClub);
+    const req = { params: { id: 'c1' } };
+    const res = mockRes();
+    await suspendClubHandler(req, res);
+    expect(invalidarClubActivo).toHaveBeenCalledWith('carc');
   });
 });

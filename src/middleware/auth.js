@@ -3,6 +3,7 @@ import tokenService from '../services/tokenBlacklistService.js';
 import User from '../resources/usuarios/models/User.js';
 import VinculoFamiliar from '../resources/vinculos/models/VinculoFamiliar.js';
 import { tienePermiso } from '../services/permisosCache.js';
+import { esClubActivo } from '../services/clubActivoCache.js';
 import { getSocioIdsAccesibles } from '../resources/vinculos/services/getSocioIdsAccesibles.service.js';
 
 export const protect = async (req, res, next) => {
@@ -25,6 +26,13 @@ export const protect = async (req, res, next) => {
     }
     if (user.passwordChangedAt && decoded.iat * 1000 < user.passwordChangedAt.getTime()) {
       return res.status(401).json({ message: 'Sesión expirada, la contraseña fue cambiada' });
+    }
+
+    // appcarc-backend#169: un club suspendido no bloqueaba nada — solo
+    // cambiaba un campo decorativo. superadmin (sin clubId "real" de club de
+    // datos) queda afuera de este chequeo.
+    if (!decoded.roles?.includes('superadmin') && !(await esClubActivo(decoded.clubId))) {
+      return res.status(403).json({ message: 'El club está suspendido' });
     }
 
     // El JWT es stateless y dura 8h: si el socioId activo no es el propio del

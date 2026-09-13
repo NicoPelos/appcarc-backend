@@ -16,6 +16,10 @@ vi.mock('../../../../services/refreshTokenService.js', () => ({
   revokeRefreshToken: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('../../../../services/clubActivoCache.js', () => ({
+  esClubActivo: vi.fn().mockResolvedValue(true),
+}));
+
 import User from '../../models/User.js';
 import Socio from '../../../socios/models/Socio.js';
 import VinculoFamiliar from '../../../vinculos/models/VinculoFamiliar.js';
@@ -28,6 +32,7 @@ import mongoose from 'mongoose';
 import { OAuth2Client } from 'google-auth-library';
 import { obtenerRolIdsPorNombres, obtenerSlugsPorRolIds } from '../../../roles/services/resolverRoles.service.js';
 import { issueRefreshToken, findValidRefreshToken, revokeRefreshToken } from '../../../../services/refreshTokenService.js';
+import { esClubActivo } from '../../../../services/clubActivoCache.js';
 
 function mockRes() {
   const res = {};
@@ -53,6 +58,7 @@ describe('Usuarios auth handlers (unit)', () => {
     obtenerRolIdsPorNombres.mockResolvedValue(['rol-id-1']);
     obtenerSlugsPorRolIds.mockResolvedValue(['secretaria']);
     issueRefreshToken.mockResolvedValue('mock-refresh-token');
+    esClubActivo.mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -110,6 +116,18 @@ describe('Usuarios auth handlers (unit)', () => {
     expect(User.findOne).toHaveBeenCalledWith({ email: 'a@b.com' });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ token: 'mock-token', socio: null }));
+  });
+
+  it('login should return 403 when the club is suspended (appcarc-backend#169)', async () => {
+    User.findOne.mockResolvedValue({ _id: 'u1', email: 'a@b.com', password: 'hashed-pass', roles: ['secretaria'], clubId: 'c1', active: true, socioId: null });
+    esClubActivo.mockResolvedValue(false);
+    const req = { body: { email: 'a@b.com', password: 'pass' } };
+    const res = mockRes();
+
+    await authHandlers.login(req, res);
+
+    expect(esClubActivo).toHaveBeenCalledWith('c1');
+    expect(res.status).toHaveBeenCalledWith(403);
   });
 
   it('login should return requiresProfileSelection when the user has a socio propio and a vínculo', async () => {
@@ -352,6 +370,20 @@ describe('Usuarios auth handlers (unit)', () => {
     expect(res.json).not.toHaveBeenCalledWith(expect.objectContaining({ requiresProfileSelection: true }));
   });
 
+  it('googleLogin should return 403 when the club is suspended (appcarc-backend#169)', async () => {
+    vi.spyOn(OAuth2Client.prototype, 'verifyIdToken').mockResolvedValue({
+      getPayload: () => ({ email: 'socio@b.com', email_verified: true, sub: 'google-sub-3' }),
+    });
+    User.findOne.mockResolvedValue({ _id: 'u3', email: 'socio@b.com', clubId: 'CARC', active: true, socioId: 'socio-1', roles: [], googleId: 'google-sub-3' });
+    esClubActivo.mockResolvedValue(false);
+
+    const req = { body: { idToken: 'fake-id-token', clubId: 'CARC' } };
+    const res = mockRes();
+    await authHandlers.googleLogin(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+  });
+
   it('logout should add token to blacklist', async () => {
     const req = { headers: { authorization: 'Bearer sometoken' } };
     const res = mockRes();
@@ -401,6 +433,19 @@ describe('Usuarios auth handlers (unit)', () => {
 
     expect(revokeRefreshToken).toHaveBeenCalledWith('rt1');
     expect(res.status).toHaveBeenCalledWith(401);
+  });
+
+  it('refresh should return 403 and revoke the token when the club is suspended (appcarc-backend#169)', async () => {
+    findValidRefreshToken.mockResolvedValue({ userId: 'u1', payload: { socioId: null, roles: ['secretaria'], clubId: 'club1' } });
+    User.findById.mockResolvedValue({ _id: 'u1', email: 'a@b.com', roles: [], clubId: 'club1', mustChangePassword: false, active: true });
+    esClubActivo.mockResolvedValue(false);
+    const req = { body: { refreshToken: 'rt1' } };
+    const res = mockRes();
+
+    await authHandlers.refresh(req, res);
+
+    expect(revokeRefreshToken).toHaveBeenCalledWith('rt1');
+    expect(res.status).toHaveBeenCalledWith(403);
   });
 
   it('refresh should rotate the token and preserve the active profile (ej. un perfil vinculado)', async () => {

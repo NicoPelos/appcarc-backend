@@ -8,6 +8,7 @@ import bcrypt from 'bcryptjs';
 import tokenService from '../../../services/tokenBlacklistService.js';
 import { issueRefreshToken, findValidRefreshToken, revokeRefreshToken } from '../../../services/refreshTokenService.js';
 import { getPermisosUsuario } from '../../../services/permisosCache.js';
+import { esClubActivo } from '../../../services/clubActivoCache.js';
 import { generarPasswordTemporal } from '../../../services/generarPasswordTemporal.service.js';
 import {
   obtenerRolIdsPorNombres,
@@ -183,6 +184,13 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
     throw error;
   }
 
+  // appcarc-backend#169: suspender un club no bloqueaba el login por Google.
+  if (!(await esClubActivo(user.clubId))) {
+    const error = new Error('El club está suspendido');
+    error.code = 'CLUB_SUSPENDED';
+    throw error;
+  }
+
   if (!user.googleId) {
     user.googleId = googleId;
     await user.save();
@@ -289,7 +297,7 @@ export const googleLogin = async (req, res) => {
     if (error.code === 'NOT_SOCIO') {
       return res.status(403).json({ message: error.message });
     }
-    if (error.code === 'USER_DISABLED') {
+    if (error.code === 'USER_DISABLED' || error.code === 'CLUB_SUSPENDED') {
       return res.status(403).json({ message: error.message });
     }
     return res.status(401).json({ message: 'Autenticación de Google fallida' });
@@ -330,6 +338,8 @@ export const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: 'Credenciales inválidas.' });
     if (!user.active) return res.status(403).json({ message: 'Usuario desactivado' });
+    // appcarc-backend#169: suspender un club no bloqueaba el login.
+    if (!(await esClubActivo(user.clubId))) return res.status(403).json({ message: 'El club está suspendido' });
 
     const response = await resolveLoginResponse(user);
     res.status(200).json(response);
@@ -479,6 +489,14 @@ export const refresh = async (req, res) => {
     if (!user || !user.active) {
       await revokeRefreshToken(refreshToken);
       return res.status(401).json({ message: 'Usuario no encontrado o desactivado' });
+    }
+    // appcarc-backend#169: el refresh token re-emite el access token sin
+    // pasar por protect ni por login — sin este chequeo, un club suspendido
+    // seguía renovando sesiones indefinidamente mientras el refresh token
+    // siguiera vigente.
+    if (!(await esClubActivo(user.clubId))) {
+      await revokeRefreshToken(refreshToken);
+      return res.status(403).json({ message: 'El club está suspendido' });
     }
 
     await revokeRefreshToken(refreshToken);

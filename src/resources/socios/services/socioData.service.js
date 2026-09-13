@@ -25,10 +25,22 @@ export const buildDomicilioCompleto = ({ domicilioCompleto, calle, altura, direc
   return domicilioCompleto;
 };
 
+// Campos que nunca deben salir del body y pisar lo que le corresponde al
+// servidor decidir — appcarc-backend#163: un body con clubId (o cualquiera
+// de estos) permitía crear/mover un Socio a otro club, o reactivarlo/tocar
+// su soft-delete sin pasar por los endpoints pensados para eso.
+const CAMPOS_PROTEGIDOS = ['clubId', 'active', 'deletedAt', 'deletedBy', 'sheetRowNumber', 'spreadsheetId'];
+
+const sinCamposProtegidos = (body) => {
+  const rest = { ...(body ?? {}) };
+  for (const campo of CAMPOS_PROTEGIDOS) delete rest[campo];
+  return rest;
+};
+
 export const prepareSocioCreateData = (body, user) => {
   const data = {
-    ...body,
-    clubId: body?.clubId || user?.clubId,
+    ...sinCamposProtegidos(body),
+    clubId: user?.clubId,
     createdBy: user?.id,
     updatedBy: user?.id,
   };
@@ -50,8 +62,9 @@ export const prepareSocioCreateData = (body, user) => {
 
 export const prepareSocioUpdateData = (body, user) => {
   // socioNumber es 100% automático e inmutable una vez asignado (issue #47) —
-  // se ignora cualquier intento de tocarlo por esta vía.
-  const { socioNumber, ...rest } = body ?? {};
+  // se ignora cualquier intento de tocarlo por esta vía. clubId y el resto de
+  // CAMPOS_PROTEGIDOS tampoco se pueden reasignar desde acá (appcarc-backend#163).
+  const { socioNumber, ...rest } = sinCamposProtegidos(body);
   const data = {
     ...rest,
     updatedBy: user?.id,

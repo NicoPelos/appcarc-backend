@@ -52,9 +52,25 @@ describe('prepareSocioCreateData', () => {
     expect(result.clubId).toBe('club1');
   });
 
-  it('prefers clubId from body over user', () => {
-    const result = prepareSocioCreateData({ nombre: 'Juan', clubId: 'club2' }, USER);
-    expect(result.clubId).toBe('club2');
+  it('ignora clubId del body — siempre usa el del usuario autenticado (appcarc-backend#163)', () => {
+    const result = prepareSocioCreateData({ nombre: 'Juan', clubId: 'club-ajeno' }, USER);
+    expect(result.clubId).toBe('club1');
+  });
+
+  it('ignora active/deletedAt/deletedBy/sheetRowNumber/spreadsheetId del body (appcarc-backend#163)', () => {
+    const result = prepareSocioCreateData({
+      nombre: 'Juan',
+      active: false,
+      deletedAt: new Date(),
+      deletedBy: 'atacante@test.com',
+      sheetRowNumber: 999,
+      spreadsheetId: 'otro-sheet',
+    }, USER);
+    expect(result.active).toBeUndefined();
+    expect(result.deletedAt).toBeUndefined();
+    expect(result.deletedBy).toBeUndefined();
+    expect(result.sheetRowNumber).toBeUndefined();
+    expect(result.spreadsheetId).toBeUndefined();
   });
 
   it('sets createdBy and updatedBy from user.id', () => {
@@ -103,6 +119,27 @@ describe('prepareSocioUpdateData', () => {
   it('ignora socioNumber en el body (inmutable una vez asignado)', () => {
     const result = prepareSocioUpdateData({ nombre: 'Ana', socioNumber: '999' }, USER);
     expect(result.socioNumber).toBeUndefined();
+  });
+
+  it('ignora clubId del body — no permite mover un socio existente a otro club (appcarc-backend#163)', () => {
+    const result = prepareSocioUpdateData({ nombre: 'Ana', clubId: 'club-ajeno' }, USER);
+    expect(result.clubId).toBeUndefined();
+  });
+
+  it('ignora active/deletedAt/deletedBy/sheetRowNumber/spreadsheetId del body (appcarc-backend#163)', () => {
+    const result = prepareSocioUpdateData({
+      nombre: 'Ana',
+      active: false,
+      deletedAt: new Date(),
+      deletedBy: 'atacante@test.com',
+      sheetRowNumber: 999,
+      spreadsheetId: 'otro-sheet',
+    }, USER);
+    expect(result.active).toBeUndefined();
+    expect(result.deletedAt).toBeUndefined();
+    expect(result.deletedBy).toBeUndefined();
+    expect(result.sheetRowNumber).toBeUndefined();
+    expect(result.spreadsheetId).toBeUndefined();
   });
 });
 
