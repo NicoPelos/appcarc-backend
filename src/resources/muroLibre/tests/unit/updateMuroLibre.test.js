@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { updateMuroLibreHandler } from '../../handlers/updateMuroLibre.handler.js';
 import Asistencia from '../../../asistencias/models/Asistencia.js';
 import Movimiento from '../../../movimientos/models/Movimiento.js';
+import Cuota from '../../../cuotas/models/Cuota.js';
 
 const mockRes = () => {
   const res = {};
@@ -38,6 +39,7 @@ describe('updateMuroLibreHandler', () => {
     };
     vi.spyOn(mongoose, 'startSession').mockResolvedValue(sessionMock);
     Movimiento.findByIdAndUpdate = vi.fn().mockResolvedValue(null);
+    Cuota.updateMany = vi.fn().mockResolvedValue({ modifiedCount: 1 });
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -123,6 +125,45 @@ describe('updateMuroLibreHandler', () => {
     expect(registro.formaPago).toBe('Transferencia');
     expect(registro.observaciones).toBe('ok');
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('appcarc-backend#186: al editar monto de un pase con movimientoId, sincroniza la Cuota asociada', async () => {
+    const registro = makeRegistro({ movimientoId: 'mov1' });
+    vi.spyOn(Asistencia, 'findOne').mockReturnValue({ session: vi.fn().mockResolvedValue(registro) });
+    const res = mockRes();
+
+    await updateMuroLibreHandler({ params: { id: 'reg1' }, body: { monto: 3000 }, user: USER }, res);
+
+    expect(Cuota.updateMany).toHaveBeenCalledWith(
+      { clubId: 'club1', movimientoId: 'mov1' },
+      { montoPagadoSnapshot: 3000, updatedBy: 'secretaria@carc.test' },
+      { session: sessionMock },
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('appcarc-backend#186: al editar formaPago de un pase con movimientoId, sincroniza la Cuota asociada', async () => {
+    const registro = makeRegistro({ movimientoId: 'mov1' });
+    vi.spyOn(Asistencia, 'findOne').mockReturnValue({ session: vi.fn().mockResolvedValue(registro) });
+    const res = mockRes();
+
+    await updateMuroLibreHandler({ params: { id: 'reg1' }, body: { formaPago: 'Transferencia' }, user: USER }, res);
+
+    expect(Cuota.updateMany).toHaveBeenCalledWith(
+      { clubId: 'club1', movimientoId: 'mov1' },
+      { paymentMethod: 'Transferencia', updatedBy: 'secretaria@carc.test' },
+      { session: sessionMock },
+    );
+  });
+
+  it('appcarc-backend#186: sin movimientoId (pase diario/exento) no toca Cuota', async () => {
+    const registro = makeRegistro({ movimientoId: null });
+    vi.spyOn(Asistencia, 'findOne').mockReturnValue({ session: vi.fn().mockResolvedValue(registro) });
+    const res = mockRes();
+
+    await updateMuroLibreHandler({ params: { id: 'reg1' }, body: { monto: 3000, formaPago: 'Efectivo' }, user: USER }, res);
+
+    expect(Cuota.updateMany).not.toHaveBeenCalled();
   });
 
   it('appcarc-backend#167: rechaza editar la fecha a una futura', async () => {

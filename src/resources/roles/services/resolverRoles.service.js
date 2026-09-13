@@ -29,8 +29,14 @@ export async function obtenerRolIdsPorSlugs({ clubId, slugs }) {
 // ObjectIds de Rol -> slugs. Así se arma el array "roles" del JWT/response de
 // login, para que el código que compara contra literales (ej. 'superadmin',
 // 'socio') siga funcionando sin cambios aunque el rol se renombre.
-export async function obtenerSlugsPorRolIds(rolIds) {
+// clubId es obligatorio (appcarc-backend#162): era el único punto del módulo
+// que no lo exigía, rompiendo el mismo invariante multi-tenant que sí
+// respetan obtenerRolIdsPorNombres/obtenerRolIdsPorSlugs — sin esto, un
+// ObjectId de Rol de otro club colado en user.roles (por una migración, un
+// bug de asignación, etc.) se resolvería en silencio a un slug real de ese
+// otro club.
+export async function obtenerSlugsPorRolIds({ clubId, rolIds }) {
   if (!rolIds?.length) return [];
-  const roles = await Rol.find({ _id: { $in: rolIds }, active: true }).select('slug').lean();
+  const roles = await Rol.find({ _id: { $in: rolIds }, clubId, active: true }).select('slug').lean();
   return roles.map((r) => r.slug);
 }

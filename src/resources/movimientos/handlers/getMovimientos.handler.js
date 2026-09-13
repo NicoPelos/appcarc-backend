@@ -178,7 +178,13 @@ export const getMovimientosHandler = async (req, res) => {
         .sort({ date: -1 })
         .skip((pageNumber - 1) * pageSize)
         .limit(pageSize)
-        .populate('sourceId')
+        // appcarc-backend#183: sin el match acá, populate resuelve sourceId
+        // (Cobro/Asistencia/EventoParticipante vía refPath) sin ningún
+        // filtro propio — hoy no es explotable porque el invariante "todo
+        // sourceId referencia datos del mismo club" se sostiene del lado de
+        // la escritura, pero esta query tiene que defenderse sola igual que
+        // buildDetalle más abajo (mismo criterio, appcarc-backend#138).
+        .populate({ path: 'sourceId', match: { clubId: req.user?.clubId } })
         .lean(),
       // Subtotal por medio de pago sobre TODO lo que matchea el filtro, no
       // solo la página visible — para auditar caja (ej. "cuánto de esto es

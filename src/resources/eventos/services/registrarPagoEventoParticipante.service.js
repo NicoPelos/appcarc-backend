@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Evento from '../models/Evento.js';
 import EventoParticipante from '../models/EventoParticipante.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
+import { fechaCalendarioArgentina } from '../../../services/fechaArgentina.js';
 
 export class BusinessError extends Error {
   constructor(message, status = 400) {
@@ -15,8 +16,9 @@ const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 
 // Mismo criterio que registrarCobro.service.js: compara por día calendario
 // argentino (UTC-3), no por timestamp exacto, para no rechazar "hoy" como
-// futuro mientras el mediodía AR todavía no ocurrió en UTC.
-const diaAR = (d) => new Date(d.getTime() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
+// futuro mientras el mediodía AR todavía no ocurrió en UTC. appcarc-backend#160:
+// reusa fechaArgentina.js en vez de reimplementar el offset a mano.
+const diaAR = fechaCalendarioArgentina;
 
 // Registra el pago (total o seña) de un participante de un Evento —
 // equivalente de registrarCobro.service.js para CargoPuntual (appcarc-backend#168),

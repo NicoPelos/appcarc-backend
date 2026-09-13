@@ -7,7 +7,7 @@ import Movimiento from '../../movimientos/models/Movimiento.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
-import { dentroDeVentanaDeGracia, esFechaFutura } from '../../../services/fechaArgentina.js';
+import { dentroDeVentanaDeGracia, esFechaFutura, diaBoundsUTC, fechaCalendarioArgentina } from '../../../services/fechaArgentina.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 const VALID_TIPO_PASE = ['diario', 'mensual'];
@@ -37,13 +37,9 @@ const buildPeriodo = (date) => {
   return `${year}-${month}`;
 };
 
-// Día calendario en America/Argentina (UTC-3, sin horario de verano) — mismo
-// offset que ya usaba el chequeo de duplicado en memoria más abajo.
-const buildDiaCheckin = (date) => {
-  const OFFSET_MS = -3 * 60 * 60 * 1000;
-  const localFecha = new Date(date.getTime() + OFFSET_MS);
-  return `${localFecha.getUTCFullYear()}-${String(localFecha.getUTCMonth() + 1).padStart(2, '0')}-${String(localFecha.getUTCDate()).padStart(2, '0')}`;
-};
+// Día calendario en America/Argentina (UTC-3, sin horario de verano) —
+// appcarc-backend#160: reusa fechaArgentina.js en vez de reimplementarlo.
+const buildDiaCheckin = (date) => fechaCalendarioArgentina(date);
 
 export const findPrecioVigenteByUsoSistema = async ({ clubId, uso_sistema, date, session = null }) => {
   const etiqueta = await Etiqueta.findOne({ clubId, uso_sistema, active: true }).lean();
@@ -108,12 +104,7 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
 
       // Verificar asistencia duplicada en el mismo día (solo socios, bloqueo duro)
       if (socio) {
-        const OFFSET_MS = -3 * 60 * 60 * 1000;
-        const localFecha = new Date(fecha.getTime() + OFFSET_MS);
-        const startLocal = new Date(localFecha); startLocal.setUTCHours(0, 0, 0, 0);
-        const endLocal = new Date(localFecha); endLocal.setUTCHours(23, 59, 59, 999);
-        const startUTC = new Date(startLocal.getTime() - OFFSET_MS);
-        const endUTC = new Date(endLocal.getTime() - OFFSET_MS);
+        const { start: startUTC, end: endUTC } = diaBoundsUTC(fecha);
 
         const existente = await Asistencia.findOne({
           clubId,

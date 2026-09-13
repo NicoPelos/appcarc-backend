@@ -46,6 +46,17 @@ describe('getMovimientosHandler', () => {
     expect(body.total).toBe(1);
   });
 
+  it('appcarc-backend#183: populate de sourceId filtra por clubId del usuario', async () => {
+    const query = makeQuery([]);
+    vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(0);
+    vi.spyOn(Movimiento, 'find').mockReturnValue(query);
+
+    const res = mockRes();
+    await getMovimientosHandler({ query: {}, user: USER }, res);
+
+    expect(query.populate).toHaveBeenCalledWith({ path: 'sourceId', match: { clubId: 'club1' } });
+  });
+
   it('should return deleted movimientos when trash=true', async () => {
     vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(2);
     vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([]));

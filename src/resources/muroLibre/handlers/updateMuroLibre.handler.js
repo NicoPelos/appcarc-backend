@@ -1,5 +1,6 @@
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
+import Cuota from '../../cuotas/models/Cuota.js';
 import mongoose from 'mongoose';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { esFechaFutura } from '../../../services/fechaArgentina.js';
@@ -94,6 +95,16 @@ export const updateMuroLibreHandler = async (req, res) => {
             { amount: m, updatedBy: actor },
             { session },
           );
+          // appcarc-backend#186: un pase mensual pagado además generó una
+          // Cuota (registrarMuroLibre.service.js) — calcularDeuda.service.js
+          // calcula la deuda desde ahí, no desde el Movimiento, así que hay
+          // que mantenerla en sync o el socio queda "al día" con un monto
+          // que no coincide con lo cobrado (o con saldo pendiente fantasma).
+          await Cuota.updateMany(
+            { clubId: req.user.clubId, movimientoId: registro.movimientoId },
+            { montoPagadoSnapshot: m, updatedBy: actor },
+            { session },
+          );
         }
       }
 
@@ -106,6 +117,11 @@ export const updateMuroLibreHandler = async (req, res) => {
         if (registro.movimientoId) {
           await Movimiento.findByIdAndUpdate(
             registro.movimientoId,
+            { paymentMethod: formaPago, updatedBy: actor },
+            { session },
+          );
+          await Cuota.updateMany(
+            { clubId: req.user.clubId, movimientoId: registro.movimientoId },
             { paymentMethod: formaPago, updatedBy: actor },
             { session },
           );

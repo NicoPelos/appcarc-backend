@@ -36,6 +36,12 @@ export const periodoDeFecha = (fecha) => {
   return `${local.getUTCFullYear()}-${String(local.getUTCMonth() + 1).padStart(2, '0')}`;
 };
 
+// 'YYYY-MM-DD' de la fecha, en huso horario argentino (appcarc-backend#160).
+export const fechaCalendarioArgentina = (fecha) => {
+  const local = new Date(fecha.getTime() + ARG_OFFSET_MS);
+  return `${local.getUTCFullYear()}-${String(local.getUTCMonth() + 1).padStart(2, '0')}-${String(local.getUTCDate()).padStart(2, '0')}`;
+};
+
 // Rango UTC (00:00 a 23:59:59.999) del día calendario argentino que contiene `fecha`.
 export const diaBoundsUTC = (fecha) => {
   const local = new Date(fecha.getTime() + ARG_OFFSET_MS);

@@ -1,11 +1,10 @@
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { periodoDeFecha } from '../../../services/fechaArgentina.js';
 
-const periodoActual = () => {
-  const OFFSET_MS = -3 * 60 * 60 * 1000;
-  const local = new Date(Date.now() + OFFSET_MS);
-  return `${local.getUTCFullYear()}-${String(local.getUTCMonth() + 1).padStart(2, '0')}`;
-};
+// appcarc-backend#160: reusa fechaArgentina.js en vez de reimplementar el
+// offset ART a mano.
+const periodoActual = () => periodoDeFecha(new Date());
 
 // Corta la generación de deuda futura de un socio que se da de baja: cierra
 // (fechaHasta = período actual) todas sus Suscripciones abiertas. Compartido

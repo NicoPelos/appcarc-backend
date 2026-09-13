@@ -8,6 +8,7 @@ import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Cobro from '../models/Cobro.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 import { findPrecioVigente } from '../../cuotas/services/findPrecioVigente.service.js';
+import { fechaCalendarioArgentina } from '../../../services/fechaArgentina.js';
 
 // 'MercadoPago' solo lo asigna el webhook al confirmar un pago online — nunca
 // lo elige un humano a mano (RegistrarCobroScreen solo ofrece Efectivo/Transferencia).
@@ -256,9 +257,11 @@ export const registrarCobro = async ({ clubId, user, body }) => {
   if (Number.isNaN(date.getTime())) throw new BusinessError('La fecha del cobro es inválida');
   // Compara por día calendario en horario argentino (UTC-3), no por timestamp exacto:
   // de lo contrario "hoy" se rechazaría como futuro mientras el mediodía AR aún no
-  // ocurrió en UTC (el servidor corre en UTC).
-  const diaAR = (d) => new Date(d.getTime() - 3 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  if (diaAR(date) > diaAR(new Date())) throw new BusinessError('La fecha del cobro no puede ser futura');
+  // ocurrió en UTC (el servidor corre en UTC). appcarc-backend#160: reusa
+  // fechaArgentina.js en vez de reimplementar el offset a mano.
+  if (fechaCalendarioArgentina(date) > fechaCalendarioArgentina(new Date())) {
+    throw new BusinessError('La fecha del cobro no puede ser futura');
+  }
 
   const session = await mongoose.startSession();
   try {

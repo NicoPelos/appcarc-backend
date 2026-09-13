@@ -1,5 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC, diaDelMesArgentino, dentroDeVentanaDeGracia } from '../../fechaArgentina.js';
+import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC, diaDelMesArgentino, dentroDeVentanaDeGracia, fechaCalendarioArgentina } from '../../fechaArgentina.js';
+
+describe('fechaCalendarioArgentina', () => {
+  it('devuelve YYYY-MM-DD en horario argentino', () => {
+    expect(fechaCalendarioArgentina(new Date('2026-02-10T15:00:00.000Z'))).toBe('2026-02-10');
+  });
+
+  it('un horario que en UTC ya es el día siguiente, en Argentina sigue siendo el día anterior', () => {
+    // 2026-02-11T02:00:00Z = 2026-02-10T23:00:00 en Argentina (UTC-3)
+    expect(fechaCalendarioArgentina(new Date('2026-02-11T02:00:00.000Z'))).toBe('2026-02-10');
+  });
+
+  it('cruza de mes correctamente (appcarc-backend#160)', () => {
+    // 2026-03-01T01:00:00Z = 2026-02-28T22:00:00 ART
+    expect(fechaCalendarioArgentina(new Date('2026-03-01T01:00:00.000Z'))).toBe('2026-02-28');
+  });
+});
 
 describe('periodoDeFecha', () => {
   it('devuelve el período del mes en horario argentino', () => {

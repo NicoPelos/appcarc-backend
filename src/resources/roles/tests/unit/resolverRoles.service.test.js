@@ -48,15 +48,15 @@ describe('obtenerRolIdsPorSlugs', () => {
 
 describe('obtenerSlugsPorRolIds', () => {
   it('devuelve [] sin consultar la BD si no hay ids', async () => {
-    const slugs = await obtenerSlugsPorRolIds([]);
+    const slugs = await obtenerSlugsPorRolIds({ clubId: 'club1', rolIds: [] });
     expect(slugs).toEqual([]);
     expect(Rol.find).not.toHaveBeenCalled();
   });
 
-  it('resuelve ids a slugs', async () => {
+  it('resuelve ids a slugs, filtrando por clubId (appcarc-backend#162)', async () => {
     Rol.find.mockReturnValue(select([{ slug: 'admin' }, { slug: 'socio' }]));
-    const slugs = await obtenerSlugsPorRolIds(['id1', 'id2']);
-    expect(Rol.find).toHaveBeenCalledWith({ _id: { $in: ['id1', 'id2'] }, active: true });
+    const slugs = await obtenerSlugsPorRolIds({ clubId: 'club1', rolIds: ['id1', 'id2'] });
+    expect(Rol.find).toHaveBeenCalledWith({ _id: { $in: ['id1', 'id2'] }, clubId: 'club1', active: true });
     expect(slugs).toEqual(['admin', 'socio']);
   });
 });

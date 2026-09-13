@@ -30,7 +30,7 @@ const ACCESS_TOKEN_TTL = '1h';
  * como payload propio, para poder reemitir el access token sin perder el
  * perfil activo cuando se renueve. */
 const buildAuthResponse = async (user, { socioId = user.socioId || null, rolesSlugs = null } = {}) => {
-  const finalRolesSlugs = rolesSlugs ?? await obtenerSlugsPorRolIds(user.roles);
+  const finalRolesSlugs = rolesSlugs ?? await obtenerSlugsPorRolIds({ clubId: user.clubId, rolIds: user.roles });
   const token = jwt.sign(
     { id: user._id, email: user.email, roles: finalRolesSlugs, clubId: user.clubId, socioId },
     process.env.JWT_SECRET,
@@ -250,7 +250,7 @@ export const register = async (req, res) => {
     });
     await user.save();
 
-    const rolesSlugs = await obtenerSlugsPorRolIds(user.roles);
+    const rolesSlugs = await obtenerSlugsPorRolIds({ clubId: user.clubId, rolIds: user.roles });
     const token = jwt.sign(
       { id: user._id, email: user.email, roles: rolesSlugs, clubId: user.clubId, socioId: user.socioId || null },
       process.env.JWT_SECRET,

@@ -40,7 +40,7 @@ export const syncSocioUserFromSocio = async (socio) => {
     user.email = email;
     user.socioId = user.socioId || socio._id?.toString();
     const protectedRoles = ['admin', 'secretaria', 'socio'];
-    const slugsActuales = await obtenerSlugsPorRolIds(user.roles);
+    const slugsActuales = await obtenerSlugsPorRolIds({ clubId: user.clubId, rolIds: user.roles });
     if (!slugsActuales.some(r => protectedRoles.includes(r))) {
       user.roles = await obtenerRolIdsPorSlugs({ clubId: user.clubId, slugs: ['socio'] });
       user.active = true;
