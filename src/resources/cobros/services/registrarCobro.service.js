@@ -9,6 +9,7 @@ import Cobro from '../models/Cobro.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 import { findPrecioVigente } from '../../cuotas/services/findPrecioVigente.service.js';
 import { fechaCalendarioArgentina } from '../../../services/fechaArgentina.js';
+import { aplicarPagoConSaldo } from '../../../services/pagoConSaldo.service.js';
 
 // 'MercadoPago' solo lo asigna el webhook al confirmar un pago online — nunca
 // lo elige un humano a mano (RegistrarCobroScreen solo ofrece Efectivo/Transferencia).
@@ -436,26 +437,23 @@ export const registrarCobro = async ({ clubId, user, body }) => {
       for (const item of itemsCargoPuntual) {
         const cargo = cargosPuntualesDb.find((c) => String(c._id) === item.cargoPuntualId);
 
-        cargo.pagos.push({
+        aplicarPagoConSaldo({
+          doc: cargo,
           monto: item.amount,
           fecha: date,
           paymentMethod,
-          cobroId: cobro._id,
           movimientoId: movimiento._id,
+          cobroId: cobro._id,
+          esPagoParcial: item.esPagoParcial,
+          actor,
         });
-        cargo.montoPagadoSnapshot = (cargo.montoPagadoSnapshot || 0) + item.amount;
-        // Sin esPagoParcial, cualquier monto cierra el cargo — mismo
-        // comportamiento de siempre (ajuste de precio, arriba o abajo del
-        // sugerido). Con esPagoParcial, solo se cierra si lo pagado
-        // acumulado ya alcanza lo esperado (la última cuota de una seña
-        // también cierra el cargo, tenga o no el flag).
-        const quedaSaldo = item.esPagoParcial && cargo.montoPagadoSnapshot < cargo.montoEsperadoSnapshot;
-        cargo.estado = quedaSaldo ? 'parcial' : 'pagada';
+        // Espejo del ÚLTIMO pago — no forma parte del contrato compartido de
+        // aplicarPagoConSaldo (EventoParticipante no lo tiene), es propio de
+        // CargoPuntual.
         cargo.paymentMethod = paymentMethod;
         cargo.fechaPago = date;
         cargo.cobroId = cobro._id;
         cargo.movimientoId = movimiento._id;
-        cargo.updatedBy = actor;
         await cargo.save({ session });
         cargosPuntuales.push(cargo);
       }

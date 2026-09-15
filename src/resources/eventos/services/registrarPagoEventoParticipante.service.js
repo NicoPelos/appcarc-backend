@@ -3,6 +3,7 @@ import Evento from '../models/Evento.js';
 import EventoParticipante from '../models/EventoParticipante.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 import { fechaCalendarioArgentina } from '../../../services/fechaArgentina.js';
+import { aplicarPagoConSaldo } from '../../../services/pagoConSaldo.service.js';
 
 export class BusinessError extends Error {
   constructor(message, status = 400) {
@@ -91,11 +92,15 @@ export const registrarPagoEventoParticipante = async ({
       });
       await movimiento.save({ session });
 
-      participante.pagos.push({ monto: montoNum, fecha: date, paymentMethod, movimientoId: movimiento._id });
-      participante.montoPagadoSnapshot = (participante.montoPagadoSnapshot || 0) + montoNum;
-      const quedaSaldo = Boolean(esPagoParcial) && participante.montoPagadoSnapshot < participante.montoEsperadoSnapshot;
-      participante.estado = quedaSaldo ? 'parcial' : 'pagada';
-      participante.updatedBy = responsable;
+      aplicarPagoConSaldo({
+        doc: participante,
+        monto: montoNum,
+        fecha: date,
+        paymentMethod,
+        movimientoId: movimiento._id,
+        esPagoParcial,
+        actor: responsable,
+      });
       await participante.save({ session });
 
       result = { participante, movimiento };
