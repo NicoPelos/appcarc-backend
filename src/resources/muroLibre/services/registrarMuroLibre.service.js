@@ -3,7 +3,7 @@ import Socio from '../../socios/models/Socio.js';
 import Cuota from '../../cuotas/models/Cuota.js';
 import Precios from '../../cuotas/models/Precios.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
-import Movimiento from '../../movimientos/models/Movimiento.js';
+import { crearMovimientoDePago } from '../../movimientos/services/crearMovimientoDePago.service.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
@@ -278,13 +278,12 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
 
       let movimiento = null;
       if (estadoPago === 'pagado') {
-        movimiento = new Movimiento({
+        movimiento = await crearMovimientoDePago({
           clubId,
           userId: user.id,
-          responsable: actor,
+          actor,
           socioId: socio?._id ?? null,
           socioNombre: `${nombre}${apellido ? ` ${apellido}` : ''}`,
-          type: 'Ingreso',
           amount: monto,
           concept: tipoPase === 'mensual' ? 'Muro libre mensual' : 'Muro libre diario',
           paymentMethod,
@@ -293,10 +292,8 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
           sourceType: 'muro_libre',
           sourceId: registro._id,
           sourceModel: 'Asistencia',
-          createdBy: actor,
-          updatedBy: actor,
+          session,
         });
-        await movimiento.save({ session });
 
         registro.movimientoId = movimiento._id;
         registro.updatedBy = actor;

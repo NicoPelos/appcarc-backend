@@ -647,4 +647,76 @@ describe('registrarCobro service (unit)', () => {
       })).rejects.toMatchObject({ status: 404 });
     });
   });
+
+  describe('concept del Movimiento según los items del carrito', () => {
+    it('usa "Cobro de cuotas" cuando el carrito son solo cuotas', async () => {
+      mockSuscripcionVigente({ _id: SUSCRIPCION_ID, etiquetaId: ETIQUETA_ID });
+      Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+      Cuota.find.mockReturnValue(buildSessionQuery([]));
+
+      await registrarCobro({ clubId: CLUB_ID, user: USER, body: validBody });
+
+      expect(savedMovimientos[0].concept).toBe('Cobro de cuotas');
+    });
+
+    it('usa la descripción del cargo cuando el carrito es un único cargo puntual', async () => {
+      mockCargoPuntualVigente({
+        _id: CARGO_PUNTUAL_ID, etiquetaId: ETIQUETA_ID, periodo: '2026-07',
+        description: 'Remera adulto', estado: 'pendiente', montoEsperadoSnapshot: 30000,
+      });
+      Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+      CargoPuntual.find.mockReturnValue(buildSessionQuery([{
+        _id: CARGO_PUNTUAL_ID, estado: 'pendiente', montoEsperadoSnapshot: 30000, montoPagadoSnapshot: 0, pagos: [],
+        save: vi.fn(async function () { return this; }),
+      }]));
+
+      await registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [{ socioId: SOCIO_ID, cargoPuntualId: CARGO_PUNTUAL_ID }] },
+      });
+
+      expect(savedMovimientos[0].concept).toBe('Remera adulto');
+    });
+
+    it('usa "Muro libre diario" cuando el carrito son solo visitas de muro libre', async () => {
+      const fecha = new Date('2026-07-01T12:00:00Z');
+      mockAsistenciasPendientes([
+        { _id: ASISTENCIA_ID_1, fecha, esSocio: true, precioSugeridoSnapshot: 5000, estadoPago: 'pendiente' },
+      ]);
+      mockEtiquetaMuroLibre({ _id: ETIQUETA_ID });
+      Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+      mockAsistenciasDb([{
+        _id: ASISTENCIA_ID_1, estadoPago: 'pendiente', monto: 0, formaPago: 'Sin pago',
+        save: vi.fn(async function () { return this; }),
+      }]);
+
+      await registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [{ socioId: SOCIO_ID, muroLibrePendiente: true }] },
+      });
+
+      expect(savedMovimientos[0].concept).toBe('Muro libre diario');
+    });
+
+    it('usa un label genérico cuando el carrito mezcla tipos de item distintos', async () => {
+      mockSuscripcionVigente({ _id: SUSCRIPCION_ID, etiquetaId: ETIQUETA_ID });
+      mockCargoPuntualVigente({
+        _id: CARGO_PUNTUAL_ID, etiquetaId: ETIQUETA_ID, periodo: '2026-07',
+        description: 'Remera adulto', estado: 'pendiente', montoEsperadoSnapshot: 30000,
+      });
+      Socio.find.mockReturnValue(buildSessionQuery([{ _id: SOCIO_ID }]));
+      Cuota.find.mockReturnValue(buildSessionQuery([]));
+      CargoPuntual.find.mockReturnValue(buildSessionQuery([{
+        _id: CARGO_PUNTUAL_ID, estado: 'pendiente', montoEsperadoSnapshot: 30000, montoPagadoSnapshot: 0, pagos: [],
+        save: vi.fn(async function () { return this; }),
+      }]));
+
+      await registrarCobro({
+        clubId: CLUB_ID, user: USER,
+        body: { paymentMethod: 'Efectivo', items: [validItem, { socioId: SOCIO_ID, cargoPuntualId: CARGO_PUNTUAL_ID }] },
+      });
+
+      expect(savedMovimientos[0].concept).toBe('Cobro combinado (2 ítems)');
+    });
+  });
 });

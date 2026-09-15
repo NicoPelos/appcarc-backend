@@ -6,7 +6,7 @@ import CargoPuntual from '../../cargosPuntuales/models/CargoPuntual.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Cobro from '../models/Cobro.js';
-import Movimiento from '../../movimientos/models/Movimiento.js';
+import { crearMovimientoDePago } from '../../movimientos/services/crearMovimientoDePago.service.js';
 import { findPrecioVigente } from '../../cuotas/services/findPrecioVigente.service.js';
 import { fechaCalendarioArgentina } from '../../../services/fechaArgentina.js';
 import { aplicarPagoConSaldo } from '../../../services/pagoConSaldo.service.js';
@@ -251,6 +251,32 @@ const buildItemKey = (item) => {
   return `${item.socioId}:${item.suscripcionId}:${item.periodo}`;
 };
 
+// El Movimiento de un Cobro decía siempre 'Cobro de cuotas', sin importar qué
+// hubiera realmente en el carrito — un cargo puntual (ej. remera) o una
+// visita de Muro Libre pagados por esta vía terminaban viéndose en
+// Movimientos como "pago de cuotas". Deriva el concept de los items reales:
+// todos del mismo tipo → su label; un solo cargo puntual → su descripción
+// puntual (ej. "Remera adulto"); mixto → un label genérico que al menos no
+// miente sobre qué es.
+const resolverConceptoCobro = (items) => {
+  const esCuota = (item) => Boolean(item.suscripcionId);
+  const esCargo = (item) => Boolean(item.cargoPuntualId);
+  const esMuroLibre = (item) => Boolean(item.asistenciaId);
+
+  if (items.every(esCuota)) return 'Cobro de cuotas';
+  if (items.every(esMuroLibre)) return 'Muro libre diario';
+
+  if (items.every(esCargo)) {
+    if (items.length === 1) return items[0].description || 'Cargo puntual';
+    const descripciones = [...new Set(items.map((item) => item.description))];
+    return descripciones.length === 1
+      ? descripciones[0]
+      : `Cobro de cargos puntuales (${items.length})`;
+  }
+
+  return `Cobro combinado (${items.length} ítem${items.length === 1 ? '' : 's'})`;
+};
+
 export const registrarCobro = async ({ clubId, user, body }) => {
   if (!clubId) throw new BusinessError('No se pudo determinar el club del usuario', 401);
 
@@ -375,25 +401,22 @@ export const registrarCobro = async ({ clubId, user, body }) => {
       });
       await cobro.save({ session });
 
-      const movimiento = new Movimiento({
+      const movimiento = await crearMovimientoDePago({
         clubId,
         userId: user.id,
-        responsable,
+        actor,
         socioId: socioUnico?._id ?? null,
         socioNombre: socioUnico ? `${socioUnico.nombre}${socioUnico.apellido ? ` ${socioUnico.apellido}` : ''}` : '',
-        type: 'Ingreso',
         amount: totalAmount,
-        concept: 'Cobro de cuotas',
+        concept: resolverConceptoCobro(items),
         paymentMethod,
         description: description || `Cobro con ${items.length} ítem${items.length === 1 ? '' : 's'}`,
         date,
         sourceType: 'cobro',
         sourceId: cobro._id,
         sourceModel: 'Cobro',
-        createdBy: actor,
-        updatedBy: actor,
+        session,
       });
-      await movimiento.save({ session });
 
       const cuotas = [];
       for (const item of itemsSuscripcion) {

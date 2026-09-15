@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import Evento from '../models/Evento.js';
 import EventoParticipante from '../models/EventoParticipante.js';
-import Movimiento from '../../movimientos/models/Movimiento.js';
+import { crearMovimientoDePago } from '../../movimientos/services/crearMovimientoDePago.service.js';
 import { fechaCalendarioArgentina } from '../../../services/fechaArgentina.js';
 import { aplicarPagoConSaldo } from '../../../services/pagoConSaldo.service.js';
 
@@ -68,13 +68,12 @@ export const registrarPagoEventoParticipante = async ({
         throw new BusinessError(`El participante ya está ${participante.estado}`, 409);
       }
 
-      const movimiento = new Movimiento({
+      const movimiento = await crearMovimientoDePago({
         clubId,
         userId: user.id,
-        responsable,
+        actor: responsable,
         socioId: participante.socioId,
         socioNombre: `${participante.nombre}${participante.apellido ? ` ${participante.apellido}` : ''}`.trim(),
-        type: 'Ingreso',
         amount: montoNum,
         concept: `Evento: ${evento.nombre}`,
         categoria: evento.categoria,
@@ -87,10 +86,8 @@ export const registrarPagoEventoParticipante = async ({
         // económico del evento (#181) sea un solo Movimiento.find({eventoId}).
         eventoId: evento._id,
         date,
-        createdBy: responsable,
-        updatedBy: responsable,
+        session,
       });
-      await movimiento.save({ session });
 
       aplicarPagoConSaldo({
         doc: participante,
