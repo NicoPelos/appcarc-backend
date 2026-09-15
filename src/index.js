@@ -140,6 +140,10 @@ app.use('/pago', express.static(join(__dirname, '../public/pago'), { extensions:
 // agresivamente: cualquier cambio de contenido les cambia la URL.
 app.use('/app', express.static(join(__dirname, '../public/app'), {
   extensions: ['html'],
+  // cacheControl:false — sin esto, serve-static igual pisa el Cache-Control
+  // de setHeaders con su propio default (max-age=0) después de emitir el
+  // evento que dispara este callback.
+  cacheControl: false,
   setHeaders: (res, path) => {
     if (path.includes('/_expo/static/')) {
       res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
