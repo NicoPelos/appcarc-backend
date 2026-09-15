@@ -130,8 +130,24 @@ app.use('/link', express.static(join(__dirname, '../public/link')));
 // de la API, que solo devuelve texto plano.
 app.use('/pago', express.static(join(__dirname, '../public/pago'), { extensions: ['html'] }));
 
-// PWA de la app (alternativa a la instalación nativa, pensada para iOS)
-app.use('/app', express.static(join(__dirname, '../public/app'), { extensions: ['html'] }));
+// PWA de la app (alternativa a la instalación nativa, pensada para iOS) —
+// sin cache-control explícito, Safari (sobre todo "Agregar a inicio", que
+// se comporta más como una app instalada que como una pestaña normal) podía
+// quedarse sirviendo el index.html viejo indefinidamente sin volver a
+// pedirlo al servidor, aunque ya hubiera una versión nueva deployada — el
+// usuario ve la app vieja sin ningún indicio de que existe una más nueva.
+// Los archivos con hash en el nombre (_expo/static/...) sí pueden cachearse
+// agresivamente: cualquier cambio de contenido les cambia la URL.
+app.use('/app', express.static(join(__dirname, '../public/app'), {
+  extensions: ['html'],
+  setHeaders: (res, path) => {
+    if (path.includes('/_expo/static/')) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  },
+}));
 
 // Use application routes
 app.use('/api', routes);
