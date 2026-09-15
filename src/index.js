@@ -101,6 +101,34 @@ if (process.env.NODE_ENV !== 'test') {
   app.use('/api', apiLimiter);
 }
 app.use(express.json());
+
+// PWA de la app (alternativa a la instalación nativa, pensada para iOS) —
+// tiene que montarse ANTES que el express.static genérico de más abajo: ese
+// también matchea /app/* (sirve cualquier subcarpeta de public/) y, al estar
+// registrado primero, respondía él sin llegar nunca a este middleware ni a
+// su cache-control. Sin cache-control explícito acá, Safari (sobre todo
+// "Agregar a inicio", que se comporta más como una app instalada que como
+// una pestaña normal) podía quedarse sirviendo el index.html viejo
+// indefinidamente sin volver a pedirlo al servidor, aunque ya hubiera una
+// versión nueva deployada — el usuario ve la app vieja sin ningún indicio de
+// que existe una más nueva. Los archivos con hash en el nombre
+// (_expo/static/...) sí pueden cachearse agresivamente: cualquier cambio de
+// contenido les cambia la URL.
+app.use('/app', express.static(join(__dirname, '../public/app'), {
+  extensions: ['html'],
+  // cacheControl:false — sin esto, serve-static igual pisa el Cache-Control
+  // de setHeaders con su propio default (max-age=0) después de emitir el
+  // evento que dispara este callback.
+  cacheControl: false,
+  setHeaders: (res, path) => {
+    if (path.includes('/_expo/static/')) {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    } else {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+  },
+}));
+
 app.use(express.static(join(__dirname, '../public')));
 app.use('/uploads', express.static(join(__dirname, '../uploads')));
 
@@ -129,29 +157,6 @@ app.use('/link', express.static(join(__dirname, '../public/link')));
 // back_urls en guardarPreferenciaMercadoPago.js) — antes caían en la raíz
 // de la API, que solo devuelve texto plano.
 app.use('/pago', express.static(join(__dirname, '../public/pago'), { extensions: ['html'] }));
-
-// PWA de la app (alternativa a la instalación nativa, pensada para iOS) —
-// sin cache-control explícito, Safari (sobre todo "Agregar a inicio", que
-// se comporta más como una app instalada que como una pestaña normal) podía
-// quedarse sirviendo el index.html viejo indefinidamente sin volver a
-// pedirlo al servidor, aunque ya hubiera una versión nueva deployada — el
-// usuario ve la app vieja sin ningún indicio de que existe una más nueva.
-// Los archivos con hash en el nombre (_expo/static/...) sí pueden cachearse
-// agresivamente: cualquier cambio de contenido les cambia la URL.
-app.use('/app', express.static(join(__dirname, '../public/app'), {
-  extensions: ['html'],
-  // cacheControl:false — sin esto, serve-static igual pisa el Cache-Control
-  // de setHeaders con su propio default (max-age=0) después de emitir el
-  // evento que dispara este callback.
-  cacheControl: false,
-  setHeaders: (res, path) => {
-    if (path.includes('/_expo/static/')) {
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-    } else {
-      res.setHeader('Cache-Control', 'no-cache');
-    }
-  },
-}));
 
 // Use application routes
 app.use('/api', routes);
