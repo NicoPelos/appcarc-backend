@@ -30,7 +30,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
  *       201:
  *         description: Forma de pago corregida — devuelve el cobro nuevo
  *       400:
- *         description: Datos inválidos, o el cobro incluye ítems no soportados para esta corrección automática
+ *         description: Datos inválidos, ya está en esa forma de pago, o tiene pagos de Mercado Pago vinculados
  *       404:
  *         description: Cobro no encontrado
  */

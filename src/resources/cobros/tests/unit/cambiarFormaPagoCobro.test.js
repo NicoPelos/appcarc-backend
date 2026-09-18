@@ -93,20 +93,34 @@ describe('cambiarFormaPagoCobro (unit)', () => {
       .rejects.toMatchObject({ status: 400, message: expect.stringContaining('ya está registrado') });
   });
 
-  it('rechaza cobros con cargo puntual (no soportado para el cambio automático)', async () => {
-    mockCobroLean(buildCobroCuotas({
-      items: [{ socioId: 'socio1', cargoPuntualId: 'cargo1', periodo: '2026-09', amount: 30000 }],
+  it('replaya un cargo puntual con esPagoParcial preservado desde Cobro.items', async () => {
+    const cobro = buildCobroCuotas({
+      items: [{ socioId: 'socio1', cargoPuntualId: 'cargo1', periodo: '2026-09', amount: 15000, esPagoParcial: true, description: 'Remera adulto' }],
+    });
+    mockCobroLean(cobro);
+
+    await cambiarFormaPagoCobro({ clubId: CLUB_ID, user: USER, cobroId: COBRO_ID, paymentMethod: 'Transferencia' });
+
+    expect(registrarCobro).toHaveBeenCalledWith(expect.objectContaining({
+      body: expect.objectContaining({
+        items: [{ socioId: 'socio1', cargoPuntualId: 'cargo1', amount: 15000, esPagoParcial: true, description: 'Remera adulto' }],
+      }),
     }));
-    await expect(cambiarFormaPagoCobro({ clubId: CLUB_ID, user: USER, cobroId: COBRO_ID, paymentMethod: 'Transferencia' }))
-      .rejects.toMatchObject({ status: 400, message: expect.stringContaining('cargo puntual') });
   });
 
-  it('rechaza cobros con visita de Muro Libre (no soportado para el cambio automático)', async () => {
-    mockCobroLean(buildCobroCuotas({
+  it('replaya una visita de Muro Libre como muroLibrePendiente', async () => {
+    const cobro = buildCobroCuotas({
       items: [{ socioId: 'socio1', asistenciaId: 'asis1', periodo: '2026-09', amount: 5000 }],
+    });
+    mockCobroLean(cobro);
+
+    await cambiarFormaPagoCobro({ clubId: CLUB_ID, user: USER, cobroId: COBRO_ID, paymentMethod: 'Transferencia' });
+
+    expect(registrarCobro).toHaveBeenCalledWith(expect.objectContaining({
+      body: expect.objectContaining({
+        items: [{ socioId: 'socio1', muroLibrePendiente: true, asistenciaIds: ['asis1'], amount: 5000 }],
+      }),
     }));
-    await expect(cambiarFormaPagoCobro({ clubId: CLUB_ID, user: USER, cobroId: COBRO_ID, paymentMethod: 'Transferencia' }))
-      .rejects.toMatchObject({ status: 400, message: expect.stringContaining('Muro Libre') });
   });
 
   it('rechaza si el movimiento tiene pagos de Mercado Pago vinculados', async () => {

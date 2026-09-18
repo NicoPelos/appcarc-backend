@@ -48,6 +48,16 @@ const cobroItemSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  // Solo tiene sentido para items con cargoPuntualId — si ese pago fue "a
+  // cuenta" (queda saldo pendiente) o cerró el cargo (appcarc-backend#168).
+  // Antes se usaba solo en memoria al registrar el cobro y se perdía: el
+  // Cobro no quedaba autocontenido (había que cruzar por CargoPuntual.pagos[]
+  // para saber si fue una seña), y "cambiar forma de pago" no podía
+  // replayar un cargo puntual sin arriesgarse a perder esa distinción.
+  esPagoParcial: {
+    type: Boolean,
+    default: false,
+  },
 }, { _id: false });
 
 const cobroSchema = new mongoose.Schema({
