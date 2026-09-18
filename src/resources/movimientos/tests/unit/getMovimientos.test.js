@@ -42,7 +42,7 @@ describe('getMovimientosHandler', () => {
     expect(Movimiento.find).toHaveBeenCalledWith(expect.objectContaining({ active: true }));
     expect(res.status).toHaveBeenCalledWith(200);
     const body = res.json.mock.calls[0][0];
-    expect(body.movimientos).toEqual(movs.map((m) => ({ ...m, detalle: null, cobroId: null })));
+    expect(body.movimientos).toEqual(movs.map((m) => ({ ...m, detalle: null, cobroId: null, participanteId: null })));
     expect(body.total).toBe(1);
   });
 
@@ -254,6 +254,19 @@ describe('getMovimientosHandler', () => {
     await getMovimientosHandler({ query: {}, user: USER }, res);
 
     const body = res.json.mock.calls[0][0];
+    expect(body.movimientos[0].cobroId).toBeNull();
+  });
+
+  it('expone participanteId cuando sourceModel es EventoParticipante', async () => {
+    const mov = { _id: 'mov1', sourceModel: 'EventoParticipante', sourceId: { _id: 'part1' } };
+    vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(1);
+    vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([mov]));
+
+    const res = mockRes();
+    await getMovimientosHandler({ query: {}, user: USER }, res);
+
+    const body = res.json.mock.calls[0][0];
+    expect(body.movimientos[0].participanteId).toBe('part1');
     expect(body.movimientos[0].cobroId).toBeNull();
   });
 

@@ -76,13 +76,16 @@ const buildDetalle = async (movimientos, clubId) => {
       }];
     }
 
-    // Aparte de `detalle` (para mostrar qué compone el cobro) — id crudo del
-    // Cobro, para poder ofrecer "cambiar forma de pago" (PUT /cobros/:id/forma-pago)
-    // sin que el frontend tenga que depender de la forma de `sourceId` ya
-    // populado (que trae el Cobro entero, con todos sus campos internos).
+    // Aparte de `detalle` (para mostrar qué compone el cobro/pago) — ids
+    // crudos del Cobro o del EventoParticipante, para poder ofrecer "cambiar
+    // forma de pago" (PUT /cobros/:id/forma-pago o
+    // PUT /eventos/:eventoId/participantes/:participanteId/pagos/:movimientoId/forma-pago)
+    // sin que el frontend dependa de la forma de `sourceId` ya populado (que
+    // trae el documento entero, con todos sus campos internos).
     const cobroId = m.sourceModel === 'Cobro' && m.sourceId?._id ? String(m.sourceId._id) : null;
+    const participanteId = m.sourceModel === 'EventoParticipante' && m.sourceId?._id ? String(m.sourceId._id) : null;
 
-    return { ...m, detalle, cobroId };
+    return { ...m, detalle, cobroId, participanteId };
   });
 };
 
