@@ -4,6 +4,7 @@ import { PERMISOS } from '../../constants/permisos.js';
 import { createCobroHandler } from './handlers/createCobro.handler.js';
 import { getCobrosHandler } from './handlers/getCobros.handler.js';
 import { anularCobroHandler } from './handlers/anularCobro.handler.js';
+import { cambiarFormaPagoCobroHandler } from './handlers/cambiarFormaPagoCobro.handler.js';
 
 const router = express.Router();
 
@@ -98,5 +99,9 @@ router.get('/', protect, authorizeSelfYVinculadosOr(PERMISOS.COBROS_READ), getCo
 router.post('/', protect, authorize(PERMISOS.COBROS_WRITE), createCobroHandler);
 
 router.post('/:id/anular', protect, authorize(PERMISOS.COBROS_DELETE), anularCobroHandler);
+
+// Requiere ambos permisos: internamente anula el cobro original (cobros:delete)
+// y registra uno nuevo con la forma de pago corregida (cobros:write).
+router.put('/:id/forma-pago', protect, authorize(PERMISOS.COBROS_WRITE), authorize(PERMISOS.COBROS_DELETE), cambiarFormaPagoCobroHandler);
 
 export default router;
