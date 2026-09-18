@@ -97,4 +97,5 @@ export const cambiarFormaPagoCobro = async ({ clubId, user, cobroId, paymentMeth
   });
 };
 
+export { BusinessError };
 export default cambiarFormaPagoCobro;
