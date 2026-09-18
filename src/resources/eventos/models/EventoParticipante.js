@@ -19,6 +19,7 @@ const pagoParticipanteSchema = new mongoose.Schema({
   fecha: { type: Date, required: true },
   paymentMethod: { type: String, enum: ['Efectivo', 'Transferencia'], required: true },
   movimientoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Movimiento', required: true },
+  esPagoParcial: { type: Boolean, default: false },
 }, { _id: true });
 
 const eventoParticipanteSchema = new mongoose.Schema({

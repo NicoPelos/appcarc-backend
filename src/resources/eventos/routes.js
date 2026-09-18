@@ -12,6 +12,7 @@ import { updateEventoParticipanteHandler } from './handlers/updateEventoParticip
 import { anularEventoParticipanteHandler } from './handlers/anularEventoParticipante.handler.js';
 import { registrarPagoEventoParticipanteHandler } from './handlers/registrarPagoEventoParticipante.handler.js';
 import { anularPagoEventoParticipanteHandler } from './handlers/anularPagoEventoParticipante.handler.js';
+import { cambiarFormaPagoEventoParticipanteHandler } from './handlers/cambiarFormaPagoEventoParticipante.handler.js';
 import { getResumenEconomicoEventoHandler } from './handlers/getResumenEconomicoEvento.handler.js';
 
 const router = express.Router();
@@ -30,5 +31,13 @@ router.post('/:eventoId/participantes/:participanteId/anular', protect, authoriz
 
 router.post('/:eventoId/participantes/:participanteId/pagos', protect, authorize(PERMISOS.EVENTOS_WRITE), registrarPagoEventoParticipanteHandler);
 router.delete('/:eventoId/participantes/:participanteId/pagos/:movimientoId', protect, authorize(PERMISOS.EVENTOS_DELETE), anularPagoEventoParticipanteHandler);
+
+// Requiere ambos permisos: internamente anula el pago original (eventos:delete)
+// y registra uno nuevo con la forma de pago corregida (eventos:write).
+router.put(
+  '/:eventoId/participantes/:participanteId/pagos/:movimientoId/forma-pago',
+  protect, authorize(PERMISOS.EVENTOS_WRITE), authorize(PERMISOS.EVENTOS_DELETE),
+  cambiarFormaPagoEventoParticipanteHandler,
+);
 
 export default router;

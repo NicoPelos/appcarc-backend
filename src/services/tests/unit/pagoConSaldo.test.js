@@ -18,8 +18,16 @@ describe('aplicarPagoConSaldo', () => {
     });
 
     expect(doc.pagos).toEqual([{
-      monto: 30000, fecha, paymentMethod: 'Transferencia', movimientoId: 'mov1',
+      monto: 30000, fecha, paymentMethod: 'Transferencia', movimientoId: 'mov1', esPagoParcial: false,
     }]);
+  });
+
+  it('guarda esPagoParcial en el propio pago, no solo lo usa para decidir estado', () => {
+    const doc = baseDoc();
+    aplicarPagoConSaldo({
+      doc, monto: 15000, fecha: new Date(), paymentMethod: 'Efectivo', movimientoId: 'mov1', esPagoParcial: true, actor: 'a',
+    });
+    expect(doc.pagos[0].esPagoParcial).toBe(true);
   });
 
   it('incluye cobroId solo cuando se lo pasan', () => {

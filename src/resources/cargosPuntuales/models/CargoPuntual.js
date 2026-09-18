@@ -65,6 +65,7 @@ const cargoPuntualSchema = new mongoose.Schema({
       paymentMethod: { type: String, enum: ['Efectivo', 'Transferencia', 'MercadoPago'], required: true },
       cobroId: { type: mongoose.Schema.Types.ObjectId, ref: 'Cobro', required: true },
       movimientoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Movimiento', required: true },
+      esPagoParcial: { type: Boolean, default: false },
     }],
     default: [],
   },
