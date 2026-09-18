@@ -76,7 +76,13 @@ const buildDetalle = async (movimientos, clubId) => {
       }];
     }
 
-    return { ...m, detalle };
+    // Aparte de `detalle` (para mostrar qué compone el cobro) — id crudo del
+    // Cobro, para poder ofrecer "cambiar forma de pago" (PUT /cobros/:id/forma-pago)
+    // sin que el frontend tenga que depender de la forma de `sourceId` ya
+    // populado (que trae el Cobro entero, con todos sus campos internos).
+    const cobroId = m.sourceModel === 'Cobro' && m.sourceId?._id ? String(m.sourceId._id) : null;
+
+    return { ...m, detalle, cobroId };
   });
 };
 

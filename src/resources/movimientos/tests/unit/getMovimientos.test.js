@@ -42,7 +42,7 @@ describe('getMovimientosHandler', () => {
     expect(Movimiento.find).toHaveBeenCalledWith(expect.objectContaining({ active: true }));
     expect(res.status).toHaveBeenCalledWith(200);
     const body = res.json.mock.calls[0][0];
-    expect(body.movimientos).toEqual(movs.map((m) => ({ ...m, detalle: null })));
+    expect(body.movimientos).toEqual(movs.map((m) => ({ ...m, detalle: null, cobroId: null })));
     expect(body.total).toBe(1);
   });
 
@@ -225,6 +225,36 @@ describe('getMovimientosHandler', () => {
 
     expect(Socio.find).toHaveBeenCalledWith(expect.objectContaining({ clubId: USER.clubId }), expect.anything());
     expect(Etiqueta.find).toHaveBeenCalledWith(expect.objectContaining({ clubId: USER.clubId }), expect.anything());
+  });
+
+  it('expone cobroId (id crudo del Cobro, no el objeto populado) cuando sourceModel es Cobro', async () => {
+    const mov = {
+      _id: 'mov1',
+      sourceModel: 'Cobro',
+      sourceId: { _id: 'cobro1', items: [{ socioId: 'socio1', etiquetaId: 'etq1', periodo: '2026-01', amount: 5000 }] },
+    };
+    vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(1);
+    vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([mov]));
+    vi.spyOn(Socio, 'find').mockReturnValue({ lean: vi.fn().mockResolvedValue([]) });
+    vi.spyOn(Etiqueta, 'find').mockReturnValue({ lean: vi.fn().mockResolvedValue([]) });
+
+    const res = mockRes();
+    await getMovimientosHandler({ query: {}, user: USER }, res);
+
+    const body = res.json.mock.calls[0][0];
+    expect(body.movimientos[0].cobroId).toBe('cobro1');
+  });
+
+  it('cobroId queda null cuando el movimiento no viene de un Cobro (o el populate no matcheó nada)', async () => {
+    const mov = { _id: 'mov1', sourceModel: 'Asistencia', sourceId: null };
+    vi.spyOn(Movimiento, 'countDocuments').mockResolvedValue(1);
+    vi.spyOn(Movimiento, 'find').mockReturnValue(makeQuery([mov]));
+
+    const res = mockRes();
+    await getMovimientosHandler({ query: {}, user: USER }, res);
+
+    const body = res.json.mock.calls[0][0];
+    expect(body.movimientos[0].cobroId).toBeNull();
   });
 
   it('buildDetalle resuelve la fecha exacta de una visita de Muro Libre vía asistenciaId', async () => {
