@@ -95,7 +95,7 @@ export const setMesesActivosHandler = async (req, res) => {
 
   const session = await mongoose.startSession();
   try {
-    const socio = await Socio.findOne({ _id: socioId, clubId: req.user.clubId });
+    const socio = await Socio.findOne({ _id: socioId, clubId: req.user.clubId, active: true });
     if (!socio) {
       return res.status(404).json({ message: 'Socio no encontrado' });
     }

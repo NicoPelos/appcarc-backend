@@ -135,6 +135,13 @@ describe('setMesesActivosHandler', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('superponerse') }));
   });
 
+  it('#195: busca solo socios activos', async () => {
+    Socio.findOne.mockResolvedValue(null);
+    await setMesesActivosHandler(req({ tramos: [] }), mockRes());
+
+    expect(Socio.findOne).toHaveBeenCalledWith(expect.objectContaining({ clubId: 'CARC', active: true }));
+  });
+
   it('retorna 404 si el socio no existe', async () => {
     Socio.findOne.mockResolvedValue(null);
     const res = mockRes();

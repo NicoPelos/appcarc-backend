@@ -35,7 +35,10 @@ export const revertSuperAuditHandler = async (req, res) => {
       const Model = mongoose.model(log.resource);
 
       if (log.action === 'CREATE') {
-        await Model.findByIdAndUpdate(log.resourceId, { $set: { active: false, updatedBy: actor } }, { upsert: false });
+        const actualizado = await Model.findByIdAndUpdate(log.resourceId, { $set: { active: false, updatedBy: actor } }, { upsert: false });
+        if (!actualizado) {
+          return res.status(422).json({ message: 'No se encontró el documento a revertir' });
+        }
       } else if (log.action === 'UPDATE' || log.action === 'DELETE') {
         if (!log.before) {
           return res.status(422).json({ message: 'No hay snapshot anterior para revertir' });
@@ -46,7 +49,10 @@ export const revertSuperAuditHandler = async (req, res) => {
         );
         restoredData.updatedBy = actor;
 
-        await Model.findByIdAndUpdate(log.resourceId, { $set: restoredData }, { upsert: false });
+        const actualizado = await Model.findByIdAndUpdate(log.resourceId, { $set: restoredData }, { upsert: false });
+        if (!actualizado) {
+          return res.status(422).json({ message: 'No se encontró el documento a revertir' });
+        }
       }
     }
 

@@ -138,7 +138,7 @@ export const createSuscripcionHandler = async (req, res) => {
       return res.status(400).json({ message: 'fechaHasta debe tener formato YYYY-MM' });
     }
 
-    const socio = await Socio.findOne({ _id: socioId, clubId: req.user.clubId });
+    const socio = await Socio.findOne({ _id: socioId, clubId: req.user.clubId, active: true });
     if (!socio) {
       return res.status(404).json({ message: 'Socio no encontrado' });
     }

@@ -331,12 +331,26 @@ export const googleCallback = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, clubId } = req.body;
   try {
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: 'Credenciales inválidas.' });
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: 'Credenciales inválidas.' });
+    // El email no es único entre clubes (ver User.js): antes se tomaba una
+    // cuenta arbitraria con findOne({ email }) y, con la misma contraseña
+    // inicial (el DNI) en dos clubes, se podía entrar al club equivocado sin
+    // aviso (appcarc-backend#200). Ahora se prueban todas las cuentas de ese
+    // email, y si más de una coincide se pide elegir el club en vez de adivinar.
+    const cuentas = await User.find(clubId ? { email, clubId } : { email });
+    const coincidentes = [];
+    for (const cuenta of cuentas) {
+      if (await bcrypt.compare(password, cuenta.password)) coincidentes.push(cuenta);
+    }
+    if (coincidentes.length === 0) return res.status(400).json({ message: 'Credenciales inválidas.' });
+    if (coincidentes.length > 1) {
+      return res.status(409).json({
+        message: 'Este email tiene cuentas en más de un club. Indicá el club (clubId) para ingresar.',
+        clubIds: coincidentes.map((c) => c.clubId),
+      });
+    }
+    const user = coincidentes[0];
     if (!user.active) return res.status(403).json({ message: 'Usuario desactivado' });
     // appcarc-backend#169: suspender un club no bloqueaba el login.
     if (!(await esClubActivo(user.clubId))) return res.status(403).json({ message: 'El club está suspendido' });

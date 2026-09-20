@@ -109,6 +109,30 @@ describe('revertSuperAuditHandler', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it('#193: devuelve 422 y no marca el log como revertido si el documento ya no existe (UPDATE)', async () => {
+    const log = buildLog({ action: 'UPDATE', before: { nombre: 'Antes' } });
+    AuditLog.findById.mockResolvedValue(log);
+    vi.spyOn(mongoose, 'model').mockReturnValue({ findByIdAndUpdate: vi.fn().mockResolvedValue(null) });
+
+    const res = mockRes();
+    await revertSuperAuditHandler({ params: { id: VALID_ID }, user: SUPERADMIN }, res);
+
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(log.save).not.toHaveBeenCalled();
+  });
+
+  it('#193: devuelve 422 si el documento ya no existe al revertir un CREATE', async () => {
+    const log = buildLog({ action: 'CREATE', before: null });
+    AuditLog.findById.mockResolvedValue(log);
+    vi.spyOn(mongoose, 'model').mockReturnValue({ findByIdAndUpdate: vi.fn().mockResolvedValue(null) });
+
+    const res = mockRes();
+    await revertSuperAuditHandler({ params: { id: VALID_ID }, user: SUPERADMIN }, res);
+
+    expect(res.status).toHaveBeenCalledWith(422);
+    expect(log.save).not.toHaveBeenCalled();
+  });
+
   it('devuelve 422 si no hay snapshot before para UPDATE', async () => {
     const log = buildLog({ action: 'UPDATE', before: null });
     AuditLog.findById.mockResolvedValue(log);

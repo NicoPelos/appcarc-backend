@@ -144,6 +144,13 @@ describe('createSuscripcionHandler', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('YYYY-MM') }));
   });
 
+  it('#195: busca solo socios activos (un socio dado de baja/borrado no puede recibir una suscripción)', async () => {
+    Socio.findOne.mockResolvedValue(null);
+    await createSuscripcionHandler({ user: mockUser, body: validBody }, mockRes());
+
+    expect(Socio.findOne).toHaveBeenCalledWith(expect.objectContaining({ clubId: 'CARC', active: true }));
+  });
+
   it('retorna 404 si el socio no existe', async () => {
     Socio.findOne.mockResolvedValue(null);
     const req = { user: mockUser, body: validBody };

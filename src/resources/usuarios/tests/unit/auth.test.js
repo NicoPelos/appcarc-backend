@@ -44,6 +44,7 @@ function mockRes() {
 describe('Usuarios auth handlers (unit)', () => {
   beforeEach(() => {
     User.findOne = vi.fn();
+    User.find = vi.fn().mockResolvedValue([]);
     User.findById = vi.fn();
     Socio.findOne = vi.fn().mockResolvedValue(null);
     Socio.findById = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
@@ -107,19 +108,56 @@ describe('Usuarios auth handlers (unit)', () => {
   });
 
   it('login should return token and socio when credentials valid', async () => {
-    User.findOne.mockResolvedValue({ _id: 'u1', email: 'a@b.com', password: 'hashed-pass', roles: ['secretaria'], clubId: 'c1', active: true, socioId: null });
+    User.find.mockResolvedValue([{ _id: 'u1', email: 'a@b.com', password: 'hashed-pass', roles: ['secretaria'], clubId: 'c1', active: true, socioId: null }]);
     const req = { body: { email: 'a@b.com', password: 'pass' } };
     const res = mockRes();
 
     await authHandlers.login(req, res);
 
-    expect(User.findOne).toHaveBeenCalledWith({ email: 'a@b.com' });
+    expect(User.find).toHaveBeenCalledWith({ email: 'a@b.com' });
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ token: 'mock-token', socio: null }));
   });
 
+  it('login #200: con el mismo email y contraseña en dos clubes devuelve 409 con los clubIds en vez de elegir uno', async () => {
+    User.find.mockResolvedValue([
+      { _id: 'u1', email: 'a@b.com', password: 'h1', roles: [], clubId: 'A', active: true, socioId: null },
+      { _id: 'u2', email: 'a@b.com', password: 'h2', roles: [], clubId: 'B', active: true, socioId: null },
+    ]);
+    const res = mockRes();
+
+    await authHandlers.login({ body: { email: 'a@b.com', password: 'pass' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ clubIds: ['A', 'B'] }));
+  });
+
+  it('login #200: entra a la cuenta cuyo hash coincide cuando el mismo email existe en dos clubes', async () => {
+    bcrypt.compare.mockImplementation(async (_pass, hash) => hash === 'h2');
+    User.find.mockResolvedValue([
+      { _id: 'u1', email: 'a@b.com', password: 'h1', roles: ['secretaria'], clubId: 'A', active: true, socioId: null },
+      { _id: 'u2', email: 'a@b.com', password: 'h2', roles: ['secretaria'], clubId: 'B', active: true, socioId: null },
+    ]);
+    const res = mockRes();
+
+    await authHandlers.login({ body: { email: 'a@b.com', password: 'pass' } }, res);
+
+    expect(esClubActivo).toHaveBeenCalledWith('B');
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('login #200: con clubId en el body filtra por ese club', async () => {
+    User.find.mockResolvedValue([]);
+    const res = mockRes();
+
+    await authHandlers.login({ body: { email: 'a@b.com', password: 'pass', clubId: 'B' } }, res);
+
+    expect(User.find).toHaveBeenCalledWith({ email: 'a@b.com', clubId: 'B' });
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
   it('login should return 403 when the club is suspended (appcarc-backend#169)', async () => {
-    User.findOne.mockResolvedValue({ _id: 'u1', email: 'a@b.com', password: 'hashed-pass', roles: ['secretaria'], clubId: 'c1', active: true, socioId: null });
+    User.find.mockResolvedValue([{ _id: 'u1', email: 'a@b.com', password: 'hashed-pass', roles: ['secretaria'], clubId: 'c1', active: true, socioId: null }]);
     esClubActivo.mockResolvedValue(false);
     const req = { body: { email: 'a@b.com', password: 'pass' } };
     const res = mockRes();
@@ -131,7 +169,7 @@ describe('Usuarios auth handlers (unit)', () => {
   });
 
   it('login should return requiresProfileSelection when the user has a socio propio and a vínculo', async () => {
-    User.findOne.mockResolvedValue({ _id: 'u1', email: 'a@b.com', password: 'hashed-pass', roles: ['secretaria'], clubId: 'c1', active: true, socioId: 'socio-propio' });
+    User.find.mockResolvedValue([{ _id: 'u1', email: 'a@b.com', password: 'hashed-pass', roles: ['secretaria'], clubId: 'c1', active: true, socioId: 'socio-propio' }]);
     Socio.findById = vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'socio-propio', nombre: 'Juan', apellido: 'Pérez', fotoPerfil: null }) }) });
     VinculoFamiliar.find.mockReturnValue({
       populate: vi.fn().mockReturnValue({
@@ -156,7 +194,7 @@ describe('Usuarios auth handlers (unit)', () => {
   });
 
   it('login should log in directly as the único vínculo when the user has no socio propio', async () => {
-    User.findOne.mockResolvedValue({ _id: 'u1', email: 'papa@b.com', password: 'hashed-pass', roles: [], clubId: 'c1', active: true, socioId: null });
+    User.find.mockResolvedValue([{ _id: 'u1', email: 'papa@b.com', password: 'hashed-pass', roles: [], clubId: 'c1', active: true, socioId: null }]);
     VinculoFamiliar.find.mockReturnValue({
       populate: vi.fn().mockReturnValue({
         lean: vi.fn().mockResolvedValue([{ hijoSocioId: { _id: 'socio-hijo', nombre: 'Hijo', apellido: 'Pérez', fotoPerfil: null } }]),
