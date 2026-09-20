@@ -448,6 +448,30 @@ describe('Usuarios auth handlers (unit)', () => {
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
+  it('refresh should reject and revoke a token issued before a password change (appcarc-backend#199)', async () => {
+    findValidRefreshToken.mockResolvedValue({ userId: 'u1', createdAt: new Date('2026-09-01T10:00:00Z'), payload: { socioId: null, roles: ['secretaria'], clubId: 'club1' } });
+    User.findById.mockResolvedValue({ _id: 'u1', email: 'a@b.com', roles: [], clubId: 'club1', mustChangePassword: false, active: true, passwordChangedAt: new Date('2026-09-10T10:00:00Z') });
+    const req = { body: { refreshToken: 'rt1' } };
+    const res = mockRes();
+
+    await authHandlers.refresh(req, res);
+
+    expect(revokeRefreshToken).toHaveBeenCalledWith('rt1');
+    expect(res.status).toHaveBeenCalledWith(401);
+    expect(res.json).toHaveBeenCalledWith({ message: 'Sesión expirada, la contraseña fue cambiada' });
+  });
+
+  it('refresh should still work for a token issued after the password change', async () => {
+    findValidRefreshToken.mockResolvedValue({ userId: 'u1', createdAt: new Date('2026-09-11T10:00:00Z'), payload: { socioId: null, roles: ['secretaria'], clubId: 'club1' } });
+    User.findById.mockResolvedValue({ _id: 'u1', email: 'a@b.com', roles: [], clubId: 'club1', mustChangePassword: false, active: true, passwordChangedAt: new Date('2026-09-10T10:00:00Z') });
+    const req = { body: { refreshToken: 'rt1' } };
+    const res = mockRes();
+
+    await authHandlers.refresh(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it('refresh should rotate the token and preserve the active profile (ej. un perfil vinculado)', async () => {
     findValidRefreshToken.mockResolvedValue({ userId: 'u1', payload: { socioId: 'socio-hijo', roles: ['socio'], clubId: 'club1' } });
     User.findById.mockResolvedValue({ _id: 'u1', email: 'a@b.com', roles: [], clubId: 'club1', mustChangePassword: false, active: true });

@@ -79,6 +79,19 @@ describe('syncSocioUserFromSocio', () => {
     expect(existing.password).toBe('hash-original');
   });
 
+  it('#198: no degrada el rol ni resetea la password de un staff no protegido (ej. profesor que también es socio)', async () => {
+    obtenerSlugsPorRolIds.mockResolvedValue(['profesor']);
+    const existing = { socioId: HIJO_ID, roles: ['rol-profesor'], nombre: 'Viejo', password: 'hash-original', active: false, save: vi.fn().mockResolvedValue(undefined) };
+    User.findOne.mockResolvedValueOnce(existing);
+
+    await syncSocioUserFromSocio(buildSocio());
+
+    expect(existing.roles).toEqual(['rol-profesor']);
+    expect(existing.password).toBe('hash-original');
+    expect(existing.active).toBe(false);
+    expect(existing.save).toHaveBeenCalled();
+  });
+
   it('BUG #54: no fusiona identidades cuando el email ya pertenece al User de OTRO socio (ej. padre)', async () => {
     const userDelPadre = {
       socioId: PADRE_ID,

@@ -39,9 +39,13 @@ export const syncSocioUserFromSocio = async (socio) => {
     user.clubId = socio.clubId || user.clubId;
     user.email = email;
     user.socioId = user.socioId || socio._id?.toString();
-    const protectedRoles = ['admin', 'secretaria', 'socio'];
+    // Solo se degrada a "socio" + password = DNI una cuenta sin ningún rol
+    // resoluble (huérfana). Cualquier rol existente — de staff (profesor,
+    // palestrero, autoridad, un rol custom...) o el propio socio — se respeta:
+    // editar el teléfono de un socio no puede quitarle el rol ni resetearle la
+    // contraseña a alguien que además es staff (appcarc-backend#198).
     const slugsActuales = await obtenerSlugsPorRolIds({ clubId: user.clubId, rolIds: user.roles });
-    if (!slugsActuales.some(r => protectedRoles.includes(r))) {
+    if (slugsActuales.length === 0) {
       user.roles = await obtenerRolIdsPorSlugs({ clubId: user.clubId, slugs: ['socio'] });
       user.active = true;
       const salt = await bcrypt.genSalt(10);

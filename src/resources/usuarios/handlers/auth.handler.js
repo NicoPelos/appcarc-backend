@@ -499,6 +499,14 @@ export const refresh = async (req, res) => {
       return res.status(403).json({ message: 'El club está suspendido' });
     }
 
+    // Mismo criterio que protect para el access token: un refresh token
+    // emitido antes de un cambio de contraseña no puede seguir renovando
+    // sesiones (appcarc-backend#199).
+    if (user.passwordChangedAt && doc.createdAt < user.passwordChangedAt) {
+      await revokeRefreshToken(refreshToken);
+      return res.status(401).json({ message: 'Sesión expirada, la contraseña fue cambiada' });
+    }
+
     await revokeRefreshToken(refreshToken);
     const response = await buildAuthResponse(user, { socioId: doc.payload.socioId, rolesSlugs: doc.payload.roles });
     res.status(200).json(response);
