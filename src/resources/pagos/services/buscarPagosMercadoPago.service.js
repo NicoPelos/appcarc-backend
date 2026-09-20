@@ -77,10 +77,18 @@ export const buscarPagosMercadoPago = async ({ accessToken, fecha, rangoDias = 5
     offset += PAGE_SIZE;
   }
 
+  // Un egreso también puede ser un pago tipo compra (QR, link, pago de
+  // servicios/pólizas: `regular_payment`) hecho desde la cuenta del club — no
+  // aparece como transferencia. Para ingresos no se incluye: ahí los
+  // regular_payment son cobros de links de pago de la app, ya conciliados aparte.
+  const tiposValidos = direccion === 'egreso'
+    ? ['money_transfer', 'account_fund', 'regular_payment']
+    : ['money_transfer', 'account_fund'];
+
   return resultados
     .filter((p) => (
       p.status === 'approved'
-      && ['money_transfer', 'account_fund'].includes(p.operation_type)
+      && tiposValidos.includes(p.operation_type)
       && (direccion === 'egreso' ? p.payer_id === clubUserId : p.collector_id === clubUserId)
     ))
     .map((p) => ({
