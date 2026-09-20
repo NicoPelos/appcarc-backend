@@ -81,7 +81,7 @@ describe('crearEgresoDesdeMercadopagoHandler', () => {
     expect(saveSpy).not.toHaveBeenCalled();
   });
 
-  it('should create the Movimiento using total_paid_amount and vincularlo en el mismo paso', async () => {
+  it('should create the Movimiento using transaction_amount (lo que recibió el otro) and vincularlo en el mismo paso', async () => {
     const res = mockRes();
     await crearEgresoDesdeMercadopagoHandler({ params: { paymentId: '999' }, body: BASE_BODY, user: USER }, res);
 
@@ -90,17 +90,18 @@ describe('crearEgresoDesdeMercadopagoHandler', () => {
     const [movimiento] = res.json.mock.calls[0];
     expect(movimiento).toMatchObject({
       type: 'Egreso',
-      amount: 100600,
+      amount: 100000,
       concept: 'Compra de material',
       categoria: 'Varios',
       paymentMethod: 'MercadoPago',
     });
+    expect(movimiento.description).toContain('Comisión de Mercado Pago: $600.00');
     expect(movimiento.mercadopagoVinculos).toEqual([
-      expect.objectContaining({ paymentId: '999', payerEmail: 'proveedor@test.com', monto: 100600 }),
+      expect.objectContaining({ paymentId: '999', payerEmail: 'proveedor@test.com', monto: 100000 }),
     ]);
   });
 
-  it('should fall back to transaction_amount when total_paid_amount is missing', async () => {
+  it('should not mention a fee when total_paid_amount is missing', async () => {
     obtenerPagoMercadoPago.mockResolvedValue({
       ok: true,
       payment: { ...PAGO_APROBADO, transaction_details: undefined },
@@ -110,5 +111,6 @@ describe('crearEgresoDesdeMercadopagoHandler', () => {
 
     const [movimiento] = res.json.mock.calls[0];
     expect(movimiento.amount).toBe(100000);
+    expect(movimiento.description).not.toContain('Comisión');
   });
 });

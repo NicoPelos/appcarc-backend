@@ -258,10 +258,16 @@ export const crearEgresoDesdeMercadopagoHandler = async (req, res) => {
     if (yaVinculado) return res.status(409).json({ message: 'Ese pago ya está vinculado a otro movimiento' });
 
     const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
-    // Mismo criterio que buscarPagosMercadoPago para un egreso: lo que
-    // realmente salió de la cuenta del club, no transaction_amount (que es
-    // lo que le llega al destinatario, sin el cargo de MP).
-    const monto = payment.transaction_details?.total_paid_amount ?? payment.transaction_amount;
+    // El Movimiento refleja lo que recibió la contraparte (transaction_amount),
+    // no el total con el cargo de MP (0,6% o intereses de cuotas): así un
+    // honorario o una factura figuran por su valor real. La comisión se
+    // registra aparte como "Comisiones Mercado Pago" y se avisa en la descripción.
+    const monto = payment.transaction_amount;
+    const totalPagado = payment.transaction_details?.total_paid_amount ?? monto;
+    const comision = Math.round((totalPagado - monto) * 100) / 100;
+    const descripcion = comision > 0.005
+      ? `${description.trim()}${description.trim() ? ' — ' : ''}Comisión de Mercado Pago: $${comision.toFixed(2)} (registrar aparte)`
+      : description.trim();
 
     const movimiento = new Movimiento({
       clubId: req.user.clubId,
@@ -272,7 +278,7 @@ export const crearEgresoDesdeMercadopagoHandler = async (req, res) => {
       concept: concept.trim(),
       categoria,
       paymentMethod: 'MercadoPago',
-      description: description.trim(),
+      description: descripcion,
       date: payment.date_approved ? new Date(payment.date_approved) : new Date(),
       createdBy: actor,
       updatedBy: actor,
