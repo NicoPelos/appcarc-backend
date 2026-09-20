@@ -71,14 +71,14 @@ export const updateMovimientoHandler = async (req, res) => {
       return res.status(400).json({ message: 'Este movimiento se generó automáticamente — solo se puede editar la descripción y la fecha' });
     }
 
-    // mercadopagoVinculos solo tiene sentido para Ingreso + Transferencia/MercadoPago
-    // (ver Movimiento.js) — no dejar que quede un vínculo real de MP colgando de
-    // un Egreso o de un movimiento en Efectivo.
+    // Un movimiento con pagos de Mercado Pago vinculados (Ingreso o Egreso) no
+    // puede cambiar de tipo ni pasar a Efectivo — el vínculo dejaría de tener
+    // sentido. Editar el resto de los campos sí está permitido.
     if (movimiento.mercadopagoVinculos.length > 0) {
-      const nuevoType = type ?? movimiento.type;
-      const nuevoPaymentMethod = paymentMethod ?? movimiento.paymentMethod;
-      if (nuevoType !== 'Ingreso' || nuevoPaymentMethod === 'Efectivo') {
-        return res.status(400).json({ message: 'Este movimiento tiene pagos de Mercado Pago vinculados — no se puede cambiar a Egreso ni a Efectivo. Desvinculá los pagos primero.' });
+      const cambiaTipo = type !== undefined && type !== movimiento.type;
+      const pasaAEfectivo = (paymentMethod ?? movimiento.paymentMethod) === 'Efectivo';
+      if (cambiaTipo || pasaAEfectivo) {
+        return res.status(400).json({ message: 'Este movimiento tiene pagos de Mercado Pago vinculados — no se puede cambiar el tipo ni pasar a Efectivo. Desvinculá los pagos primero.' });
       }
     }
 

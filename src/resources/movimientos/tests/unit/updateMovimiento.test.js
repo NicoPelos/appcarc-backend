@@ -156,8 +156,21 @@ describe('updateMovimientoHandler', () => {
     const res = mockRes();
     await updateMovimientoHandler({ params: { id: 'mov1' }, body: { type: 'Egreso' }, user: USER }, res);
     expect(res.status).toHaveBeenCalledWith(400);
-    expect(res.json).toHaveBeenCalledWith({ message: 'Este movimiento tiene pagos de Mercado Pago vinculados — no se puede cambiar a Egreso ni a Efectivo. Desvinculá los pagos primero.' });
+    expect(res.json).toHaveBeenCalledWith({ message: 'Este movimiento tiene pagos de Mercado Pago vinculados — no se puede cambiar el tipo ni pasar a Efectivo. Desvinculá los pagos primero.' });
     expect(mov.save).not.toHaveBeenCalled();
+  });
+
+  it('should allow editing description on an Egreso with mercadopagoVinculos', async () => {
+    const mov = makeMovimiento({
+      type: 'Egreso',
+      paymentMethod: 'MercadoPago',
+      mercadopagoVinculos: [{ paymentId: 'p1', monto: 1000, fecha: new Date(), vinculadoPor: 'admin@carc.test' }],
+    });
+    vi.spyOn(Movimiento, 'findOne').mockResolvedValue(mov);
+    const res = mockRes();
+    await updateMovimientoHandler({ params: { id: 'mov1' }, body: { description: 'nota' }, user: USER }, res);
+    expect(mov.description).toBe('nota');
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it('should reject changing paymentMethod to Efectivo when the movimiento has mercadopagoVinculos', async () => {
