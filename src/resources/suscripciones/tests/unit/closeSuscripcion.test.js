@@ -46,6 +46,18 @@ describe('closeSuscripcionHandler', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it('#197: devuelve 400 si fechaHasta es anterior a fechaDesde', async () => {
+    const mockSave = vi.fn().mockResolvedValue();
+    Suscripcion.findOne.mockResolvedValue({ _id: 'sus123', fechaDesde: '2026-05', fechaHasta: null, save: mockSave, toObject: vi.fn().mockReturnValue({}) });
+
+    const res = mockRes();
+    await closeSuscripcionHandler({ user: mockUser, params: { id: 'sus123' }, body: { fechaHasta: '2026-04' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'fechaHasta no puede ser anterior a fechaDesde' });
+    expect(mockSave).not.toHaveBeenCalled();
+  });
+
   it('appcarc-backend#62: sincroniza la ficha de escuelita tras cerrar la suscripción', async () => {
     const mockSave = vi.fn().mockResolvedValue();
     const suscripcion = { _id: 'sus123', socioId: 'socio1', etiquetaId: 'etq-escuelita', fechaHasta: null, save: mockSave, toObject: vi.fn().mockReturnValue({}) };

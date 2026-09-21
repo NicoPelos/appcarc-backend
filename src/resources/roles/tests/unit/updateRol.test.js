@@ -116,4 +116,12 @@ describe('updateRolHandler', () => {
 
     expect(res.status).toHaveBeenCalledWith(500);
   });
+
+  it.each([[null], ['socios:read'], [{}]])('#161: devuelve 400 (no revienta) si permisos no es un array (%j)', async (permisos) => {
+    const res = mockRes();
+    await updateRolHandler({ user: mockUser, params: { id: 'rol1' }, body: { permisos } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith({ message: 'permisos debe ser un array' });
+  });
 });

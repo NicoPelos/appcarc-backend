@@ -41,6 +41,8 @@ export const createRolHandler = async (req, res) => {
   const { nombre, permisos = [] } = req.body;
   if (!nombre) return res.status(400).json({ message: 'El campo nombre es requerido' });
 
+  if (!Array.isArray(permisos)) return res.status(400).json({ message: 'permisos debe ser un array' });
+
   const invalidos = permisos.filter(p => !TODOS_LOS_PERMISOS.includes(p));
   if (invalidos.length) return res.status(400).json({ message: `Permisos inválidos: ${invalidos.join(', ')}` });
 

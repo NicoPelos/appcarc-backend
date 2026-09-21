@@ -7,6 +7,11 @@ vi.mock('../../../vinculos/services/getSocioIdsAccesibles.service.js', () => ({
   getSocioIdsAccesibles: vi.fn(),
 }));
 
+vi.mock('../../../../services/permisosCache.js', () => ({
+  tienePermiso: vi.fn().mockResolvedValue(false),
+}));
+
+import { tienePermiso } from '../../../../services/permisosCache.js';
 import { calcularDeuda } from '../../../cuotas/services/calcularDeuda.service.js';
 import { getSocioIdsAccesibles } from '../../../vinculos/services/getSocioIdsAccesibles.service.js';
 import { getSocioDeudaHandler } from '../../handlers/getSocioDeuda.handler.js';
@@ -26,6 +31,7 @@ const buildRes = () => {
 beforeEach(() => {
   vi.clearAllMocks();
   calcularDeuda.mockResolvedValue({ suscripciones: [], otrosCargos: [] });
+  tienePermiso.mockResolvedValue(false);
 });
 
 describe('getSocioDeudaHandler', () => {
@@ -70,6 +76,18 @@ describe('getSocioDeudaHandler', () => {
 
     expect(getSocioIdsAccesibles).not.toHaveBeenCalled();
     expect(calcularDeuda).toHaveBeenCalledWith({ socioId: OTRO_ID, clubId: CLUB_ID });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('#191: deja pasar a un rol custom del club con socios:read, sin consultar los vínculos', async () => {
+    tienePermiso.mockResolvedValue(true);
+    const req = { params: { id: OTRO_ID }, user: { id: 'u1', roles: ['tesorera'], clubId: CLUB_ID, socioId: null } };
+    const res = buildRes();
+
+    await getSocioDeudaHandler(req, res);
+
+    expect(tienePermiso).toHaveBeenCalledWith(CLUB_ID, ['tesorera'], 'socios:read');
+    expect(getSocioIdsAccesibles).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
   });
 

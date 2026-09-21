@@ -89,6 +89,18 @@ describe('buildIngresosEgresosPorCategoria', () => {
     expect(Object.fromEntries(egresos)).toMatchObject({ 'Costos Fijos': 15000 });
   });
 
+  it('#184: busca los Cobro referenciados acotando por clubId', async () => {
+    vi.spyOn(Movimiento, 'find').mockReturnValue({
+      select: vi.fn().mockReturnThis(),
+      lean: vi.fn().mockResolvedValue([{ type: 'Ingreso', sourceType: 'cobro', sourceId: 'cobro1', amount: 6000 }]),
+    });
+    const cobroFind = vi.spyOn(Cobro, 'find').mockReturnValue({ select: vi.fn().mockReturnThis(), lean: vi.fn().mockResolvedValue([]) });
+
+    await buildIngresosEgresosPorCategoria({ clubId: CLUB_ID, desde: new Date('2026-01-01'), etiquetaMap: {} });
+
+    expect(cobroFind).toHaveBeenCalledWith({ _id: { $in: ['cobro1'] }, clubId: CLUB_ID });
+  });
+
   it('acepta hasta como cota superior del rango, además de desde', async () => {
     const findMock = vi.spyOn(Movimiento, 'find').mockReturnValue({
       select: vi.fn().mockReturnThis(),

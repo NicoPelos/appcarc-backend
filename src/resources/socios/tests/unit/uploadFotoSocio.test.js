@@ -77,6 +77,20 @@ describe('uploadFotoSocioHandler', () => {
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
+  it('#190: un staff que además es socio NO recibe 403 al subir la foto de otro socio', async () => {
+    Socio.findOne.mockResolvedValue(null);
+    const req = {
+      user: { clubId: 'CARC', roles: ['profesor', 'socio'], socioId: 'otro', email: 'prof@carc.com' },
+      params: { id: 'socio1' },
+      file: { buffer: Buffer.from('img') },
+    };
+    const res = mockRes();
+    await uploadFotoSocioHandler(req, res);
+
+    expect(res.status).not.toHaveBeenCalledWith(403);
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
   it('retorna 404 si socio no existe', async () => {
     Socio.findOne.mockResolvedValue(null);
 

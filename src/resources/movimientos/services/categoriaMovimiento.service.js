@@ -95,7 +95,7 @@ const recorrerMovimientosPorCategoria = async ({ clubId, desde, hasta, etiquetaM
 
   const cobroIds = movimientos.filter((m) => m.sourceType === 'cobro' && m.sourceId).map((m) => m.sourceId);
   const cobros = cobroIds.length
-    ? await Cobro.find({ _id: { $in: cobroIds } }).select('items').lean()
+    ? await Cobro.find({ _id: { $in: cobroIds }, clubId }).select('items').lean()
     : [];
   const cobroMap = Object.fromEntries(cobros.map((c) => [c._id.toString(), c]));
 

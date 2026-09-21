@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import { calcularDeuda } from '../../cuotas/services/calcularDeuda.service.js';
 import { getSocioIdsAccesibles } from '../../vinculos/services/getSocioIdsAccesibles.service.js';
+import { tienePermiso } from '../../../services/permisosCache.js';
+import { PERMISOS } from '../../../constants/permisos.js';
 
 /**
  * @openapi
@@ -66,7 +68,10 @@ export const getSocioDeudaHandler = async (req, res) => {
   }
 
   const ROLES_PRIVILEGED = ['admin', 'secretaria', 'autoridad', 'superadmin'];
-  const canViewAll = req.user.roles?.some(r => ROLES_PRIVILEGED.includes(r));
+  // Roles históricos + cualquier rol (custom del club) con socios:read: los
+  // nombres de rol son configurables, el permiso es lo que manda (#191).
+  const canViewAll = req.user.roles?.some(r => ROLES_PRIVILEGED.includes(r))
+    || (req.user.roles?.length > 0 && await tienePermiso(req.user.clubId, req.user.roles, PERMISOS.SOCIOS_READ));
   if (!canViewAll) {
     // No alcanza con "el propio perfil activo" (req.user.socioId) — un tutor
     // tiene que poder consultar la deuda de sus hijos vinculados también,

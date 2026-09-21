@@ -168,6 +168,13 @@ describe('crearPreferenciaCobroMercadoPago', () => {
     await expect(crearPreferenciaCobroMercadoPago(args)).rejects.toMatchObject({ message: expect.stringContaining('monto asignado') });
   });
 
+  it.each([[0], [-5], ['abc'], [1.5]])('#188: rechaza un item de muro libre con cantidad inválida (%s)', async (cantidad) => {
+    const args = baseArgs();
+    args.items = [{ socioId: SOCIO_ID, muroLibrePendiente: true, cantidad, amount: 4000 }];
+
+    await expect(crearPreferenciaCobroMercadoPago(args)).rejects.toMatchObject({ message: expect.stringContaining('cantidad entera mayor que cero') });
+  });
+
   it('rechaza si un item no indica suscripcionId, cargoPuntualId ni muroLibrePendiente', async () => {
     const args = baseArgs();
     args.items = [{ socioId: SOCIO_ID, amount: 1000 }];

@@ -62,6 +62,10 @@ export const closeSuscripcionHandler = async (req, res) => {
       return res.status(400).json({ message: 'La suscripción ya tiene una fecha de cierre' });
     }
 
+    if (fechaHasta < suscripcion.fechaDesde) {
+      return res.status(400).json({ message: 'fechaHasta no puede ser anterior a fechaDesde' });
+    }
+
     const suscripcionAntes = suscripcion.toObject();
 
     await session.withTransaction(async () => {

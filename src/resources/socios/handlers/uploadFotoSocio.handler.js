@@ -86,7 +86,8 @@ export const uploadFotoSocioHandler = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (req.user.roles?.includes('socio') && req.user.socioId !== id) {
+    const soloSocio = req.user.roles?.length > 0 && req.user.roles.every((r) => r === 'socio');
+    if (soloSocio && req.user.socioId !== id) {
       return res.status(403).json({ message: 'No tenés permiso para modificar este socio' });
     }
 

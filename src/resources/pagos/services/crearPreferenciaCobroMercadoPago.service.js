@@ -30,6 +30,12 @@ const normalizeItemParaLink = (item, index, socioId) => {
   const periodos = Array.isArray(item?.periodos) && item.periodos.length ? item.periodos.map(String) : undefined;
   const asistenciaIds = Array.isArray(item?.asistenciaIds) && item.asistenciaIds.length ? item.asistenciaIds.map(String) : undefined;
   const cantidad = item?.cantidad == null ? undefined : Number(item.cantidad);
+  // Misma regla que registrarCobro.service.js: sin esto, un cantidad inválido
+  // (NaN, 0, negativo) caía en el "|| 1" de más abajo y el link se generaba
+  // con un monto que después registrarCobro rechaza (appcarc-backend#188).
+  if (muroLibrePendiente && cantidad !== undefined && (!Number.isInteger(cantidad) || cantidad <= 0)) {
+    throw new BusinessError(`El item ${index + 1} debe tener una cantidad entera mayor que cero`);
+  }
 
   // BUG appcarc-backend#155: acá se multiplicaba "amount" por la cantidad de
   // períodos/visitas asumiendo que era un importe unitario — pero
