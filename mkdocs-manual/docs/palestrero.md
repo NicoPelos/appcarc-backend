@@ -37,7 +37,7 @@ Para gente externa (que no es socio) o si preferís cargar el check-in vos mismo
 5. Elegí el estado de pago: `pagado`, `pendiente` o `exento`.
 6. Si está pagado, elegí la forma de pago (`Efectivo` / `Transferencia`).
 7. Si el pase es `diario` y quedó `pagado`, aparece el campo **Monto**: viene precargado con el precio sugerido (distinto si es socio o externo), pero se puede editar antes de confirmar.
-8. Opcional: agregá una observación en el campo de texto libre al final del formulario.
+8. Solo si cargás a una persona externa: aparece un campo de observaciones opcional al final del formulario. Para un socio ya existente ese campo no aparece al crear el check-in; se puede agregar después, editando el registro.
 9. Confirmá — queda el check-in con fecha y hora.
 
 Para corregir un check-in ya cargado (por ejemplo si te equivocaste de tipo de pase o forma de pago), tocá el lápiz en su fila de la lista; el tacho de al lado lo elimina.

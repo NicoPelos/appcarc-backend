@@ -23,8 +23,9 @@ Más abajo en la ficha (para roles con permiso — admin y secretaría) hay dos 
 **Dar de alta un socio nuevo**
 
 1. Andá a `Socios` y tocá el botón de agregar (+).
-2. Completá nombre, apellido, DNI y los datos de contacto que tengas.
-3. Guardá — el socio queda creado, pero sin ninguna cuota asociada todavía (ver [Suscribir un socio a un plan](#7-suscribir-un-socio-a-un-plan)).
+2. Elegí el estado inicial (`Activo`, `Adherente` o `Baja`). Por defecto viene en `Activo`; podés dar de alta directamente a alguien como `Adherente`.
+3. Completá nombre, apellido, DNI y los datos de contacto que tengas.
+4. Guardá — el socio queda creado, pero sin ninguna cuota asociada todavía (ver [Suscribir un socio a un plan](#7-suscribir-un-socio-a-un-plan)).
 
 **Dar de baja / reactivar**
 
@@ -197,10 +198,13 @@ Es el registro de caja del club: ingresos y egresos que **no** vienen de un cobr
 **Registrar un movimiento manual**
 
 1. Andá a `Movimientos` y tocá el botón de agregar (+).
-2. Elegí si es `Ingreso` o `Egreso`.
-3. Elegí la forma de pago (`Efectivo` o `Transferencia`).
-4. Cargá el monto, un concepto corto y, si hace falta, una descripción más larga.
-5. Confirmá — queda en la lista.
+2. Opcional: sacá o adjuntá una foto del comprobante.
+3. Elegí si es `Ingreso` o `Egreso`.
+4. Elegí la categoría (obligatoria; las opciones cambian según sea Ingreso o Egreso).
+5. Elegí la fecha (por defecto es hoy; no se puede poner una fecha futura).
+6. Elegí la forma de pago (`Efectivo` o `Transferencia`).
+7. Cargá el monto, un concepto corto y, si hace falta, una descripción más larga.
+8. Confirmá — queda en la lista.
 
 <figure markdown>
   ![Buscador](assets/screenshots/admin-movimientos-buscador.png){ width="260" }
