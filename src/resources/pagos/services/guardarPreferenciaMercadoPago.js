@@ -102,4 +102,3 @@ export const crearPreferenciaYGuardarIntent = async ({
   return { initPoint: mpData.init_point, preferenceId: mpData.id, intentId: externalReference };
 };
 
-export default crearPreferenciaYGuardarIntent;

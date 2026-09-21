@@ -35,4 +35,3 @@ export const reconciliarPagosMercadoPagoHandler = async (req, res) => {
   }
 };
 
-export default reconciliarPagosMercadoPagoHandler;

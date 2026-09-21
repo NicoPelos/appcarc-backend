@@ -232,4 +232,3 @@ export const setMesesActivosHandler = async (req, res) => {
   }
 };
 
-export default setMesesActivosHandler;

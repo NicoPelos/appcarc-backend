@@ -85,4 +85,3 @@ export const revertSuperAuditHandler = async (req, res) => {
   }
 };
 
-export default revertSuperAuditHandler;

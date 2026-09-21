@@ -86,4 +86,3 @@ export const moverInicioHandler = async (req, res) => {
   }
 };
 
-export default moverInicioHandler;

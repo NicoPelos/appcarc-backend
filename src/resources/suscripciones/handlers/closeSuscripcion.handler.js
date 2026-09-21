@@ -88,4 +88,3 @@ export const closeSuscripcionHandler = async (req, res) => {
   }
 };
 
-export default closeSuscripcionHandler;

@@ -83,4 +83,3 @@ export const crearPreferenciaCobroMercadoPago = async ({
   });
 };
 
-export default crearPreferenciaCobroMercadoPago;

@@ -73,4 +73,3 @@ export const updateClubMercadoPagoConfigHandler = async (req, res) => {
   }
 };
 
-export default updateClubMercadoPagoConfigHandler;

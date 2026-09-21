@@ -67,4 +67,3 @@ export const updateClubInstagramConfigHandler = async (req, res) => {
   }
 };
 
-export default updateClubInstagramConfigHandler;

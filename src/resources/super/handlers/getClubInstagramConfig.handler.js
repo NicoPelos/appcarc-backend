@@ -35,4 +35,3 @@ export const getClubInstagramConfigHandler = async (req, res) => {
   }
 };
 
-export default getClubInstagramConfigHandler;

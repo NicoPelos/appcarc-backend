@@ -70,4 +70,3 @@ export const getSuscripcionesHandler = async (req, res) => {
   }
 };
 
-export default getSuscripcionesHandler;

@@ -72,4 +72,3 @@ export const resolveRefsHandler = async (req, res) => {
   }
 };
 
-export default resolveRefsHandler;

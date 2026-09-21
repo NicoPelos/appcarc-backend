@@ -216,4 +216,3 @@ export const createSuscripcionHandler = async (req, res) => {
   }
 };
 
-export default createSuscripcionHandler;

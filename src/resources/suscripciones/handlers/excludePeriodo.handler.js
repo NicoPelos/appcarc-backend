@@ -175,4 +175,3 @@ export const excludePeriodoHandler = async (req, res) => {
   }
 };
 
-export default excludePeriodoHandler;

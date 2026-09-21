@@ -76,4 +76,3 @@ export const crearPreferenciaCobroMercadoPagoHandler = async (req, res) => {
   }
 };
 
-export default crearPreferenciaCobroMercadoPagoHandler;

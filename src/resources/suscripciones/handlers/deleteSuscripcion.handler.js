@@ -55,4 +55,3 @@ export const deleteSuscripcionHandler = async (req, res) => {
   }
 };
 
-export default deleteSuscripcionHandler;

@@ -6,4 +6,3 @@ export class BusinessError extends Error {
   }
 }
 
-export default BusinessError;

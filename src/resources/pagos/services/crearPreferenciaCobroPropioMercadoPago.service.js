@@ -164,4 +164,3 @@ export const crearPreferenciaCobroPropioMercadoPago = async ({
 };
 
 export { BusinessError };
-export default crearPreferenciaCobroPropioMercadoPago;

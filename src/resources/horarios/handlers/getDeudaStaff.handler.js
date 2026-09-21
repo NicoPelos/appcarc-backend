@@ -108,4 +108,3 @@ export const getDeudaStaffHandler = async (req, res) => {
   }
 };
 
-export default getDeudaStaffHandler;

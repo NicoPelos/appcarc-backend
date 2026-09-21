@@ -35,4 +35,3 @@ export const getClubMercadoPagoConfigHandler = async (req, res) => {
   }
 };
 
-export default getClubMercadoPagoConfigHandler;
