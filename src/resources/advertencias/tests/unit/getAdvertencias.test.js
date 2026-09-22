@@ -1,10 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../../../cuotas/services/calcularDeuda.service.js', () => ({
+  calcularDeuda: vi.fn(),
+}));
+
 import { getAdvertenciasHandler } from '../../handlers/getAdvertencias.handler.js';
 import Asistencia from '../../../asistencias/models/Asistencia.js';
 import Advertencia from '../../models/Advertencia.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
 import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 import Escuelita from '../../../escuelita/models/Escuelita.js';
+import { calcularDeuda } from '../../../cuotas/services/calcularDeuda.service.js';
 
 const mockRes = () => {
   const res = {};
@@ -52,6 +58,7 @@ describe('getAdvertenciasHandler', () => {
     Etiqueta.find = vi.fn().mockReturnValue(chainable([]));
     Escuelita.find = vi.fn().mockReturnValue(chainable([]));
     Cuota.find = vi.fn().mockReturnValue(chainable([]));
+    calcularDeuda.mockResolvedValue({ suscripciones: [], otrosCargos: [] });
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -169,5 +176,75 @@ describe('getAdvertenciasHandler', () => {
     expect(Etiqueta.find).not.toHaveBeenCalled();
     expect(Escuelita.find).not.toHaveBeenCalled();
     expect(Cuota.find).not.toHaveBeenCalled();
+  });
+
+  describe('waLink — manda TODA la deuda del socio, no solo lo que disparó la advertencia', () => {
+    it('arma el mensaje con cada ítem de deuda y el total al final', async () => {
+      Asistencia.find = vi.fn().mockReturnValue(chainable([buildAsistencia()]));
+      Escuelita.find = vi.fn().mockReturnValue(chainable([buildAlumno()]));
+      Cuota.find = vi.fn().mockReturnValue(chainable([]));
+      calcularDeuda.mockResolvedValue({
+        suscripciones: [
+          { etiqueta: { nombre: 'Cuota Social' }, mesesDeuda: 3, totalDeuda: 45000, exento: false },
+          { etiqueta: { nombre: 'Escuelita' }, mesesDeuda: 0, totalDeuda: 0, exento: false }, // al día, no debe aparecer
+        ],
+        otrosCargos: [{ nombre: 'Muro Libre', totalDeuda: 8000 }],
+      });
+
+      const res = mockRes();
+      await getAdvertenciasHandler({ user: USER, query: {} }, res);
+
+      const [payload] = res.json.mock.calls[0];
+      const wa = decodeURIComponent(payload.advertencias[0].waLink.split('text=')[1]);
+      expect(wa).toContain('• Cuota Social: 3 meses — $45.000');
+      expect(wa).toContain('• Muro Libre: $8.000');
+      expect(wa).not.toContain('Escuelita:');
+      expect(wa).toContain('Total: $53.000');
+    });
+
+    it('agrega aparte una advertencia que no es deuda (LIMITE_SEMANAL), sin perderla', async () => {
+      const asistencia = buildAsistencia({
+        advertencias: [{ codigo: 'LIMITE_SEMANAL', mensaje: 'Ya registró 2 clases esa semana (límite: 1)' }],
+      });
+      Asistencia.find = vi.fn().mockReturnValue(chainable([asistencia]));
+      calcularDeuda.mockResolvedValue({
+        suscripciones: [{ etiqueta: { nombre: 'Cuota Social' }, mesesDeuda: 1, totalDeuda: 15000, exento: false }],
+        otrosCargos: [],
+      });
+
+      const res = mockRes();
+      await getAdvertenciasHandler({ user: USER, query: {} }, res);
+
+      const [payload] = res.json.mock.calls[0];
+      const wa = decodeURIComponent(payload.advertencias[0].waLink.split('text=')[1]);
+      expect(wa).toContain('Total: $15.000');
+      expect(wa).toContain('• Ya registró 2 clases esa semana (límite: 1)');
+    });
+
+    it('si no se pudo calcular la deuda, cae al mensaje puntual de la advertencia (no manda un WhatsApp vacío)', async () => {
+      Asistencia.find = vi.fn().mockReturnValue(chainable([buildAsistencia()]));
+      Escuelita.find = vi.fn().mockReturnValue(chainable([buildAlumno()]));
+      calcularDeuda.mockRejectedValue(new Error('DB down'));
+
+      const res = mockRes();
+      await getAdvertenciasHandler({ user: USER, query: {} }, res);
+
+      const [payload] = res.json.mock.calls[0];
+      const wa = decodeURIComponent(payload.advertencias[0].waLink.split('text=')[1]);
+      expect(wa).toContain('• Sin cuota de escuelita pagada para 2026-09');
+    });
+
+    it('no calcula deuda para filas sin teléfono (no hay a quién mandarle nada)', async () => {
+      const asistencia = buildAsistencia({ socioId: { _id: SOCIO_ID, telefono: null } });
+      Asistencia.find = vi.fn().mockReturnValue(chainable([asistencia]));
+      Escuelita.find = vi.fn().mockReturnValue(chainable([buildAlumno()]));
+
+      const res = mockRes();
+      await getAdvertenciasHandler({ user: USER, query: {} }, res);
+
+      const [payload] = res.json.mock.calls[0];
+      expect(payload.advertencias[0].waLink).toBeNull();
+      expect(calcularDeuda).not.toHaveBeenCalled();
+    });
   });
 });

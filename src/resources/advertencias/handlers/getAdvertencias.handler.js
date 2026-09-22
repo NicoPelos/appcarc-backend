@@ -3,6 +3,7 @@ import Advertencia from '../models/Advertencia.js';
 import Cuota from '../../cuotas/models/Cuota.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Escuelita from '../../escuelita/models/Escuelita.js';
+import { calcularDeuda } from '../../cuotas/services/calcularDeuda.service.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 import { periodoDeFecha } from '../../../services/fechaArgentina.js';
 
@@ -46,12 +47,48 @@ const formatWaPhone = (telefono) => {
   return `549${digits}`;
 };
 
-const buildWaLink = (telefono, nombre, advertencias) => {
+const formatMonto = (n) => `$${n.toLocaleString('es-AR')}`;
+
+// Todo lo que debe HOY el socio (no solo el ítem puntual que disparó esta
+// advertencia) — pedido explícito de Nico: el mensaje de WhatsApp tiene que
+// servir para regularizar de una sola vez, no obligar a un ida y vuelta por
+// cada tipo de deuda. Mismo cálculo que usa la pantalla de Cuotas.
+const buildResumenDeuda = (deuda) => {
+  const lineas = [];
+  let total = 0;
+  for (const s of deuda.suscripciones) {
+    if (s.exento || !s.mesesDeuda) continue;
+    const conocido = typeof s.totalDeuda === 'number';
+    const montoTxt = conocido ? ` — ${formatMonto(s.totalDeuda)}` : '';
+    lineas.push(`• ${s.etiqueta?.nombre ?? 'Cuota'}: ${s.mesesDeuda} ${s.mesesDeuda === 1 ? 'mes' : 'meses'}${montoTxt}`);
+    if (conocido) total += s.totalDeuda;
+  }
+  for (const c of deuda.otrosCargos) {
+    if (!c.totalDeuda) continue;
+    lineas.push(`• ${c.nombre}${c.descripcion ? ` (${c.descripcion})` : ''}: ${formatMonto(c.totalDeuda)}`);
+    total += c.totalDeuda;
+  }
+  return { lineas, total };
+};
+
+const buildWaLink = (telefono, nombre, advertencias, resumenDeuda) => {
   const phone = formatWaPhone(telefono);
   if (!phone) return null;
-  const lista = advertencias.map((a) => `• ${a.mensaje}`).join('\n');
+
+  const bloques = [];
+  if (resumenDeuda.lineas.length) {
+    bloques.push(`Registramos la siguiente deuda:\n${resumenDeuda.lineas.join('\n')}\nTotal: ${formatMonto(resumenDeuda.total)}`);
+  }
+  // LIMITE_SEMANAL no es deuda (superó la cantidad de clases de la semana) —
+  // el resumen de arriba no lo cubre, se lista aparte.
+  const noDeuda = advertencias.filter((a) => a.codigo === ADVERTENCIA.LIMITE_SEMANAL);
+  if (noDeuda.length) bloques.push(noDeuda.map((a) => `• ${a.mensaje}`).join('\n'));
+  // Si no se pudo calcular la deuda (o ya se pagó justo antes de mandar el
+  // mensaje) no se manda un WhatsApp vacío: se cae al texto puntual de siempre.
+  if (!bloques.length) bloques.push(advertencias.map((a) => `• ${a.mensaje}`).join('\n'));
+
   const text = encodeURIComponent(
-    `Hola ${nombre}, te contactamos del club. En tu último ingreso registramos las siguientes advertencias:\n${lista}\nPor favor pasate por secretaría para regularizarlas. ¡Gracias!`,
+    `Hola ${nombre}, te contactamos del club.\n${bloques.join('\n\n')}\nPor favor pasate por secretaría para regularizarlo. ¡Gracias!`,
   );
   return `https://wa.me/${phone}?text=${text}`;
 };
@@ -179,7 +216,6 @@ export const getAdvertenciasHandler = async (req, res) => {
             ...doc,
             advertencias: advertenciasVigentes,
             telefono,
-            waLink: buildWaLink(telefono, doc.nombre, advertenciasVigentes),
             socioId: doc.socioId?._id ?? doc.socioId,
           };
         })
@@ -205,7 +241,6 @@ export const getAdvertenciasHandler = async (req, res) => {
           apellido: doc.apellido,
           telefono,
           advertencias,
-          waLink: buildWaLink(telefono, doc.nombre, advertencias),
           socioId: doc.socioId?._id ?? doc.socioId,
         };
       });
@@ -215,7 +250,23 @@ export const getAdvertenciasHandler = async (req, res) => {
       (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
     );
     const total = merged.length;
-    const items = merged.slice((pageNumber - 1) * pageSize, (pageNumber - 1) * pageSize + pageSize);
+    const pagina = merged.slice((pageNumber - 1) * pageSize, (pageNumber - 1) * pageSize + pageSize);
+
+    // La deuda se calcula recién acá (solo para la página que se devuelve, no
+    // para toda la ventana de "dias"): es la misma consulta que usa la
+    // pantalla de Cuotas, no algo que convenga repetir para filas que ni
+    // siquiera se van a mostrar.
+    const items = await Promise.all(pagina.map(async (item) => {
+      let resumenDeuda = { lineas: [], total: 0 };
+      if (item.socioId && item.telefono) {
+        try {
+          resumenDeuda = buildResumenDeuda(await calcularDeuda({ socioId: item.socioId, clubId }));
+        } catch (err) {
+          console.error(`No se pudo calcular la deuda para el WhatsApp de advertencia (socio ${item.socioId}):`, err.message);
+        }
+      }
+      return { ...item, waLink: buildWaLink(item.telefono, item.nombre, item.advertencias, resumenDeuda) };
+    }));
 
     return res.status(200).json({
       page: pageNumber,
