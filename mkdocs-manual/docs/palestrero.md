@@ -23,7 +23,17 @@ Cada visita al muro (sea de un socio o de alguien externo) se registra acá, jun
   <figcaption>Nuevo check-in</figcaption>
 </figure>
 
-Arriba de la lista hay chips para filtrar lo que se muestra (`Hoy`, `3 días`, `7 días`, `30 días`), con el total de check-ins del período a la derecha.
+Arriba de la lista hay chips para filtrar lo que se muestra (`Hoy`, `3 días`, `7 días`, `30 días`), con el total de check-ins del período a la derecha. El chip `Elegir día` abre un calendario para ir directo a una fecha puntual del pasado (por ejemplo, para resolver un reclamo sobre un día específico) — es excluyente con los otros cuatro.
+
+<figure markdown>
+  ![Chip "Elegir día"](assets/screenshots/palestrero-murolibre-elegir-dia.png){ width="260" }
+  <figcaption>El chip "Elegir día" abre el calendario</figcaption>
+</figure>
+
+<figure markdown>
+  ![Día puntual elegido](assets/screenshots/palestrero-murolibre-dia-elegido.png){ width="260" }
+  <figcaption>La lista queda filtrada a ese único día</figcaption>
+</figure>
 
 La mayoría de los check-ins de socios se cargan solos: en la pared del club hay un cartel fijo con un código QR de Muro Libre, y el socio lo escanea con la cámara de su propio celular (no hace falta que abra la app primero). Si tiene pase mensual vigente no se le genera ningún cargo; si no, queda pendiente de pago y lo cobrás vos en el mostrador cuando corresponda.
 

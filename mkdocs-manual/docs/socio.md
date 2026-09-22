@@ -27,6 +27,22 @@ De un vistazo: tu estado de cuota, accesos rápidos (Cuotas, Credencial, Comunid
 
 Mantené presionado cualquier ícono del grid para entrar en modo edición, arrastrá para reordenarlos como prefieras, y tocá `Listo` para confirmar. El orden queda guardado en el celular (no es algo que vea el resto del equipo). Esto es igual para cualquier rol, no solo para socios.
 
+**Cuando hay muchos accesos**
+
+El grid tiene lugar para 12 accesos (4 columnas × 3 filas). Un rol con más de 12 (típicamente admin o secretaría, que ven casi todo) tiene los primeros 11 —según el orden que armaste arrastrando— y una tarjeta `Más` en el último lugar, que abre el resto en una lista.
+
+<figure markdown>
+  ![Grid con la tarjeta "Más"](assets/screenshots/inicio-mas-accesos-grid.png){ width="260" }
+  <figcaption>Con más de 12 accesos, el último lugar es "Más"</figcaption>
+</figure>
+
+<figure markdown>
+  ![Lista de accesos extra](assets/screenshots/inicio-mas-accesos-sheet.png){ width="260" }
+  <figcaption>Ahí aparece el resto</figcaption>
+</figure>
+
+En modo edición se ven los 12 (o los que tengas) completos, sin la tarjeta `Más`, para poder reordenar también los que quedan escondidos.
+
 ## 2. Ver y pagar tus cuotas
 
 Muestra tu estado actual y el total adeudado si tenés cuotas vencidas. Si tenés hijos vinculados, la deuda se muestra separada por perfil: la tuya y la de cada uno de ellos.
