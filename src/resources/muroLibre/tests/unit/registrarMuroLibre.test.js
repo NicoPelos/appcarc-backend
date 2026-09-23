@@ -404,6 +404,51 @@ describe('registrarMuroLibre service (unit)', () => {
     })).rejects.toMatchObject({ status: 409, message: 'Ana García ya registró asistencia en muro libre hoy' });
   });
 
+  it('un socio dado de Baja cuenta como no socio: precio de no socio y esSocio false', async () => {
+    mockSocioQuery({ _id: SOCIO_ID, nombre: 'Roberto', apellido: 'Teodosio', dni: '34980157', estado: 'Baja' });
+    Suscripcion.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) }) });
+    mockEtiquetaQuery({ _id: ETIQUETA_ID, uso_sistema: 'muro_libre_diario_no_socio' });
+    mockPrecioVigenteQuery({ monto: 8000 });
+
+    await registrarMuroLibre({
+      clubId: CLUB_ID, user: USER,
+      body: { tipoPase: 'diario', socioId: SOCIO_ID, estadoPago: 'pendiente' },
+    });
+
+    expect(Etiqueta.findOne).toHaveBeenCalledWith(expect.objectContaining({ uso_sistema: 'muro_libre_diario_no_socio' }));
+    expect(savedRegistros[0]).toMatchObject({ esSocio: false, precioSugeridoSnapshot: 8000 });
+    // No se le reclama cuota social a alguien que ya no es socio.
+    expect(Cuota.findOne).not.toHaveBeenCalled();
+    expect(savedRegistros[0].advertencias ?? []).toHaveLength(0);
+  });
+
+  it('un socio Adherente sigue siendo socio (precio de socio)', async () => {
+    mockSocioQuery({ _id: SOCIO_ID, nombre: 'Alma', apellido: 'Teodosio', dni: '52464718', estado: 'Adherente' });
+    Suscripcion.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) }) });
+    Cuota.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ estado: 'pagada' }) }) });
+    mockEtiquetaQuery({ _id: ETIQUETA_ID, uso_sistema: 'muro_libre_diario_socio' });
+    mockPrecioVigenteQuery({ monto: 4000 });
+
+    await registrarMuroLibre({
+      clubId: CLUB_ID, user: USER,
+      body: { tipoPase: 'diario', socioId: SOCIO_ID, estadoPago: 'pendiente' },
+    });
+
+    expect(Etiqueta.findOne).toHaveBeenCalledWith(expect.objectContaining({ uso_sistema: 'muro_libre_diario_socio' }));
+    expect(savedRegistros[0]).toMatchObject({ esSocio: true });
+  });
+
+  it('un socio dado de Baja no puede sacar pase mensual', async () => {
+    mockSocioQuery({ _id: SOCIO_ID, nombre: 'Roberto', apellido: 'Teodosio', dni: '34980157', estado: 'Baja' });
+
+    await expect(registrarMuroLibre({
+      clubId: CLUB_ID, user: USER,
+      body: { tipoPase: 'mensual', socioId: SOCIO_ID, estadoPago: 'pendiente' },
+    })).rejects.toMatchObject({ message: 'El pase mensual solo está disponible para socios' });
+
+    expect(registroSaveSpy).not.toHaveBeenCalled();
+  });
+
   it('should fail when mensual is attempted without a linked socio', async () => {
     await expect(registrarMuroLibre({
       clubId: CLUB_ID, user: USER,

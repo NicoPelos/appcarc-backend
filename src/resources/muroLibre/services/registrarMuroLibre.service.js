@@ -93,7 +93,11 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         }
       }
 
-      const esSocio = Boolean(socio || body?.esSocio === true);
+      // Un socio dado de Baja ya no es parte del club: para el muro cuenta como
+      // no socio (precio de no socio, sin pase mensual). Adherente y Activo
+      // siguen siendo socios. Sin ficha (visitante externo) decide el body.
+      const socioVigente = Boolean(socio) && socio.estado !== 'Baja';
+      const esSocio = socio ? socioVigente : body?.esSocio === true;
       nombre = String(body?.nombre || socio?.nombre || '').trim();
       apellido = String(body?.apellido || socio?.apellido || '').trim();
       const dni = String(body?.dni || socio?.dni || '').trim();
@@ -142,8 +146,9 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         }
       }
 
-      // Cuota social vigente (advertencia, no bloquea — solo para socios)
-      if (socio) {
+      // Cuota social vigente (advertencia, no bloquea — solo para socios
+      // vigentes: a uno dado de Baja no se le reclama cuota social)
+      if (socioVigente) {
         const periodoActual = buildPeriodo(fecha);
         // Ventana de gracia: el mes en curso no se reclama hasta pasado el
         // día 10 — solo aplica si `fecha` es realmente el mes actual, no un
@@ -177,7 +182,7 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
       let cuotaMensualVigente = null;
 
       if (tipoPase === 'mensual') {
-        if (!socio) {
+        if (!socioVigente) {
           throw new BusinessError('El pase mensual solo está disponible para socios');
         }
 
