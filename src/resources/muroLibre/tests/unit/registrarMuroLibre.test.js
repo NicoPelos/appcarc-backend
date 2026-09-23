@@ -317,6 +317,44 @@ describe('registrarMuroLibre service (unit)', () => {
     expect(String(savedCuotas[0].suscripcionId)).toBe(String(existingSuscripcionId));
   });
 
+  it('un pase mensual programado a futuro no bloquea un check-in diario de hoy (filtra fechaDesde <= período del check-in)', async () => {
+    mockSocioQuery({ _id: SOCIO_ID, nombre: 'Stefano', apellido: 'Cossa', dni: '1', estado: 'Activo' });
+    mockEtiquetaQuery({ _id: ETIQUETA_ID, uso_sistema: 'muro_libre_diario_socio' });
+    mockPrecioVigenteQuery({ monto: 8000 });
+    Cuota.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ estado: 'pagada' }) }) });
+    Suscripcion.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) }) });
+
+    await registrarMuroLibre({
+      clubId: CLUB_ID, user: USER,
+      body: { socioId: SOCIO_ID, tipoPase: 'diario', estadoPago: 'pendiente', fecha: '2026-09-23T15:00:00.000Z' },
+    });
+
+    expect(Suscripcion.findOne).toHaveBeenCalledWith(expect.objectContaining({
+      active: true,
+      fechaDesde: { $lte: '2026-09' },
+    }));
+    expect(savedRegistros[0]).toMatchObject({ tipoPase: 'diario' });
+  });
+
+  it('si tenía el pase mensual programado para más adelante y hoy entra con pase mensual, se adelanta el inicio (no se duplica)', async () => {
+    mockSocioQuery({ _id: SOCIO_ID, nombre: 'Stefano', apellido: 'Cossa', dni: '1', estado: 'Activo' });
+    mockPrecioVigenteQuery({ monto: 8000 });
+    const futura = { _id: new mongoose.Types.ObjectId(), fechaDesde: '2026-10', save: vi.fn().mockResolvedValue(undefined) };
+    Cuota.findOne = vi.fn()
+      .mockReturnValueOnce({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ estado: 'pagada' }) }) })
+      .mockReturnValueOnce({ session: vi.fn().mockResolvedValue(null) });
+    Suscripcion.findOne = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(futura) });
+
+    await registrarMuroLibre({
+      clubId: CLUB_ID, user: USER,
+      body: { socioId: SOCIO_ID, tipoPase: 'mensual', estadoPago: 'pendiente', fecha: '2026-09-23T15:00:00.000Z' },
+    });
+
+    expect(futura.fechaDesde).toBe('2026-09');
+    expect(futura.save).toHaveBeenCalledTimes(1);
+    expect(suscripcionSaveSpy).not.toHaveBeenCalled();
+  });
+
   it('falla con mensaje claro si no hay etiqueta de Muro Libre Mensual configurada', async () => {
     mockSocioQuery({ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' });
     Etiqueta.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });

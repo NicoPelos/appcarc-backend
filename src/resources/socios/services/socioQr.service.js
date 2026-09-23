@@ -143,11 +143,15 @@ export const getPaseMuroLibreVigente = async (socioId, clubId) => {
     active: true,
   }).lean();
 
+  // fechaDesde <= período actual: un pase mensual programado para un mes
+  // futuro (ej. "desde octubre") todavía no cuenta como pase activo — si no,
+  // bloquearía los check-ins diarios de hoy.
   const suscripcion = etiquetaMensual && await Suscripcion.findOne({
     clubId,
     socioId,
     etiquetaId: etiquetaMensual._id,
     active: true,
+    fechaDesde: { $lte: periodo },
   }).lean();
 
   if (!suscripcion) {

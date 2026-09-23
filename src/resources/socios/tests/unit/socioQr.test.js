@@ -97,6 +97,18 @@ describe('Socio QR service', () => {
       expect(Suscripcion.findOne).not.toHaveBeenCalled();
     });
 
+    it('un pase mensual programado para un mes futuro no cuenta como pase activo (filtra fechaDesde <= período actual)', async () => {
+      Etiqueta.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'etq1' }) });
+      Suscripcion.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
+
+      const result = await getPaseMuroLibreVigente('507f1f77bcf86cd799439011', 'club1');
+
+      expect(Suscripcion.findOne).toHaveBeenCalledWith(expect.objectContaining({
+        active: true,
+        fechaDesde: { $lte: result.periodo },
+      }));
+    });
+
     it('should not report vencido when socio has no active suscripcion', async () => {
       Etiqueta.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'etq1' }) });
       Suscripcion.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });

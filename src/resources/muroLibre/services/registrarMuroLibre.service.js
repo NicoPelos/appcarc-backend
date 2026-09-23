@@ -134,11 +134,14 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
           uso_sistema: 'muro_libre_mensual_socio',
           active: true,
         }).lean();
+        // Solo cuenta un pase mensual que ya empezó para el período del check-in:
+        // uno programado a futuro (ej. "desde octubre") no impide cargar un diario hoy.
         const suscripcionMensualActiva = etiquetaMensualCheck && await Suscripcion.findOne({
           clubId,
           socioId: socio._id,
           etiquetaId: etiquetaMensualCheck._id,
           active: true,
+          fechaDesde: { $lte: buildPeriodo(fecha) },
         }).session(session).lean();
 
         if (suscripcionMensualActiva) {
@@ -309,6 +312,14 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
       // quede reflejado en /api/socios/:id/deuda y no se vuelva a pedir pago
       // si el socio entra otra vez en el mismo período.
       if (tipoPase === 'mensual' && !cuotaMensualVigente) {
+        if (suscripcionMensual && suscripcionMensual.fechaDesde > periodoMensual) {
+          // Tenía el pase programado para más adelante y hoy entra con pase
+          // mensual: se adelanta el inicio a este período en vez de duplicarlo.
+          suscripcionMensual.fechaDesde = periodoMensual;
+          suscripcionMensual.updatedBy = actor;
+          await suscripcionMensual.save({ session });
+        }
+
         if (!suscripcionMensual) {
           suscripcionMensual = new Suscripcion({
             clubId,
