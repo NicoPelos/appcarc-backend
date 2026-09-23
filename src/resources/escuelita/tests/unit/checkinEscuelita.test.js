@@ -23,6 +23,9 @@ vi.mock('../../../asistencias/models/Asistencia.js', () => ({
 vi.mock('../../../vinculos/models/VinculoFamiliar.js', () => ({
   default: { exists: vi.fn() },
 }));
+vi.mock('../../../cuotas/services/exencion.service.js', () => ({
+  estaExentoEnPeriodo: vi.fn().mockResolvedValue(false),
+}));
 vi.mock('../../../../services/permisosCache.js', () => ({
   tienePermiso: vi.fn(),
 }));
@@ -34,6 +37,7 @@ import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 import Asistencia from '../../../asistencias/models/Asistencia.js';
 import VinculoFamiliar from '../../../vinculos/models/VinculoFamiliar.js';
 import { tienePermiso } from '../../../../services/permisosCache.js';
+import { estaExentoEnPeriodo } from '../../../cuotas/services/exencion.service.js';
 
 const mockUser = { clubId: 'CARC', email: 'admin@carc.com', id: 'u1', roles: ['secretaria'] };
 const mockSocio = { _id: 'socio1', nombre: 'Ana', apellido: 'García', dni: '12345678' };
@@ -117,6 +121,24 @@ describe('checkinEscuelitaHandler', () => {
         expect.objectContaining({ codigo: 'CUOTA_IMPAGA' }),
       ]),
     }));
+  });
+
+  it('un socio exento (plan "No genera deuda") no recibe CUOTA_SOCIAL_IMPAGA ni CUOTA_IMPAGA', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-02-15T15:00:00.000Z')); // día 15 (ART) — fuera de la ventana
+    Cuota.findOne.mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
+    estaExentoEnPeriodo.mockResolvedValue(true);
+    const req = { user: mockUser, body: { token: 'tok' } };
+    const res = mockRes();
+
+    await checkinEscuelitaHandler(req, res);
+    vi.useRealTimers();
+    estaExentoEnPeriodo.mockResolvedValue(false);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+    const [payload] = res.json.mock.calls[0];
+    expect(payload.advertencias.map((a) => a.codigo)).not.toContain('CUOTA_SOCIAL_IMPAGA');
+    expect(payload.advertencias.map((a) => a.codigo)).not.toContain('CUOTA_IMPAGA');
   });
 
   describe('ventana de gracia del mes en curso (día 10)', () => {

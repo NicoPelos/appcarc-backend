@@ -6,6 +6,7 @@ import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { crearMovimientoDePago } from '../../movimientos/services/crearMovimientoDePago.service.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
+import { estaExentoEnPeriodo } from '../../cuotas/services/exencion.service.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 import { dentroDeVentanaDeGracia, esFechaFutura, diaBoundsUTC, fechaCalendarioArgentina } from '../../../services/fechaArgentina.js';
 
@@ -168,7 +169,11 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
           active: true,
         }).session(session).lean();
 
-        if (!cuotaSocial && !enVentanaDeGracia) {
+        const exentoSocial = !cuotaSocial && etiquetaSocial && await estaExentoEnPeriodo({
+          clubId, socioId: socio._id, etiquetaId: etiquetaSocial._id, periodo: periodoActual, session,
+        });
+
+        if (!cuotaSocial && !exentoSocial && !enVentanaDeGracia) {
           advertencias.push({
             codigo: ADVERTENCIA.CUOTA_SOCIAL_IMPAGA,
             mensaje: `Sin cuota social pagada para ${periodoActual}`,
@@ -217,7 +222,10 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         }).session(session);
 
         const enVentanaDeGraciaPaseMensual = periodoMensual === buildPeriodo(new Date()) && dentroDeVentanaDeGracia(new Date());
-        if (cuotaMensualVigente) {
+        const exentoMensual = !cuotaMensualVigente && await estaExentoEnPeriodo({
+          clubId, socioId: socio._id, etiquetaId: etiquetaMensual._id, periodo: periodoMensual, session,
+        });
+        if (cuotaMensualVigente || exentoMensual) {
           estadoPagoOverride = 'exento';
         } else if (String(body?.estadoPago || 'pendiente').trim().toLowerCase() !== 'pagado' && !enVentanaDeGraciaPaseMensual) {
           advertencias.push({

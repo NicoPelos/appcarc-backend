@@ -2,6 +2,7 @@ import Asistencia from '../../asistencias/models/Asistencia.js';
 import Advertencia from '../models/Advertencia.js';
 import Cuota from '../../cuotas/models/Cuota.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
+import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import Escuelita from '../../escuelita/models/Escuelita.js';
 import { calcularDeuda } from '../../cuotas/services/calcularDeuda.service.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
@@ -166,6 +167,7 @@ export const getAdvertenciasHandler = async (req, res) => {
       let etiquetaIdPorUso = new Map();
       let etiquetaEscuelitaPorSocio = new Map();
       let pagadasSet = new Set();
+      const exentasPorSocioEtiqueta = new Map();
       if (necesitaChequeo) {
         const socioIds = [...new Set(docs.filter((d) => d.socioId).map((d) => String(d.socioId._id ?? d.socioId)))];
 
@@ -193,6 +195,16 @@ export const getAdvertenciasHandler = async (req, res) => {
             clubId, estado: 'pagada', socioId: { $in: socioIds }, etiquetaId: { $in: etiquetaIds },
           }).select('socioId etiquetaId periodo').lean();
           pagadasSet = new Set(cuotasPagadas.map((c) => `${c.socioId}:${c.etiquetaId}:${c.periodo}`));
+
+          // Un tramo exento (plan "No genera deuda") también resuelve la
+          // advertencia: quien no debe pagar nada no tiene nada impago.
+          const exentas = await Suscripcion.find({
+            clubId, active: true, exento: true, socioId: { $in: socioIds }, etiquetaId: { $in: etiquetaIds },
+          }).select('socioId etiquetaId fechaDesde fechaHasta').lean();
+          for (const s of exentas) {
+            const clave = `${s.socioId}:${s.etiquetaId}`;
+            exentasPorSocioEtiqueta.set(clave, [...(exentasPorSocioEtiqueta.get(clave) ?? []), s]);
+          }
         }
       }
 
@@ -207,7 +219,9 @@ export const getAdvertenciasHandler = async (req, res) => {
             const esResoluble = a.codigo === ADVERTENCIA.CUOTA_IMPAGA || Boolean(USO_SISTEMA_POR_CODIGO[a.codigo]);
             if (!esResoluble) return true; // no resoluble (ej. LIMITE_SEMANAL): se mantiene siempre
             if (!socioIdStr || !etiquetaId) return true; // sin datos para chequear, no se oculta por las dudas
-            return !pagadasSet.has(`${socioIdStr}:${etiquetaId}:${periodo}`);
+            if (pagadasSet.has(`${socioIdStr}:${etiquetaId}:${periodo}`)) return false;
+            const tramosExentos = exentasPorSocioEtiqueta.get(`${socioIdStr}:${etiquetaId}`) ?? [];
+            return !tramosExentos.some((t) => t.fechaDesde <= periodo && (!t.fechaHasta || periodo <= t.fechaHasta));
           });
           if (advertenciasVigentes.length === 0) return null; // ya se resolvieron todas — sale de la worklist
 

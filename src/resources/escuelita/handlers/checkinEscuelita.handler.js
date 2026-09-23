@@ -4,6 +4,7 @@ import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import VinculoFamiliar from '../../vinculos/models/VinculoFamiliar.js';
 import { resolveSocioFromQrTokenOrDni, findActiveSocioById, BusinessError } from '../../socios/services/socioQr.service.js';
+import { estaExentoEnPeriodo } from '../../cuotas/services/exencion.service.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 import { notifyRolesByPermiso, notifySocio } from '../../../services/pushNotification.service.js';
 import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC, dentroDeVentanaDeGracia, esFechaFutura } from '../../../services/fechaArgentina.js';
@@ -145,7 +146,11 @@ export const checkinEscuelitaHandler = async (req, res) => {
       estado: 'pagada',
     }).lean();
 
-    if (!cuotaSocial && !enVentanaDeGracia) {
+    const exentoSocial = !cuotaSocial && etiquetaSocial && await estaExentoEnPeriodo({
+      clubId, socioId: socio._id, etiquetaId: etiquetaSocial._id, periodo,
+    });
+
+    if (!cuotaSocial && !exentoSocial && !enVentanaDeGracia) {
       advertencias.push({
         codigo: ADVERTENCIA.CUOTA_SOCIAL_IMPAGA,
         mensaje: `Sin cuota social pagada para ${periodo}`,
@@ -169,7 +174,11 @@ export const checkinEscuelitaHandler = async (req, res) => {
       estado: 'pagada',
     }).lean();
 
-    if (!cuotaPagada && !enVentanaDeGracia) {
+    const exentoEscuelita = !cuotaPagada && await estaExentoEnPeriodo({
+      clubId, socioId: socio._id, etiquetaId: etiquetaEscuelitaId, periodo,
+    });
+
+    if (!cuotaPagada && !exentoEscuelita && !enVentanaDeGracia) {
       advertencias.push({
         codigo: ADVERTENCIA.CUOTA_IMPAGA,
         mensaje: `Sin cuota de escuelita pagada para ${periodo}`,

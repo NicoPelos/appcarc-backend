@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 
+vi.mock('../../../cuotas/services/exencion.service.js', () => ({
+  estaExentoEnPeriodo: vi.fn().mockResolvedValue(false),
+}));
+
 import { BusinessError, registrarMuroLibre, anularCuotaMuroLibreMensual } from '../../services/registrarMuroLibre.service.js';
 import Socio from '../../../socios/models/Socio.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
@@ -9,6 +13,7 @@ import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 import Asistencia from '../../../asistencias/models/Asistencia.js';
 import Movimiento from '../../../movimientos/models/Movimiento.js';
 import Suscripcion from '../../../suscripciones/models/Suscripcion.js';
+import { estaExentoEnPeriodo } from '../../../cuotas/services/exencion.service.js';
 
 const CLUB_ID = 'club1';
 const SOCIO_ID = '507f1f77bcf86cd799439011';
@@ -251,6 +256,25 @@ describe('registrarMuroLibre service (unit)', () => {
     // Al no estar suscripto todavía, el check-in lo suscribe igual (aunque quede pendiente)
     expect(suscripcionSaveSpy).toHaveBeenCalledTimes(1);
     expect(cuotaSaveSpy).not.toHaveBeenCalled();
+  });
+
+  it('un socio con pase mensual exento (plan "No genera deuda") entra como exento y sin advertencias de pago', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-02-15T15:00:00.000Z')); // día 15 (ART) — fuera de la ventana
+    mockSocioQuery({ _id: SOCIO_ID, nombre: 'Ana', apellido: 'García', dni: '12345678' });
+    mockPrecioVigenteQuery({ monto: 8000 });
+    Cuota.findOne = vi.fn()
+      .mockReturnValueOnce({ session: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) }) })
+      .mockReturnValueOnce({ session: vi.fn().mockResolvedValue(null) });
+    estaExentoEnPeriodo.mockResolvedValue(true); // exento en cuota social y en pase mensual
+
+    const result = await registrarMuroLibre({ clubId: CLUB_ID, user: USER, body: { socioId: SOCIO_ID, tipoPase: 'mensual' } });
+    vi.useRealTimers();
+    estaExentoEnPeriodo.mockResolvedValue(false);
+
+    expect(result.advertencias).toEqual([]);
+    expect(result.registro.estadoPago).toBe('exento');
+    expect(result.movimiento).toBeNull();
   });
 
   it('NO genera PASE_MENSUAL_IMPAGO dentro de la ventana de gracia del mes en curso', async () => {

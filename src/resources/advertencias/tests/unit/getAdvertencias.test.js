@@ -10,6 +10,7 @@ import Advertencia from '../../models/Advertencia.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
 import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 import Escuelita from '../../../escuelita/models/Escuelita.js';
+import Suscripcion from '../../../suscripciones/models/Suscripcion.js';
 import { calcularDeuda } from '../../../cuotas/services/calcularDeuda.service.js';
 
 const mockRes = () => {
@@ -58,6 +59,7 @@ describe('getAdvertenciasHandler', () => {
     Etiqueta.find = vi.fn().mockReturnValue(chainable([]));
     Escuelita.find = vi.fn().mockReturnValue(chainable([]));
     Cuota.find = vi.fn().mockReturnValue(chainable([]));
+    Suscripcion.find = vi.fn().mockReturnValue(chainable([]));
     calcularDeuda.mockResolvedValue({ suscripciones: [], otrosCargos: [] });
   });
 
@@ -88,6 +90,34 @@ describe('getAdvertenciasHandler', () => {
     const [payload] = res.json.mock.calls[0];
     expect(payload.advertencias).toHaveLength(0);
     expect(payload.total).toBe(0);
+  });
+
+  it('excluye una advertencia de cuota impaga cuando el socio tiene un tramo exento (No genera deuda) que cubre el período', async () => {
+    Asistencia.find = vi.fn().mockReturnValue(chainable([buildAsistencia()]));
+    Escuelita.find = vi.fn().mockReturnValue(chainable([buildAlumno()]));
+    Suscripcion.find = vi.fn().mockReturnValue(chainable([
+      { socioId: SOCIO_ID, etiquetaId: ETIQUETA_ESCUELITA_ID, fechaDesde: '2026-08', fechaHasta: null },
+    ]));
+
+    const res = mockRes();
+    await getAdvertenciasHandler({ user: USER, query: {} }, res);
+
+    const [payload] = res.json.mock.calls[0];
+    expect(payload.advertencias).toHaveLength(0);
+  });
+
+  it('mantiene la advertencia si el tramo exento no cubre el período de la asistencia', async () => {
+    Asistencia.find = vi.fn().mockReturnValue(chainable([buildAsistencia()]));
+    Escuelita.find = vi.fn().mockReturnValue(chainable([buildAlumno()]));
+    Suscripcion.find = vi.fn().mockReturnValue(chainable([
+      { socioId: SOCIO_ID, etiquetaId: ETIQUETA_ESCUELITA_ID, fechaDesde: '2026-10', fechaHasta: null },
+    ]));
+
+    const res = mockRes();
+    await getAdvertenciasHandler({ user: USER, query: {} }, res);
+
+    const [payload] = res.json.mock.calls[0];
+    expect(payload.advertencias).toHaveLength(1);
   });
 
   it('should keep a CUOTA_IMPAGA advertencia when the Cuota is still unpaid', async () => {
