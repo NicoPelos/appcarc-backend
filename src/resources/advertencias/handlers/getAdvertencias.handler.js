@@ -8,6 +8,42 @@ import { calcularDeuda } from '../../cuotas/services/calcularDeuda.service.js';
 import { ADVERTENCIA } from '../../../constants/advertenciaCodes.js';
 import { periodoDeFecha } from '../../../services/fechaArgentina.js';
 
+// Una fila por socio (appcarc-backend#210): casi todas las advertencias son un
+// ESTADO ("debe la cuota social"), no un hecho puntual — un socio que entra 3
+// veces sin pagar no tiene que aparecer 3 veces ni recibir 3 WhatsApp iguales.
+// `items` viene ordenado de más nueva a más vieja, así que la primera vez que
+// aparece un código es la más reciente y pisa a las anteriores. LIMITE_SEMANAL
+// es un hecho de un día concreto (no se "resuelve" pagando): se conserva cada
+// una distinta. Los visitantes sin ficha (sin socioId) no se agrupan. No se
+// borra ninguna Asistencia: esto solo cambia cómo se lista.
+export const agruparPorSocio = (items) => {
+  const porSocio = new Map();
+  const agrupados = [];
+
+  for (const item of items) {
+    const cuentaIngreso = item.tipo !== 'morosidad' ? 1 : 0;
+    const key = item.socioId ? String(item.socioId) : null;
+    const existente = key ? porSocio.get(key) : null;
+
+    if (!existente) {
+      const nuevo = { ...item, advertencias: [...item.advertencias], ingresos: cuentaIngreso };
+      if (key) porSocio.set(key, nuevo);
+      agrupados.push(nuevo);
+      continue;
+    }
+
+    existente.ingresos += cuentaIngreso;
+    for (const adv of item.advertencias) {
+      const repetida = adv.codigo === ADVERTENCIA.LIMITE_SEMANAL
+        ? existente.advertencias.some((a) => a.codigo === adv.codigo && a.mensaje === adv.mensaje)
+        : existente.advertencias.some((a) => a.codigo === adv.codigo);
+      if (!repetida) existente.advertencias.push(adv);
+    }
+  }
+
+  return agrupados;
+};
+
 const CODIGOS_VALIDOS = Object.values(ADVERTENCIA);
 const TIPOS_VALIDOS = ['escuelita', 'muro_libre', 'morosidad'];
 
@@ -98,7 +134,7 @@ const buildWaLink = (telefono, nombre, advertencias, resumenDeuda) => {
  * @openapi
  * /api/advertencias:
  *   get:
- *     summary: Listar asistencias con advertencias
+ *     summary: Listar advertencias, una fila por socio (la más reciente de cada código; LIMITE_SEMANAL se conserva)
  *     tags: [Advertencias]
  *     security:
  *       - bearerAuth: []
@@ -122,7 +158,7 @@ const buildWaLink = (telefono, nombre, advertencias, resumenDeuda) => {
  *         schema: { type: integer, default: 20 }
  *     responses:
  *       200:
- *         description: Lista paginada de asistencias con advertencias
+ *         description: Lista paginada, una fila por socio. Cada ítem trae `ingresos` (check-ins agrupados) y las advertencias vigentes de ese socio
  *       400:
  *         description: Parámetros inválidos
  *       500:
@@ -260,9 +296,9 @@ export const getAdvertenciasHandler = async (req, res) => {
       });
     }
 
-    const merged = [...asistenciaItems, ...morosidadItems].sort(
+    const merged = agruparPorSocio([...asistenciaItems, ...morosidadItems].sort(
       (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
-    );
+    ));
     const total = merged.length;
     const pagina = merged.slice((pageNumber - 1) * pageSize, (pageNumber - 1) * pageSize + pageSize);
 

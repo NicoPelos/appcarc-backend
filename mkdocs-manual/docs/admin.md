@@ -147,7 +147,7 @@ Si se cargó por error, se puede anular desde la misma ficha (queda registrado c
 
 ## 6. Advertencias
 
-Un panel único con todos los socios que tienen algo para revisar: cuota social vencida, límite de clases de escuelita superado, o alguna advertencia que saltó en un check-in de muro libre. Se accede desde el ícono de acceso rápido en Inicio.
+Un panel único con todos los socios que tienen algo para revisar: cuota social vencida, límite de clases de escuelita superado, o alguna advertencia que saltó en un check-in de muro libre. Se accede desde el ícono de acceso rápido en Inicio. Cada socio aparece **una sola vez**: si entró varias veces con el mismo aviso, se muestra el más reciente con la cantidad de ingresos (por ejemplo "3 ingresos"), y el aviso desaparece solo cuando paga o queda exento.
 
 <figure markdown>
   ![Panel de Advertencias](assets/screenshots/admin-advertencias-lista.png){ width="260" }

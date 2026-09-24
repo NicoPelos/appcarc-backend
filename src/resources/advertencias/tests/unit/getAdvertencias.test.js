@@ -4,7 +4,7 @@ vi.mock('../../../cuotas/services/calcularDeuda.service.js', () => ({
   calcularDeuda: vi.fn(),
 }));
 
-import { getAdvertenciasHandler } from '../../handlers/getAdvertencias.handler.js';
+import { getAdvertenciasHandler, agruparPorSocio } from '../../handlers/getAdvertencias.handler.js';
 import Asistencia from '../../../asistencias/models/Asistencia.js';
 import Advertencia from '../../models/Advertencia.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
@@ -276,5 +276,103 @@ describe('getAdvertenciasHandler', () => {
       expect(payload.advertencias[0].waLink).toBeNull();
       expect(calcularDeuda).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe('agruparPorSocio (appcarc-backend#210)', () => {
+  beforeEach(() => {
+    Advertencia.find = vi.fn().mockReturnValue(chainable([]));
+    Etiqueta.find = vi.fn().mockReturnValue(chainable([]));
+    Escuelita.find = vi.fn().mockReturnValue(chainable([]));
+    Cuota.find = vi.fn().mockReturnValue(chainable([]));
+    Suscripcion.find = vi.fn().mockReturnValue(chainable([]));
+    calcularDeuda.mockResolvedValue({ suscripciones: [], otrosCargos: [] });
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  const item = (over) => ({
+    _id: 'a', tipo: 'muro_libre', socioId: SOCIO_ID, nombre: 'Ana', apellido: 'Gómez',
+    fecha: new Date('2026-09-21T15:00:00.000Z'),
+    advertencias: [{ codigo: 'CUOTA_SOCIAL_IMPAGA', mensaje: 'Sin cuota social pagada para 2026-09' }],
+    ...over,
+  });
+
+  it('colapsa varios ingresos del mismo socio en una fila con la más reciente y cuenta los ingresos', () => {
+    const res = agruparPorSocio([
+      item({ _id: 'nueva', fecha: new Date('2026-09-21T15:00:00.000Z') }),
+      item({ _id: 'media', fecha: new Date('2026-09-14T15:00:00.000Z'), advertencias: [{ codigo: 'CUOTA_SOCIAL_IMPAGA', mensaje: 'vieja' }] }),
+      item({ _id: 'vieja', fecha: new Date('2026-09-11T15:00:00.000Z') }),
+    ]);
+
+    expect(res).toHaveLength(1);
+    expect(res[0]._id).toBe('nueva');
+    expect(res[0].ingresos).toBe(3);
+    expect(res[0].advertencias).toEqual([
+      { codigo: 'CUOTA_SOCIAL_IMPAGA', mensaje: 'Sin cuota social pagada para 2026-09' },
+    ]);
+  });
+
+  it('une códigos distintos de ingresos distintos, quedándose con la más nueva de cada código', () => {
+    const res = agruparPorSocio([
+      item({ _id: 'nueva', advertencias: [{ codigo: 'PASE_MENSUAL_IMPAGO', mensaje: 'pase 09' }] }),
+      item({ _id: 'vieja', advertencias: [
+        { codigo: 'PASE_MENSUAL_IMPAGO', mensaje: 'pase 08' },
+        { codigo: 'CUOTA_SOCIAL_IMPAGA', mensaje: 'social 08' },
+      ] }),
+    ]);
+
+    expect(res).toHaveLength(1);
+    expect(res[0].advertencias).toEqual([
+      { codigo: 'PASE_MENSUAL_IMPAGO', mensaje: 'pase 09' },
+      { codigo: 'CUOTA_SOCIAL_IMPAGA', mensaje: 'social 08' },
+    ]);
+  });
+
+  it('LIMITE_SEMANAL no se pisa: se conserva cada una distinta y se deduplica solo la idéntica', () => {
+    const res = agruparPorSocio([
+      item({ _id: 'c', advertencias: [{ codigo: 'LIMITE_SEMANAL', mensaje: 'semana 3' }] }),
+      item({ _id: 'b', advertencias: [{ codigo: 'LIMITE_SEMANAL', mensaje: 'semana 2' }] }),
+      item({ _id: 'a', advertencias: [{ codigo: 'LIMITE_SEMANAL', mensaje: 'semana 2' }] }),
+    ]);
+
+    expect(res[0].advertencias.map((a) => a.mensaje)).toEqual(['semana 3', 'semana 2']);
+  });
+
+  it('no mezcla socios distintos ni agrupa visitantes sin ficha', () => {
+    const res = agruparPorSocio([
+      item({ _id: '1', socioId: SOCIO_ID }),
+      item({ _id: '2', socioId: '507f1f77bcf86cd799439099' }),
+      item({ _id: '3', socioId: null }),
+      item({ _id: '4', socioId: null }),
+    ]);
+
+    expect(res.map((r) => r._id)).toEqual(['1', '2', '3', '4']);
+  });
+
+  it('una advertencia de morosidad se une a la fila del socio pero no cuenta como ingreso', () => {
+    const res = agruparPorSocio([
+      item({ _id: 'checkin' }),
+      item({ _id: 'moro', tipo: 'morosidad', fecha: new Date('2026-09-10T15:00:00.000Z'), advertencias: [{ codigo: 'MOROSIDAD_CUOTA_SOCIAL', mensaje: 'moroso' }] }),
+    ]);
+
+    expect(res).toHaveLength(1);
+    expect(res[0].ingresos).toBe(1);
+    expect(res[0].advertencias.map((a) => a.codigo)).toEqual(['CUOTA_SOCIAL_IMPAGA', 'MOROSIDAD_CUOTA_SOCIAL']);
+  });
+
+  it('el handler devuelve una sola fila por socio y total = cantidad de socios', async () => {
+    Asistencia.find = vi.fn().mockReturnValue(chainable([
+      buildAsistencia({ _id: 'n', tipo: 'muro_libre', fecha: new Date('2026-09-21T15:00:00.000Z'), advertencias: [{ codigo: 'LIMITE_SEMANAL', mensaje: 'límite' }] }),
+      buildAsistencia({ _id: 'v', tipo: 'muro_libre', fecha: new Date('2026-09-14T15:00:00.000Z'), advertencias: [{ codigo: 'LIMITE_SEMANAL', mensaje: 'límite' }] }),
+    ]));
+
+    const res = mockRes();
+    await getAdvertenciasHandler({ user: USER, query: {} }, res);
+
+    const [payload] = res.json.mock.calls[0];
+    expect(payload.total).toBe(1);
+    expect(payload.advertencias).toHaveLength(1);
+    expect(payload.advertencias[0].ingresos).toBe(2);
   });
 });
