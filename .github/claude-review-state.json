@@ -30,9 +30,9 @@
     "reviewedAt": "2026-09-24T11:25:00Z"
   },
   "src/resources/vinculos": {
-    "sha": "8db13facf4295a64eb90cbc7376191a4d9f8246d",
+    "sha": "969d77d12ff6c54ffbf5d7db878df0992762a005",
     "reviewVersion": "2026-08",
-    "reviewedAt": "2026-08-11T07:17:27Z"
+    "reviewedAt": "2026-09-25T11:31:06Z"
   },
   "src/resources/webhooks": {
     "sha": "d8894c8e70947294383d8e8da27ea9c129863943",
