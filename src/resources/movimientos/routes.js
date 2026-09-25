@@ -1,7 +1,7 @@
 import express from 'express';
 import { createMovimientoHandler } from './handlers/createMovimiento.handler.js';
 import { deleteMovimientoHandler } from './handlers/deleteMovimiento.handler.js';
-import { getMovimientosHandler } from './handlers/getMovimientos.handler.js';
+import { getMovimientosHandler, getMovimientoByIdHandler } from './handlers/getMovimientos.handler.js';
 import { updateMovimientoHandler } from './handlers/updateMovimiento.handler.js';
 import { upload, handleUploadError, uploadComprobanteHandler } from './handlers/uploadComprobante.handler.js';
 import { deleteComprobanteHandler } from './handlers/deleteComprobante.handler.js';
@@ -37,5 +37,8 @@ router.get('/resumen-por-categoria-mensual', protect, authorize(PERMISOS.MOVIMIE
 router.get('/resumen-por-categoria/detalle', protect, authorize(PERMISOS.MOVIMIENTOS_READ), resumenPorCategoriaDetalleHandler);
 router.get('/mercadopago-descartados', protect, authorize(PERMISOS.MOVIMIENTOS_READ), getMercadopagoDescartadosHandler);
 router.delete('/mercadopago-descartados/:paymentId', protect, authorize(PERMISOS.MOVIMIENTOS_WRITE), restaurarMercadopagoDescartadoHandler);
+// Al final de los GET: '/:id' captura cualquier segmento, así que tiene que ir
+// después de todas las rutas fijas (mercadopago-sin-vincular, resumen-por-categoria, etc.).
+router.get('/:id', protect, authorize(PERMISOS.MOVIMIENTOS_READ), getMovimientoByIdHandler);
 
 export default router;

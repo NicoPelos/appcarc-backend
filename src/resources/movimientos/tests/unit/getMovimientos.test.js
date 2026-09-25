@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getMovimientosHandler } from '../../handlers/getMovimientos.handler.js';
+import { getMovimientosHandler, getMovimientoByIdHandler } from '../../handlers/getMovimientos.handler.js';
 import Movimiento from '../../models/Movimiento.js';
 import Socio from '../../../socios/models/Socio.js';
 import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
@@ -317,5 +317,47 @@ describe('getMovimientosHandler', () => {
     const res = mockRes();
     await getMovimientosHandler({ query: {}, user: USER }, res);
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+});
+
+describe('getMovimientoByIdHandler', () => {
+  const ID = '507f1f77bcf86cd799439011';
+  const findOneQuery = (result) => ({
+    populate: vi.fn().mockReturnThis(),
+    lean: vi.fn().mockResolvedValue(result),
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('devuelve el movimiento con la misma forma que el listado, filtrando por club', async () => {
+    const query = findOneQuery({ _id: ID, type: 'Ingreso', clubId: 'club1', active: true });
+    vi.spyOn(Movimiento, 'findOne').mockReturnValue(query);
+
+    const res = mockRes();
+    await getMovimientoByIdHandler({ params: { id: ID }, user: USER }, res);
+
+    expect(Movimiento.findOne).toHaveBeenCalledWith({ _id: ID, clubId: 'club1' });
+    expect(query.populate).toHaveBeenCalledWith({ path: 'sourceId', match: { clubId: 'club1' } });
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ _id: ID, detalle: null, cobroId: null, participanteId: null }));
+  });
+
+  it('404 si no existe o es de otro club', async () => {
+    vi.spyOn(Movimiento, 'findOne').mockReturnValue(findOneQuery(null));
+
+    const res = mockRes();
+    await getMovimientoByIdHandler({ params: { id: ID }, user: USER }, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+  });
+
+  it('400 con un id que no es un ObjectId, sin consultar la base', async () => {
+    const spy = vi.spyOn(Movimiento, 'findOne');
+
+    const res = mockRes();
+    await getMovimientoByIdHandler({ params: { id: 'mercadopago-sin-vincular' }, user: USER }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(spy).not.toHaveBeenCalled();
   });
 });

@@ -226,3 +226,48 @@ export const getMovimientosHandler = async (req, res) => {
     res.status(500).json({ message: 'Error al obtener movimientos' });
   }
 };
+
+/**
+ * @openapi
+ * /api/movimientos/{id}:
+ *   get:
+ *     summary: Obtener un movimiento por id
+ *     description: Misma forma que cada ítem del listado (con `detalle`, `cobroId`, `participanteId`). Sirve para abrir el movimiento asociado a un cobro desde la ficha del socio.
+ *     tags: [Movimientos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Movimiento encontrado
+ *       400:
+ *         description: Id inválido
+ *       404:
+ *         description: Movimiento no encontrado (o de otro club)
+ *       500:
+ *         description: Error al obtener el movimiento
+ */
+export const getMovimientoByIdHandler = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: 'Id de movimiento inválido' });
+    }
+
+    const raw = await Movimiento.findOne({ _id: id, clubId: req.user?.clubId })
+      .populate({ path: 'sourceId', match: { clubId: req.user?.clubId } })
+      .lean();
+    if (!raw) return res.status(404).json({ message: 'Movimiento no encontrado' });
+
+    const [movimiento] = await buildDetalle([raw], req.user?.clubId);
+    return res.status(200).json(movimiento);
+  } catch (error) {
+    console.error('Error obteniendo movimiento:', error);
+    return res.status(500).json({ message: 'Error al obtener el movimiento' });
+  }
+};
