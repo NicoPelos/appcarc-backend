@@ -200,6 +200,14 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
       }
 
       if (desde > hoy) {
+        // Suscripción que arranca a futuro (ej. socio nuevo que paga por
+        // adelantado el mes que viene): no debe nada todavía, pero se manda el
+        // precio vigente para que la pantalla de cobro pueda sugerir el monto.
+        const precioFuturo = await findPrecioVigente({
+          clubId,
+          etiquetaId: sus.etiquetaId._id,
+          date: ahora,
+        });
         return {
           suscripcionId: sus._id,
           etiqueta: sus.etiquetaId,
@@ -211,7 +219,7 @@ const calcularDeudaSuscripciones = async ({ socioId, clubId }) => {
           mesesDeuda: 0,
           periodos: [],
           periodosPagados,
-          precioUnitario: null,
+          precioUnitario: precioFuturo?.monto ?? null,
           totalDeuda: 0,
         };
       }

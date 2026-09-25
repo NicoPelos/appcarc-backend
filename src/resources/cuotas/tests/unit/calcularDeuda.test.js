@@ -187,6 +187,27 @@ describe('calcularDeuda', () => {
     expect(result.suscripciones[0].totalDeuda).toBe(0);
   });
 
+  it('una suscripción a futuro no debe nada pero trae el precio vigente para sugerir el monto del adelanto', async () => {
+    const sus = mockSuscripcion({ fechaDesde: '2027-01' });
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
+    mockPreciosFindOne.mockReturnValue(chainablePrecio({ monto: 15000 }));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result.suscripciones[0].totalDeuda).toBe(0);
+    expect(result.suscripciones[0].precioUnitario).toBe(15000);
+  });
+
+  it('una suscripción a futuro sin precio configurado devuelve precioUnitario null', async () => {
+    const sus = mockSuscripcion({ fechaDesde: '2027-01' });
+    mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
+    mockPreciosFindOne.mockReturnValue(chainablePrecio(null));
+
+    const result = await calcularDeuda({ socioId: 'socio_001', clubId: 'CARC' });
+
+    expect(result.suscripciones[0].precioUnitario).toBeNull();
+  });
+
   it('totalDeuda es null cuando no hay precio configurado', async () => {
     const sus = mockSuscripcion({ fechaDesde: '2026-05' });
     mockSuscripcionFind.mockReturnValue(chainableSuscripcion([sus]));
