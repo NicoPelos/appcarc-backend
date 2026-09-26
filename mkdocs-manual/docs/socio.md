@@ -78,7 +78,7 @@ Para marcar tu asistencia ya no hace falta que te escaneen la credencial: en la 
   <figcaption>Check-in registrado</figcaption>
 </figure>
 
-- **Escuelita:** si entrás con tu propia cuenta, se registra directo tu asistencia. Si sos tutor de más de un hijo inscripto en escuelita, la app te pregunta "¿A quién marcamos?" antes de confirmar.
+- **Escuelita:** si sos la única opción posible (por ejemplo, entrás con tu propia cuenta y no tenés hijos vinculados), se registra directo tu asistencia. Si hay más de una opción entre vos mismo (si tenés cuenta de socio) y tus hijos vinculados —aunque sea un solo hijo—, la app te pregunta "¿A quién marcamos?" antes de confirmar.
 
 <figure markdown>
   ![¿A quién marcamos?](assets/screenshots/socio-checkin-propio-a-quien-marcamos.png){ width="260" }
