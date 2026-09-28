@@ -45,9 +45,9 @@
     "reviewedAt": "2026-09-27T11:45:38Z"
   },
   "src/resources/asistencias": {
-    "sha": "724a935f5eb25e8c96cede3dad437270cacd7116",
+    "sha": "6e75ae55e77181ef8c27e9ef7f25541bac480fb9",
     "reviewVersion": "2026-08",
-    "reviewedAt": "2026-08-14T07:39:32Z"
+    "reviewedAt": "2026-09-28T13:22:17Z"
   },
   "src/resources/audit": {
     "sha": "51795be3867963b41a9804862c109078cd140b48",
