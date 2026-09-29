@@ -50,9 +50,9 @@
     "reviewedAt": "2026-09-28T13:22:17Z"
   },
   "src/resources/audit": {
-    "sha": "51795be3867963b41a9804862c109078cd140b48",
+    "sha": "436ba7ec30caf8ea2f114bbfb5b33616286398b7",
     "reviewVersion": "2026-08",
-    "reviewedAt": "2026-08-15T06:46:51Z"
+    "reviewedAt": "2026-09-29T12:26:59Z"
   },
   "src/resources/cargosPuntuales": {
     "sha": "f94b6f31573ef12c0d5494491539342ac5158203",
