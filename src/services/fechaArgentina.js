@@ -53,6 +53,24 @@ export const diaBoundsUTC = (fecha) => {
   };
 };
 
+// Clave de la semana argentina (lunes a domingo) que contiene `fecha`, como
+// la fecha del lunes en formato YYYY-MM-DD (ej. "2026-09-28") — mismo criterio
+// de semana que semanaBoundsUTC, solo que devuelve una clave string en vez de
+// un rango, para agrupar/filtrar por semana (ej. podio semanal del juego).
+export const semanaKeyArgentina = (fecha) => {
+  const local = new Date(fecha.getTime() + ARG_OFFSET_MS);
+  const day = local.getUTCDay(); // 0=Dom, 1=Lun...
+  const diffToMonday = day === 0 ? 6 : day - 1;
+
+  const monday = new Date(local);
+  monday.setUTCDate(local.getUTCDate() - diffToMonday);
+
+  const y = monday.getUTCFullYear();
+  const m = String(monday.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(monday.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 // Rango UTC de la semana argentina (lunes a domingo) que contiene `fecha`.
 export const semanaBoundsUTC = (fecha) => {
   const local = new Date(fecha.getTime() + ARG_OFFSET_MS);

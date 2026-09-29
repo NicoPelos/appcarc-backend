@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC, diaDelMesArgentino, dentroDeVentanaDeGracia, fechaCalendarioArgentina } from '../../fechaArgentina.js';
+import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC, semanaKeyArgentina, diaDelMesArgentino, dentroDeVentanaDeGracia, fechaCalendarioArgentina } from '../../fechaArgentina.js';
 
 describe('fechaCalendarioArgentina', () => {
   it('devuelve YYYY-MM-DD en horario argentino', () => {
@@ -86,5 +86,25 @@ describe('semanaBoundsUTC', () => {
     const { start, end } = semanaBoundsUTC(new Date('2026-02-15T15:00:00.000Z'));
     expect(start.toISOString()).toBe('2026-02-09T03:00:00.000Z');
     expect(end.toISOString()).toBe('2026-02-16T02:59:59.999Z');
+  });
+});
+
+describe('semanaKeyArgentina', () => {
+  it('devuelve la fecha del lunes de esa semana (ART), en YYYY-MM-DD', () => {
+    // 2026-02-11 es miércoles (ART)
+    expect(semanaKeyArgentina(new Date('2026-02-11T15:00:00.000Z'))).toBe('2026-02-09');
+  });
+
+  it('un domingo pertenece a la semana que empezó el lunes anterior', () => {
+    expect(semanaKeyArgentina(new Date('2026-02-15T15:00:00.000Z'))).toBe('2026-02-09');
+  });
+
+  it('un lunes es el inicio de su propia semana', () => {
+    expect(semanaKeyArgentina(new Date('2026-02-09T15:00:00.000Z'))).toBe('2026-02-09');
+  });
+
+  it('cruza de mes correctamente', () => {
+    // 2026-03-01 es domingo (ART) — semana del lunes 2026-02-23
+    expect(semanaKeyArgentina(new Date('2026-03-01T15:00:00.000Z'))).toBe('2026-02-23');
   });
 });

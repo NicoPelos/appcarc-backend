@@ -26,6 +26,7 @@ import notificacionesRoutes from './resources/notificaciones/routes.js';
 import pagosRoutes from './resources/pagos/routes.js';
 import webhooksRoutes from './resources/webhooks/routes.js';
 import eventosRoutes from './resources/eventos/routes.js';
+import juegoRoutes from './resources/juego/routes.js';
 
 const router = express.Router();
 
@@ -56,5 +57,6 @@ router.use('/notificaciones', notificacionesRoutes);
 router.use('/pagos', pagosRoutes);
 router.use('/webhooks', webhooksRoutes);
 router.use('/eventos', eventosRoutes);
+router.use('/juego', juegoRoutes);
 
 export default router;
