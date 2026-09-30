@@ -13,7 +13,20 @@ export async function revertirCobro(log, { actor, session }) {
 
   if (log.action === 'CREATE') {
     const cobro = await Cobro.findOne({ _id: log.resourceId, clubId: log.clubId }).session(session);
-    if (!cobro || !cobro.active) return;
+    // appcarc-backend#221: sin tirar acá, el handler igual marca el log
+    // como revertido y responde 200 aunque no se haya tocado nada — el admin
+    // cree que revirtió, y el log queda con 409 para siempre sin poder
+    // reintentar de verdad.
+    if (!cobro) {
+      const error = new Error(`No se encontró el Cobro ${log.resourceId} en el club ${log.clubId}`);
+      error.status = 422;
+      throw error;
+    }
+    if (!cobro.active) {
+      const error = new Error('El cobro ya estaba anulado');
+      error.status = 422;
+      throw error;
+    }
 
     cobro.active = false;
     cobro.anuladoAt = new Date();
@@ -56,8 +69,9 @@ export async function revertirCobro(log, { actor, session }) {
       { session },
     );
     if (!cobroActualizado) {
-      console.error(`revertirCobro: Cobro ${log.resourceId} no encontrado en el club ${log.clubId}`);
-      return;
+      const error = new Error(`No se encontró el Cobro ${log.resourceId} en el club ${log.clubId}`);
+      error.status = 422;
+      throw error;
     }
 
     if (log.before.movimientoId) {

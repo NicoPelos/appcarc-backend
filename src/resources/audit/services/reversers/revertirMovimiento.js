@@ -15,8 +15,12 @@ export async function revertirMovimiento(log, { actor, session }) {
       { $set: { active: false, updatedBy: actor } },
       { session },
     );
+    // appcarc-backend#221: si no se encontró, el handler igual marca el log
+    // como revertido y responde 200 sin haber tocado nada.
     if (!actualizado) {
-      console.error(`revertirMovimiento: Movimiento ${log.resourceId} no encontrado en el club ${log.clubId}`);
+      const error = new Error(`No se encontró el Movimiento ${log.resourceId} en el club ${log.clubId}`);
+      error.status = 422;
+      throw error;
     }
     return;
   }
@@ -36,8 +40,9 @@ export async function revertirMovimiento(log, { actor, session }) {
       { session },
     );
     if (!actualizado) {
-      console.error(`revertirMovimiento: Movimiento ${log.resourceId} no encontrado en el club ${log.clubId}`);
-      return;
+      const error = new Error(`No se encontró el Movimiento ${log.resourceId} en el club ${log.clubId}`);
+      error.status = 422;
+      throw error;
     }
 
     if (log.action !== 'DELETE') return;

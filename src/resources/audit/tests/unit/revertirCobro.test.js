@@ -53,14 +53,23 @@ describe('revertirCobro', () => {
     );
   });
 
-  it('CREATE: no hace nada si el cobro ya está anulado', async () => {
+  it('appcarc-backend#221: CREATE lanza 422 si el cobro ya está anulado, en vez de no hacer nada en silencio', async () => {
     const cobro = { _id: 'cobro1', active: false, save: vi.fn() };
     CobroModel.findOne.mockReturnValue({ session: vi.fn().mockResolvedValue(cobro) });
 
     const log = { clubId: CLUB_ID, resourceId: 'cobro1', action: 'CREATE' };
-    await revertirCobro(log, { actor: ACTOR, session });
+    await expect(revertirCobro(log, { actor: ACTOR, session })).rejects.toMatchObject({ status: 422 });
 
     expect(cobro.save).not.toHaveBeenCalled();
+    expect(MovimientoModel.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  it('appcarc-backend#221: CREATE lanza 422 si el cobro no existe, en vez de no hacer nada en silencio', async () => {
+    CobroModel.findOne.mockReturnValue({ session: vi.fn().mockResolvedValue(null) });
+
+    const log = { clubId: CLUB_ID, resourceId: 'cobro1', action: 'CREATE' };
+    await expect(revertirCobro(log, { actor: ACTOR, session })).rejects.toMatchObject({ status: 422 });
+
     expect(MovimientoModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
@@ -98,7 +107,7 @@ describe('revertirCobro', () => {
     await expect(revertirCobro(log, { actor: ACTOR, session })).rejects.toMatchObject({ status: 422 });
   });
 
-  it('DELETE: no toca el movimiento ni las cuotas si el cobro no pertenece a este club (appcarc-backend#91)', async () => {
+  it('DELETE: lanza 422 y no toca el movimiento ni las cuotas si el cobro no pertenece a este club (appcarc-backend#91, appcarc-backend#221)', async () => {
     CobroModel.findOneAndUpdate.mockResolvedValue(null);
     const log = {
       clubId: CLUB_ID,
@@ -107,7 +116,7 @@ describe('revertirCobro', () => {
       before: { movimientoId: 'mov1', active: true, anuladoAt: null, _id: 'cobro1', updatedAt: new Date() },
     };
 
-    await revertirCobro(log, { actor: ACTOR, session });
+    await expect(revertirCobro(log, { actor: ACTOR, session })).rejects.toMatchObject({ status: 422 });
 
     expect(MovimientoModel.findOneAndUpdate).not.toHaveBeenCalled();
     expect(CuotaModel.updateMany).not.toHaveBeenCalled();

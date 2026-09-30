@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import mongoose from 'mongoose';
 
 vi.mock('../../models/AuditLog.js', () => ({
-  default: { findOne: vi.fn() },
+  default: { findOne: vi.fn(), findOneAndUpdate: vi.fn(), updateOne: vi.fn() },
 }));
 
 vi.mock('../../services/audit.service.js', () => ({
@@ -37,14 +37,21 @@ const buildLog = (overrides = {}) => ({
   after: { nombre: 'Despues' },
   revertedAt: null,
   revertedBy: null,
-  save: vi.fn().mockResolvedValue({}),
   ...overrides,
 });
+
+// Deja tanto el 404/409 (findOne) como el reclamo atómico (findOneAndUpdate)
+// resolviendo el mismo log — el flujo feliz de la mayoría de los tests.
+const mockClaimable = (log) => {
+  AuditLog.findOne.mockResolvedValue(log);
+  AuditLog.findOneAndUpdate.mockResolvedValue(log);
+};
 
 describe('revertAuditLogHandler', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     Object.keys(REVERSERS).forEach((key) => delete REVERSERS[key]);
+    AuditLog.updateOne.mockResolvedValue({});
     vi.spyOn(mongoose, 'startSession').mockResolvedValue({
       withTransaction: vi.fn(async (cb) => cb()),
       endSession: vi.fn(),
@@ -77,7 +84,7 @@ describe('revertAuditLogHandler', () => {
 
   it('revierte un UPDATE restaurando before', async () => {
     const log = buildLog({ action: 'UPDATE', before: { nombre: 'Antes', active: true } });
-    AuditLog.findOne.mockResolvedValue(log);
+    mockClaimable(log);
 
     const mockUpdate = vi.fn().mockResolvedValue({ _id: VALID_ID });
     vi.spyOn(mongoose, 'model').mockReturnValue({ findOneAndUpdate: mockUpdate });
@@ -90,13 +97,19 @@ describe('revertAuditLogHandler', () => {
       { _id: VALID_ID, clubId: log.clubId },
       { $set: expect.objectContaining({ nombre: 'Antes', active: true }) },
     );
-    expect(log.save).toHaveBeenCalled();
+    // appcarc-backend#222: el revertedAt/revertedBy ya se persistió en el
+    // reclamo atómico (findOneAndUpdate), no con un log.save() al final.
+    expect(AuditLog.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: VALID_ID, clubId: 'club1', revertedAt: null },
+      { $set: expect.objectContaining({ revertedBy: USER.email }) },
+      {},
+    );
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it('revierte un DELETE restaurando before', async () => {
     const log = buildLog({ action: 'DELETE', before: { nombre: 'Antes', active: true, deletedAt: null }, after: null });
-    AuditLog.findOne.mockResolvedValue(log);
+    mockClaimable(log);
 
     const mockUpdate = vi.fn().mockResolvedValue({ _id: VALID_ID });
     vi.spyOn(mongoose, 'model').mockReturnValue({ findOneAndUpdate: mockUpdate });
@@ -114,7 +127,7 @@ describe('revertAuditLogHandler', () => {
 
   it('revierte un CREATE haciendo soft-delete', async () => {
     const log = buildLog({ action: 'CREATE', before: null });
-    AuditLog.findOne.mockResolvedValue(log);
+    mockClaimable(log);
 
     const mockUpdate = vi.fn().mockResolvedValue({ _id: VALID_ID });
     vi.spyOn(mongoose, 'model').mockReturnValue({ findOneAndUpdate: mockUpdate });
@@ -130,9 +143,9 @@ describe('revertAuditLogHandler', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it('devuelve 422 si no hay snapshot before para UPDATE', async () => {
+  it('devuelve 422 si no hay snapshot before para UPDATE, y deshace el reclamo', async () => {
     const log = buildLog({ action: 'UPDATE', before: null });
-    AuditLog.findOne.mockResolvedValue(log);
+    mockClaimable(log);
 
     vi.spyOn(mongoose, 'model').mockReturnValue({});
 
@@ -140,11 +153,17 @@ describe('revertAuditLogHandler', () => {
     const res = mockRes();
     await revertAuditLogHandler(req, res);
     expect(res.status).toHaveBeenCalledWith(422);
+    // appcarc-backend#222: falló después de reclamar → hay que deshacer el
+    // reclamo para poder reintentar de verdad, no dejarlo revertido en falso.
+    expect(AuditLog.updateOne).toHaveBeenCalledWith(
+      { _id: VALID_ID, clubId: 'club1' },
+      { $set: { revertedAt: null, revertedBy: null } },
+    );
   });
 
-  it('devuelve 422 y no guarda el log si el documento no pertenece a este club (appcarc-backend#91)', async () => {
+  it('devuelve 422 y deshace el reclamo si el documento no pertenece a este club (appcarc-backend#91)', async () => {
     const log = buildLog({ action: 'UPDATE', before: { nombre: 'Antes' } });
-    AuditLog.findOne.mockResolvedValue(log);
+    mockClaimable(log);
 
     const mockUpdate = vi.fn().mockResolvedValue(null);
     vi.spyOn(mongoose, 'model').mockReturnValue({ findOneAndUpdate: mockUpdate });
@@ -154,12 +173,30 @@ describe('revertAuditLogHandler', () => {
     await revertAuditLogHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(422);
-    expect(log.save).not.toHaveBeenCalled();
+    expect(AuditLog.updateOne).toHaveBeenCalledWith(
+      { _id: VALID_ID, clubId: 'club1' },
+      { $set: { revertedAt: null, revertedBy: null } },
+    );
+  });
+
+  it('appcarc-backend#222: si el reclamo atómico no matchea (ya lo ganó otro request en simultáneo), responde 409 sin ejecutar nada', async () => {
+    const log = buildLog({ action: 'UPDATE', before: { nombre: 'Antes' } });
+    AuditLog.findOne.mockResolvedValue(log); // preCheck: todavía parece no revertido
+    AuditLog.findOneAndUpdate.mockResolvedValue(null); // pero el reclamo atómico perdió la carrera
+    const modelSpy = vi.spyOn(mongoose, 'model');
+
+    const req = { params: { id: VALID_ID }, user: USER };
+    const res = mockRes();
+    await revertAuditLogHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(modelSpy).not.toHaveBeenCalled();
+    expect(AuditLog.updateOne).not.toHaveBeenCalled();
   });
 
   it('delega en el reverser registrado en vez del genérico, para recursos con cascada', async () => {
     const log = buildLog({ resource: 'Cobro', action: 'DELETE', before: { movimientoId: 'mov1' } });
-    AuditLog.findOne.mockResolvedValue(log);
+    mockClaimable(log);
 
     const reverser = vi.fn().mockResolvedValue(undefined);
     REVERSERS.Cobro = reverser;
@@ -171,13 +208,18 @@ describe('revertAuditLogHandler', () => {
 
     expect(reverser).toHaveBeenCalledWith(log, expect.objectContaining({ actor: USER.email }));
     expect(modelSpy).not.toHaveBeenCalled();
-    expect(log.save).toHaveBeenCalled();
+    // El reclamo fue DENTRO de la transacción del reverser (con session).
+    expect(AuditLog.findOneAndUpdate).toHaveBeenCalledWith(
+      { _id: VALID_ID, clubId: 'club1', revertedAt: null },
+      { $set: expect.objectContaining({ revertedBy: USER.email }) },
+      { session: expect.anything() },
+    );
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it('propaga el status de error de un reverser (ej. 422 sin snapshot)', async () => {
+  it('propaga el status de error de un reverser (ej. 422 sin snapshot), sin necesitar deshacer el reclamo a mano', async () => {
     const log = buildLog({ resource: 'Cobro', action: 'DELETE', before: null });
-    AuditLog.findOne.mockResolvedValue(log);
+    mockClaimable(log);
 
     const error = new Error('No hay snapshot anterior para revertir');
     error.status = 422;
@@ -188,5 +230,9 @@ describe('revertAuditLogHandler', () => {
     await revertAuditLogHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(422);
+    // El reclamo fue parte de la misma transacción que el reverser — Mongo
+    // la deshace sola al tirar adentro de withTransaction, no hace falta
+    // (ni se puede) deshacerla a mano acá.
+    expect(AuditLog.updateOne).not.toHaveBeenCalled();
   });
 });

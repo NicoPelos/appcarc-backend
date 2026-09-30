@@ -46,10 +46,10 @@ describe('revertirMuroLibre', () => {
     expect(MovimientoModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
 
-  it('CREATE: no toca el movimiento si la asistencia no pertenece a este club (appcarc-backend#91)', async () => {
+  it('CREATE: lanza 422 y no toca el movimiento si la asistencia no pertenece a este club (appcarc-backend#91, appcarc-backend#221)', async () => {
     AsistenciaModel.findOneAndUpdate.mockResolvedValue(null);
     const log = { clubId: CLUB_ID, resourceId: 'asis1', action: 'CREATE', after: { movimientoId: 'mov1' } };
-    await revertirMuroLibre(log, { actor: ACTOR, session });
+    await expect(revertirMuroLibre(log, { actor: ACTOR, session })).rejects.toMatchObject({ status: 422 });
 
     expect(MovimientoModel.findOneAndUpdate).not.toHaveBeenCalled();
   });
@@ -105,7 +105,7 @@ describe('revertirMuroLibre', () => {
     await expect(revertirMuroLibre(log, { actor: ACTOR, session })).rejects.toMatchObject({ status: 422 });
   });
 
-  it('UPDATE: no toca el movimiento si la asistencia no pertenece a este club (appcarc-backend#91)', async () => {
+  it('UPDATE: lanza 422 y no toca el movimiento si la asistencia no pertenece a este club (appcarc-backend#91, appcarc-backend#221)', async () => {
     AsistenciaModel.findOneAndUpdate.mockResolvedValue(null);
     const log = {
       clubId: CLUB_ID,
@@ -114,7 +114,7 @@ describe('revertirMuroLibre', () => {
       before: { monto: 500, formaPago: 'Efectivo', movimientoId: 'mov1' },
     };
 
-    await revertirMuroLibre(log, { actor: ACTOR, session });
+    await expect(revertirMuroLibre(log, { actor: ACTOR, session })).rejects.toMatchObject({ status: 422 });
 
     expect(MovimientoModel.findOneAndUpdate).not.toHaveBeenCalled();
   });

@@ -41,6 +41,12 @@ describe('revertirMovimiento', () => {
     expect(CobroModel.findOne).not.toHaveBeenCalled();
   });
 
+  it('appcarc-backend#221: CREATE lanza 422 si el movimiento no pertenece a este club, en vez de no hacer nada en silencio', async () => {
+    MovimientoModel.findOneAndUpdate.mockResolvedValue(null);
+    const log = { clubId: CLUB_ID, resourceId: 'mov1', action: 'CREATE' };
+    await expect(revertirMovimiento(log, { actor: ACTOR, session })).rejects.toMatchObject({ status: 422 });
+  });
+
   it('UPDATE: restaura los campos propios, sin tocar el origen', async () => {
     const log = {
       clubId: CLUB_ID,
@@ -121,7 +127,7 @@ describe('revertirMovimiento', () => {
     await expect(revertirMovimiento(log, { actor: ACTOR, session })).rejects.toMatchObject({ status: 422 });
   });
 
-  it('DELETE: no reactiva el origen si el movimiento no pertenece a este club (appcarc-backend#91)', async () => {
+  it('DELETE: lanza 422 y no reactiva el origen si el movimiento no pertenece a este club (appcarc-backend#91, appcarc-backend#221)', async () => {
     MovimientoModel.findOneAndUpdate.mockResolvedValue(null);
     const log = {
       clubId: CLUB_ID,
@@ -130,7 +136,7 @@ describe('revertirMovimiento', () => {
       before: { active: true, sourceModel: 'Asistencia', sourceId: 'asis1' },
     };
 
-    await revertirMovimiento(log, { actor: ACTOR, session });
+    await expect(revertirMovimiento(log, { actor: ACTOR, session })).rejects.toMatchObject({ status: 422 });
 
     expect(AsistenciaModel.findOneAndUpdate).not.toHaveBeenCalled();
   });

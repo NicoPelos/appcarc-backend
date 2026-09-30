@@ -16,9 +16,12 @@ export async function revertirMuroLibre(log, { actor, session }) {
       { $set: { active: false, updatedBy: actor } },
       { session },
     );
+    // appcarc-backend#221: si no se encontró, el handler igual marca el log
+    // como revertido y responde 200 sin haber tocado nada.
     if (!asistenciaActualizada) {
-      console.error(`revertirMuroLibre: Asistencia ${log.resourceId} no encontrada en el club ${log.clubId}`);
-      return;
+      const error = new Error(`No se encontró la Asistencia ${log.resourceId} en el club ${log.clubId}`);
+      error.status = 422;
+      throw error;
     }
 
     if (log.after?.movimientoId) {
@@ -49,8 +52,9 @@ export async function revertirMuroLibre(log, { actor, session }) {
       { session },
     );
     if (!asistenciaActualizada) {
-      console.error(`revertirMuroLibre: Asistencia ${log.resourceId} no encontrada en el club ${log.clubId}`);
-      return;
+      const error = new Error(`No se encontró la Asistencia ${log.resourceId} en el club ${log.clubId}`);
+      error.status = 422;
+      throw error;
     }
 
     const movimientoId = log.before.movimientoId;
