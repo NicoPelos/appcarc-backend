@@ -38,7 +38,14 @@ export const mercadoPagoWebhookHandler = async (req, res) => {
     }
 
     const dataId = req.body?.data?.id || req.query['data.id'] || req.query?.id;
-    if (!dataId) return res.status(200).json({ ok: true, ignored: true });
+    // dataId termina interpolado sin sanitizar en la URL del request
+    // autenticado a la API de Mercado Pago (procesarPagoMercadoPago.service.js)
+    // — sin validar el formato, un valor como "1/../../v1/account/settings"
+    // deja mandar ahí un GET arbitrario con el accessToken real del club
+    // (appcarc-backend#214). Los IDs de pago de MP son siempre numéricos.
+    if (!dataId || !/^\d+$/.test(String(dataId))) {
+      return res.status(200).json({ ok: true, ignored: true });
+    }
 
     const config = await MercadoPagoConfig.findOne({ clubId, active: true });
     if (!config?.webhookSecret || !config?.accessToken) {

@@ -92,6 +92,17 @@ describe('mercadoPagoWebhookHandler', () => {
     expect(MercadoPagoConfig.findOne).not.toHaveBeenCalled();
   });
 
+  it('appcarc-backend#214: ignora un dataId no numérico sin llegar a pedir la config del club', async () => {
+    const req = baseReq({ body: { type: 'payment', data: { id: '1/../../v1/account/settings' } } });
+    const res = mockRes();
+
+    await mercadoPagoWebhookHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ ignored: true }));
+    expect(MercadoPagoConfig.findOne).not.toHaveBeenCalled();
+  });
+
   it('retorna 401 si el club no tiene Mercado Pago configurado', async () => {
     MercadoPagoConfig.findOne.mockResolvedValue(null);
     const req = baseReq();
