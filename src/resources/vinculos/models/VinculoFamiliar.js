@@ -34,9 +34,15 @@ const vinculoFamiliarSchema = new mongoose.Schema({
   timestamps: true,
 });
 
+// partialFilterExpression en vez de meter `active` en la clave del índice
+// (appcarc-backend#211): con `active` en la clave, la unicidad también se
+// exigía entre documentos inactivos — el segundo ciclo de
+// vincular/anular/re-vincular/anular entre el mismo par tutor-hijo chocaba
+// con el primer doc ya anulado (E11000 -> 500). Mismo patrón ya corregido en
+// Escuelita.js, Etiqueta.js, Cuota.js, Rol.js y Plan.js.
 vinculoFamiliarSchema.index(
-  { clubId: 1, padreUserId: 1, hijoSocioId: 1, active: 1 },
-  { unique: true },
+  { clubId: 1, padreUserId: 1, hijoSocioId: 1 },
+  { unique: true, partialFilterExpression: { active: true } },
 );
 
 export default mongoose.model('VinculoFamiliar', vinculoFamiliarSchema);

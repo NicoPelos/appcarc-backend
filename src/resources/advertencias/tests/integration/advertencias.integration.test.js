@@ -76,6 +76,28 @@ describe('GET /api/advertencias (integración)', () => {
     expect(porCodigo.body.advertencias[0].advertencias[0].codigo).toBe('CUOTA_SOCIAL_IMPAGA');
   });
 
+  it('appcarc-backend#216: filtrar por código no trae los OTROS códigos del mismo check-in', async () => {
+    const { token } = await createAdminUser();
+    const socio = await createSocio();
+    // Un mismo check-in puede acumular varios códigos distintos (ver
+    // checkinEscuelita.handler.js) — el filtro de Mongo solo exige que ALGUNO
+    // matchee, no descarta los demás del array embebido.
+    await Asistencia.create({
+      clubId: 'CARC', tipo: 'escuelita', socioId: socio._id, nombre: socio.nombre, apellido: socio.apellido, esSocio: true, fecha: new Date(),
+      advertencias: [
+        { codigo: 'CUOTA_SOCIAL_IMPAGA', mensaje: 'x' },
+        { codigo: 'LIMITE_SEMANAL', mensaje: 'y' },
+      ],
+      createdBy: 'test', updatedBy: 'test',
+    });
+
+    const res = await request(app).get('/api/advertencias?codigo=CUOTA_SOCIAL_IMPAGA').set('Authorization', `Bearer ${token}`);
+
+    expect(res.body.total).toBe(1);
+    expect(res.body.advertencias[0].advertencias).toHaveLength(1);
+    expect(res.body.advertencias[0].advertencias[0].codigo).toBe('CUOTA_SOCIAL_IMPAGA');
+  });
+
   it('rechaza un tipo o código inválido (400)', async () => {
     const { token } = await createAdminUser();
 

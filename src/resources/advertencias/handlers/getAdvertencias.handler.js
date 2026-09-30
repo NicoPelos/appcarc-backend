@@ -248,7 +248,14 @@ export const getAdvertenciasHandler = async (req, res) => {
         .map((doc) => {
           const socioIdStr = doc.socioId ? String(doc.socioId._id ?? doc.socioId) : null;
           const periodo = periodoDeAdvertencia(doc);
-          const advertenciasVigentes = doc.advertencias.filter((a) => {
+          // El filtro de Mongo (?codigo=) solo selecciona documentos con AL
+          // MENOS una advertencia de ese código — no descarta las demás del
+          // mismo array embebido (un check-in puede acumular varios códigos
+          // distintos, ver checkinEscuelita.handler.js). Sin recortar acá,
+          // la fila devuelta trae códigos que no se pidieron y el waLink se
+          // arma con advertencias ajenas al filtro elegido (appcarc-backend#216).
+          const candidatas = codigo ? doc.advertencias.filter((a) => a.codigo === codigo) : doc.advertencias;
+          const advertenciasVigentes = candidatas.filter((a) => {
             const etiquetaId = a.codigo === ADVERTENCIA.CUOTA_IMPAGA
               ? (socioIdStr && etiquetaEscuelitaPorSocio.get(socioIdStr))
               : etiquetaIdPorUso.get(USO_SISTEMA_POR_CODIGO[a.codigo] ?? '');

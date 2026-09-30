@@ -158,6 +158,13 @@ describe('setMesesActivosHandler', () => {
     expect(res.status).toHaveBeenCalledWith(404);
   });
 
+  it('appcarc-backend#207: filtra por active:true al buscar la etiqueta (no opera contra una de baja)', async () => {
+    const res = mockRes();
+    await setMesesActivosHandler(req({ tramos: [] }), res);
+
+    expect(Etiqueta.findOne).toHaveBeenCalledWith(expect.objectContaining({ active: true }));
+  });
+
   it('retorna 409 si un período ya pagado y cubierto hoy queda sin cobertura', async () => {
     const existente = buildExistente({ fechaDesde: '2026-04', fechaHasta: null });
     mockFind.mockReturnValue({ session: () => Promise.resolve([existente]) });

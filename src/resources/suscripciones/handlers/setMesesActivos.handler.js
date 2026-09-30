@@ -99,7 +99,7 @@ export const setMesesActivosHandler = async (req, res) => {
     if (!socio) {
       return res.status(404).json({ message: 'Socio no encontrado' });
     }
-    const etiqueta = await Etiqueta.findOne({ _id: etiquetaId, clubId: req.user.clubId });
+    const etiqueta = await Etiqueta.findOne({ _id: etiquetaId, clubId: req.user.clubId, active: true });
     if (!etiqueta) {
       return res.status(404).json({ message: 'Etiqueta no encontrada' });
     }

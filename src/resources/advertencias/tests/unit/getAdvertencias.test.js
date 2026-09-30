@@ -197,6 +197,32 @@ describe('getAdvertenciasHandler', () => {
     ]);
   });
 
+  it('appcarc-backend#216: ?codigo= no trae los OTROS códigos vigentes del mismo check-in', async () => {
+    // Las dos advertencias siguen vigentes (LIMITE_SEMANAL nunca se
+    // rechequea, y no hay ninguna Cuota pagada que resuelva la social) — el
+    // filtro de Mongo por codigo matchea el doc igual, así que sin filtrar
+    // acá el array embebido se devolverían ambas aunque solo se pidió una.
+    const asistenciaDosCodigos = buildAsistencia({
+      advertencias: [
+        { codigo: 'LIMITE_SEMANAL', mensaje: 'Ya registró 2 clases esa semana (límite: 1)' },
+        { codigo: 'CUOTA_SOCIAL_IMPAGA', mensaje: 'Sin cuota social pagada para 2026-09' },
+      ],
+    });
+    Asistencia.find = vi.fn().mockReturnValue(chainable([asistenciaDosCodigos]));
+    Etiqueta.find = vi.fn().mockReturnValue(chainable([
+      { _id: '507f1f77bcf86cd799439044', uso_sistema: 'cuota_social' },
+    ]));
+
+    const res = mockRes();
+    await getAdvertenciasHandler({ user: USER, query: { codigo: 'LIMITE_SEMANAL' } }, res);
+
+    const [payload] = res.json.mock.calls[0];
+    expect(payload.advertencias).toHaveLength(1);
+    expect(payload.advertencias[0].advertencias).toEqual([
+      { codigo: 'LIMITE_SEMANAL', mensaje: 'Ya registró 2 clases esa semana (límite: 1)' },
+    ]);
+  });
+
   it('should not query Cuota/Etiqueta/Escuelita at all when no asistencia has a resolvable codigo', async () => {
     Asistencia.find = vi.fn().mockReturnValue(chainable([]));
 

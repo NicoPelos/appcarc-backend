@@ -2,9 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { deleteRolHandler } from '../../handlers/deleteRol.handler.js';
 
 vi.mock('../../models/Rol.js', () => ({ default: { findOne: vi.fn() } }));
+vi.mock('../../../usuarios/models/User.js', () => ({ default: { exists: vi.fn() } }));
 vi.mock('../../../services/permisosCache.js', () => ({ invalidarClub: vi.fn() }));
 
 import Rol from '../../models/Rol.js';
+import User from '../../../usuarios/models/User.js';
 
 const mockUser = { clubId: 'CARC' };
 
@@ -15,11 +17,14 @@ const mockRes = () => {
   return res;
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  User.exists.mockResolvedValue(null);
+});
 
 describe('deleteRolHandler', () => {
   it('desactiva el rol correctamente (200)', async () => {
-    const rol = { active: true, save: vi.fn().mockResolvedValue() };
+    const rol = { slug: 'profesor', nombre: 'Profesor', active: true, save: vi.fn().mockResolvedValue() };
     Rol.findOne.mockResolvedValue(rol);
 
     const req = { user: mockUser, params: { id: 'rol1' } };
@@ -50,5 +55,32 @@ describe('deleteRolHandler', () => {
     await deleteRolHandler(req, res);
 
     expect(res.status).toHaveBeenCalledWith(500);
+  });
+
+  it.each(['socio', 'admin'])('appcarc-backend#225: retorna 409 si el rol es el protegido "%s", sin llegar a guardar', async (slug) => {
+    const rol = { slug, nombre: slug, active: true, save: vi.fn() };
+    Rol.findOne.mockResolvedValue(rol);
+
+    const req = { user: mockUser, params: { id: 'rol1' } };
+    const res = mockRes();
+    await deleteRolHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(rol.save).not.toHaveBeenCalled();
+    expect(User.exists).not.toHaveBeenCalled();
+  });
+
+  it('appcarc-backend#225: retorna 409 si el rol todavía tiene usuarios asignados', async () => {
+    const rol = { slug: 'profesor', nombre: 'Profesor', active: true, save: vi.fn() };
+    Rol.findOne.mockResolvedValue(rol);
+    User.exists.mockResolvedValue({ _id: 'user1' });
+
+    const req = { user: mockUser, params: { id: 'rol1' } };
+    const res = mockRes();
+    await deleteRolHandler(req, res);
+
+    expect(User.exists).toHaveBeenCalledWith({ clubId: 'CARC', roles: rol._id });
+    expect(res.status).toHaveBeenCalledWith(409);
+    expect(rol.save).not.toHaveBeenCalled();
   });
 });
