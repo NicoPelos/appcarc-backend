@@ -7,6 +7,7 @@ vi.mock('../../../services/permisosCache.js', () => ({ invalidarClub: vi.fn() })
 import Rol from '../../models/Rol.js';
 
 const mockUser = { clubId: 'CARC' };
+const VALID_ID = '507f1f77bcf86cd799439011';
 
 const mockRes = () => {
   const res = {};
@@ -29,7 +30,7 @@ describe('updateRolHandler', () => {
     const rol = makeRol();
     Rol.findOne.mockResolvedValue(rol);
 
-    const req = { user: mockUser, params: { id: 'rol1' }, body: { permisos: ['socios:read', 'muroLibre:read'] } };
+    const req = { user: mockUser, params: { id: VALID_ID }, body: { permisos: ['socios:read', 'muroLibre:read'] } };
     const res = mockRes();
     await updateRolHandler(req, res);
 
@@ -44,7 +45,7 @@ describe('updateRolHandler', () => {
       .mockResolvedValueOnce(rol) // busca el rol a editar
       .mockResolvedValueOnce(null); // chequeo de nombre duplicado: libre
 
-    const req = { user: mockUser, params: { id: 'rol1' }, body: { nombre: 'entrenador' } };
+    const req = { user: mockUser, params: { id: VALID_ID }, body: { nombre: 'entrenador' } };
     const res = mockRes();
     await updateRolHandler(req, res);
 
@@ -56,7 +57,7 @@ describe('updateRolHandler', () => {
     const rol = makeRol();
     Rol.findOne.mockResolvedValueOnce(rol);
 
-    const req = { user: mockUser, params: { id: 'rol1' }, body: { nombre: 'palestrero', permisos: ['socios:read'] } };
+    const req = { user: mockUser, params: { id: VALID_ID }, body: { nombre: 'palestrero', permisos: ['socios:read'] } };
     const res = mockRes();
     await updateRolHandler(req, res);
 
@@ -65,7 +66,7 @@ describe('updateRolHandler', () => {
   });
 
   it('retorna 400 si el nombre viene vacío', async () => {
-    const req = { user: mockUser, params: { id: 'rol1' }, body: { nombre: '' } };
+    const req = { user: mockUser, params: { id: VALID_ID }, body: { nombre: '' } };
     const res = mockRes();
     await updateRolHandler(req, res);
 
@@ -79,7 +80,7 @@ describe('updateRolHandler', () => {
       .mockResolvedValueOnce(rol) // busca el rol a editar
       .mockResolvedValueOnce({ nombre: 'secretaria' }); // ya hay otro rol con ese nombre
 
-    const req = { user: mockUser, params: { id: 'rol1' }, body: { nombre: 'secretaria' } };
+    const req = { user: mockUser, params: { id: VALID_ID }, body: { nombre: 'secretaria' } };
     const res = mockRes();
     await updateRolHandler(req, res);
 
@@ -89,7 +90,7 @@ describe('updateRolHandler', () => {
   });
 
   it('retorna 400 si hay permisos inválidos', async () => {
-    const req = { user: mockUser, params: { id: 'rol1' }, body: { permisos: ['permiso:falso'] } };
+    const req = { user: mockUser, params: { id: VALID_ID }, body: { permisos: ['permiso:falso'] } };
     const res = mockRes();
     await updateRolHandler(req, res);
 
@@ -110,7 +111,7 @@ describe('updateRolHandler', () => {
   it('retorna 500 si hay error de BD', async () => {
     Rol.findOne.mockRejectedValue(new Error('DB error'));
 
-    const req = { user: mockUser, params: { id: 'rol1' }, body: { nombre: 'x' } };
+    const req = { user: mockUser, params: { id: VALID_ID }, body: { nombre: 'x' } };
     const res = mockRes();
     await updateRolHandler(req, res);
 
@@ -119,9 +120,59 @@ describe('updateRolHandler', () => {
 
   it.each([[null], ['socios:read'], [{}]])('#161: devuelve 400 (no revienta) si permisos no es un array (%j)', async (permisos) => {
     const res = mockRes();
-    await updateRolHandler({ user: mockUser, params: { id: 'rol1' }, body: { permisos } }, res);
+    await updateRolHandler({ user: mockUser, params: { id: VALID_ID }, body: { permisos } }, res);
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ message: 'permisos debe ser un array' });
+  });
+
+  it.each([[{ $ne: 'admin' }], [123], [true]])(
+    'appcarc-backend#226: devuelve 400 (no 500) si nombre no es un string (%j)',
+    async (nombre) => {
+      const res = mockRes();
+      await updateRolHandler({ user: mockUser, params: { id: VALID_ID }, body: { nombre } }, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(Rol.findOne).not.toHaveBeenCalled();
+    },
+  );
+
+  it('appcarc-backend#226: devuelve 400 si nombre es solo espacios', async () => {
+    const res = mockRes();
+    await updateRolHandler({ user: mockUser, params: { id: VALID_ID }, body: { nombre: '   ' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('appcarc-backend#226: guarda el nombre trimeado', async () => {
+    const rol = makeRol();
+    Rol.findOne.mockResolvedValueOnce(rol).mockResolvedValueOnce(null);
+
+    const req = { user: mockUser, params: { id: VALID_ID }, body: { nombre: '  entrenador  ' } };
+    await updateRolHandler(req, mockRes());
+
+    expect(rol.nombre).toBe('entrenador');
+  });
+
+  it('appcarc-backend#227: devuelve 404 (no 500) si el :id no es un ObjectId válido', async () => {
+    const req = { user: mockUser, params: { id: 'no-es-un-id' }, body: { nombre: 'x' } };
+    const res = mockRes();
+    await updateRolHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(Rol.findOne).not.toHaveBeenCalled();
+  });
+
+  it('appcarc-backend#227: devuelve 409 (no 500) si save() choca con el índice único por una carrera (E11000)', async () => {
+    const dupError = new Error('duplicate key');
+    dupError.code = 11000;
+    const rol = makeRol({ save: vi.fn().mockRejectedValue(dupError) });
+    Rol.findOne.mockResolvedValueOnce(rol).mockResolvedValueOnce(null);
+
+    const req = { user: mockUser, params: { id: VALID_ID }, body: { nombre: 'entrenador' } };
+    const res = mockRes();
+    await updateRolHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
   });
 });

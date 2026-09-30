@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Rol from '../models/Rol.js';
 import User from '../../usuarios/models/User.js';
 import { invalidarClub } from '../../../services/permisosCache.js';
@@ -35,6 +36,11 @@ const SLUGS_PROTEGIDOS = ['socio', 'admin'];
  */
 export const deleteRolHandler = async (req, res) => {
   try {
+    // :id con formato inválido dispara un CastError async sin capturar ->
+    // 500 en vez de 404 (appcarc-backend#227).
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(404).json({ message: 'Rol no encontrado' });
+    }
     const rol = await Rol.findOne({ _id: req.params.id, clubId: req.user.clubId, active: true });
     if (!rol) return res.status(404).json({ message: 'Rol no encontrado' });
 

@@ -9,6 +9,7 @@ import Rol from '../../models/Rol.js';
 import User from '../../../usuarios/models/User.js';
 
 const mockUser = { clubId: 'CARC' };
+const VALID_ID = '507f1f77bcf86cd799439011';
 
 const mockRes = () => {
   const res = {};
@@ -27,7 +28,7 @@ describe('deleteRolHandler', () => {
     const rol = { slug: 'profesor', nombre: 'Profesor', active: true, save: vi.fn().mockResolvedValue() };
     Rol.findOne.mockResolvedValue(rol);
 
-    const req = { user: mockUser, params: { id: 'rol1' } };
+    const req = { user: mockUser, params: { id: VALID_ID } };
     const res = mockRes();
     await deleteRolHandler(req, res);
 
@@ -50,7 +51,7 @@ describe('deleteRolHandler', () => {
   it('retorna 500 si hay error de BD', async () => {
     Rol.findOne.mockRejectedValue(new Error('DB error'));
 
-    const req = { user: mockUser, params: { id: 'rol1' } };
+    const req = { user: mockUser, params: { id: VALID_ID } };
     const res = mockRes();
     await deleteRolHandler(req, res);
 
@@ -61,7 +62,7 @@ describe('deleteRolHandler', () => {
     const rol = { slug, nombre: slug, active: true, save: vi.fn() };
     Rol.findOne.mockResolvedValue(rol);
 
-    const req = { user: mockUser, params: { id: 'rol1' } };
+    const req = { user: mockUser, params: { id: VALID_ID } };
     const res = mockRes();
     await deleteRolHandler(req, res);
 
@@ -75,12 +76,21 @@ describe('deleteRolHandler', () => {
     Rol.findOne.mockResolvedValue(rol);
     User.exists.mockResolvedValue({ _id: 'user1' });
 
-    const req = { user: mockUser, params: { id: 'rol1' } };
+    const req = { user: mockUser, params: { id: VALID_ID } };
     const res = mockRes();
     await deleteRolHandler(req, res);
 
     expect(User.exists).toHaveBeenCalledWith({ clubId: 'CARC', roles: rol._id });
     expect(res.status).toHaveBeenCalledWith(409);
     expect(rol.save).not.toHaveBeenCalled();
+  });
+
+  it('appcarc-backend#227: devuelve 404 (no 500) si el :id no es un ObjectId válido', async () => {
+    const req = { user: mockUser, params: { id: 'no-es-un-id' } };
+    const res = mockRes();
+    await deleteRolHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(404);
+    expect(Rol.findOne).not.toHaveBeenCalled();
   });
 });

@@ -126,4 +126,45 @@ describe('createRolHandler', () => {
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ message: 'permisos debe ser un array' });
   });
+
+  it.each([[{ $ne: 'admin' }], [123], [['a']], [true]])(
+    'appcarc-backend#226: devuelve 400 (no 500) si nombre no es un string (%j)',
+    async (nombre) => {
+      const res = mockRes();
+      await createRolHandler({ user: mockUser, body: { nombre } }, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(Rol.findOne).not.toHaveBeenCalled();
+    },
+  );
+
+  it('appcarc-backend#226: devuelve 400 si nombre es solo espacios', async () => {
+    const res = mockRes();
+    await createRolHandler({ user: mockUser, body: { nombre: '   ' } }, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('appcarc-backend#226: guarda el nombre trimeado ("Admin " -> "Admin")', async () => {
+    Rol.findOne.mockResolvedValue(null);
+    mockSave.mockResolvedValue();
+
+    const req = { user: mockUser, body: { nombre: '  Admin  ' } };
+    await createRolHandler(req, mockRes());
+
+    expect(Rol).toHaveBeenCalledWith(expect.objectContaining({ nombre: 'Admin' }));
+  });
+
+  it('appcarc-backend#227: devuelve 409 (no 500) si save() choca con el índice único por una carrera (E11000)', async () => {
+    Rol.findOne.mockResolvedValue(null);
+    const dupError = new Error('duplicate key');
+    dupError.code = 11000;
+    mockSave.mockRejectedValue(dupError);
+
+    const req = { user: mockUser, body: { nombre: 'entrenador' } };
+    const res = mockRes();
+    await createRolHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(409);
+  });
 });

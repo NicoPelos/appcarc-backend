@@ -38,8 +38,16 @@ import { generarSlugUnico } from '../services/slug.service.js';
  *         description: Error al crear rol
  */
 export const createRolHandler = async (req, res) => {
-  const { nombre, permisos = [] } = req.body;
-  if (!nombre) return res.status(400).json({ message: 'El campo nombre es requerido' });
+  const { permisos = [] } = req.body;
+  // Sin validar tipo/trim, un body con nombre = objeto (ej. un operador
+  // $ne) llega tal cual a Rol.findOne({ nombre, ... }) dando un 409 falso, y
+  // "  " o "Admin " (con espacios) pasa igual — el índice único es sensible
+  // a mayúsculas/espacios, así que "admin" y "Admin " conviven, ambiguos
+  // para obtenerRolIdsPorNombres (appcarc-backend#226).
+  if (typeof req.body.nombre !== 'string' || !req.body.nombre.trim()) {
+    return res.status(400).json({ message: 'El campo nombre es requerido' });
+  }
+  const nombre = req.body.nombre.trim();
 
   if (!Array.isArray(permisos)) return res.status(400).json({ message: 'permisos debe ser un array' });
 
@@ -56,6 +64,12 @@ export const createRolHandler = async (req, res) => {
     invalidarClub(req.user.clubId);
     res.status(201).json(rol);
   } catch (error) {
+    // El chequeo de arriba (findOne) y el save() no son atómicos — dos POST
+    // simultáneos con el mismo nombre pueden pasar ambos el chequeo y el
+    // segundo save() choca con el índice único -> E11000 (appcarc-backend#227).
+    if (error.code === 11000) {
+      return res.status(409).json({ message: `El rol '${nombre}' ya existe` });
+    }
     res.status(500).json({ message: 'Error creando rol' });
   }
 };
