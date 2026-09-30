@@ -49,7 +49,13 @@ export const runJobHandler = async (req, res) => {
   try {
     const { nombre } = req.params;
 
-    if (!JOBS[nombre]) {
+    // JOBS es un objeto literal, así que hereda de Object.prototype —
+    // !JOBS[nombre] no distingue una key propia de una heredada ("constructor"
+    // pasaba el chequeo y ejecutaba Object(), dando una falsa apariencia de
+    // éxito; "hasOwnProperty"/"toString" pasaban también pero explotaban al
+    // llamarse con el this equivocado, dando 500 en vez de 400)
+    // (appcarc-backend#204).
+    if (!Object.hasOwn(JOBS, nombre)) {
       return res.status(400).json({
         message: `Job '${nombre}' no existe`,
         disponibles: Object.keys(JOBS),

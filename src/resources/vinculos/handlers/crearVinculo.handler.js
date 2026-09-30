@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { crearVinculoFamiliar, BusinessError } from '../services/crearVinculoFamiliar.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
@@ -43,8 +44,14 @@ import { logAudit } from '../../audit/services/audit.service.js';
  */
 export const crearVinculoHandler = async (req, res) => {
   try {
-    const { hijoSocioId } = req.body;
+    const { hijoSocioId, padreUserId, padreSocioId } = req.body;
     if (!hijoSocioId) return res.status(400).json({ message: 'hijoSocioId es requerido' });
+    // Un id con formato inválido dispara un CastError async en la query de
+    // resolverPadre (crearVinculoFamiliar.service.js), sin capturar ahí ->
+    // 500 genérico en vez de 400 (appcarc-backend#212).
+    if (!mongoose.isValidObjectId(hijoSocioId)) return res.status(400).json({ message: 'hijoSocioId inválido' });
+    if (padreUserId && !mongoose.isValidObjectId(padreUserId)) return res.status(400).json({ message: 'padreUserId inválido' });
+    if (padreSocioId && !mongoose.isValidObjectId(padreSocioId)) return res.status(400).json({ message: 'padreSocioId inválido' });
 
     const { vinculo, padre, passwordTemporal } = await crearVinculoFamiliar({
       clubId: req.user?.clubId,

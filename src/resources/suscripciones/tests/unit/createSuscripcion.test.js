@@ -144,6 +144,26 @@ describe('createSuscripcionHandler', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('YYYY-MM') }));
   });
 
+  it('appcarc-backend#206: retorna 400 (no 500) si fechaHasta es anterior a fechaDesde', async () => {
+    const req = { user: mockUser, body: { ...validBody, fechaDesde: '2026-06', fechaHasta: '2026-01' } };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: expect.stringContaining('fechaHasta') }));
+    expect(mockSave).not.toHaveBeenCalled();
+  });
+
+  it('permite fechaHasta igual a fechaDesde', async () => {
+    const req = { user: mockUser, body: { ...validBody, fechaDesde: '2026-06', fechaHasta: '2026-06' } };
+    const res = mockRes();
+
+    await createSuscripcionHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
   it('#195: busca solo socios activos (un socio dado de baja/borrado no puede recibir una suscripción)', async () => {
     Socio.findOne.mockResolvedValue(null);
     await createSuscripcionHandler({ user: mockUser, body: validBody }, mockRes());

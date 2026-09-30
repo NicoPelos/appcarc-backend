@@ -137,6 +137,14 @@ export const createSuscripcionHandler = async (req, res) => {
     if (fechaHasta !== undefined && fechaHasta !== null && !PERIODO_PATTERN.test(fechaHasta)) {
       return res.status(400).json({ message: 'fechaHasta debe tener formato YYYY-MM' });
     }
+    // Sin este chequeo, fechaHasta < fechaDesde solo se detectaba recién en
+    // el validator de Mongoose al hacer .save() (dentro de la transacción),
+    // cayendo al catch genérico -> 500 en vez de 400 (appcarc-backend#206,
+    // mismo chequeo explícito que ya hacen closeSuscripcion.handler.js y
+    // setMesesActivos.handler.js).
+    if (fechaHasta && fechaHasta < fechaDesde) {
+      return res.status(400).json({ message: 'fechaHasta no puede ser anterior a fechaDesde' });
+    }
 
     const socio = await Socio.findOne({ _id: socioId, clubId: req.user.clubId, active: true });
     if (!socio) {

@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import AuditLog from '../models/AuditLog.js';
 
 /**
@@ -47,9 +48,24 @@ export const getAuditLogsHandler = async (req, res) => {
 
     const filter = { clubId: req.user.clubId };
 
-    if (resource) filter.resource = resource;
-    if (userId) filter.userId = userId;
+    // Sin validar, un userId con formato inválido dispara un CastError
+    // async (-> 500), y un resource no-string (ej. ?resource[$ne]=x) llega
+    // tal cual al filtro de Mongo — operator injection, acotado por clubId
+    // pero no intencional (appcarc-backend#223).
+    if (resource) {
+      if (typeof resource !== 'string') return res.status(400).json({ message: 'resource inválido' });
+      filter.resource = resource;
+    }
+    if (userId) {
+      if (!mongoose.isValidObjectId(userId)) return res.status(400).json({ message: 'userId inválido' });
+      filter.userId = userId;
+    }
     if (action && ['CREATE', 'UPDATE', 'DELETE'].includes(action)) filter.action = action;
+
+    const YYYY_MM = /^\d{4}-(0[1-9]|1[0-2])$/;
+    if ((from && !YYYY_MM.test(from)) || (to && !YYYY_MM.test(to))) {
+      return res.status(400).json({ message: 'from/to deben tener formato YYYY-MM' });
+    }
 
     if (from || to) {
       filter.createdAt = {};

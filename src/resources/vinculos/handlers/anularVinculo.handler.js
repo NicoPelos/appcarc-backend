@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { anularVinculoFamiliar, BusinessError } from '../services/anularVinculoFamiliar.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
@@ -23,6 +24,12 @@ import { logAudit } from '../../audit/services/audit.service.js';
  */
 export const anularVinculoHandler = async (req, res) => {
   try {
+    // Un id con formato inválido dispara un CastError async sin capturar ->
+    // 500 genérico en vez de 400 (appcarc-backend#212, mismo criterio que
+    // getSuscripciones.handler.js).
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'id inválido' });
+    }
     const vinculo = await anularVinculoFamiliar({ clubId: req.user?.clubId, user: req.user, id: req.params.id });
     logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'VinculoFamiliar', resourceId: vinculo._id, before: null, after: vinculo.toObject() });
     return res.status(200).json(vinculo);

@@ -16,6 +16,14 @@ export const getSuperAuditHandler = async (req, res) => {
     if (reverted === 'false') filter.revertedAt = null;
     if (reverted === 'true') filter.revertedAt = { $ne: null };
 
+    // from/to sin validar producían un Invalid Date que Mongo no puede
+    // serializar, cayendo al catch genérico -> 500 en vez de un 400 claro
+    // (appcarc-backend#205).
+    const YYYY_MM = /^\d{4}-(0[1-9]|1[0-2])$/;
+    if ((from && !YYYY_MM.test(from)) || (to && !YYYY_MM.test(to))) {
+      return res.status(400).json({ message: 'from/to deben tener formato YYYY-MM' });
+    }
+
     if (from || to) {
       filter.createdAt = {};
       if (from) filter.createdAt.$gte = new Date(`${from}-01T00:00:00.000Z`);

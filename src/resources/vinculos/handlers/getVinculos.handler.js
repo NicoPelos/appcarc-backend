@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import VinculoFamiliar from '../models/VinculoFamiliar.js';
 
 /**
@@ -24,8 +25,20 @@ import VinculoFamiliar from '../models/VinculoFamiliar.js';
 export const getVinculosHandler = async (req, res) => {
   try {
     const filter = { clubId: req.user?.clubId, active: true };
-    if (req.query.hijoSocioId) filter.hijoSocioId = req.query.hijoSocioId;
-    if (req.query.padreUserId) filter.padreUserId = req.query.padreUserId;
+    // Un id con formato inválido dispara un CastError async sin capturar ->
+    // 500 genérico en vez de 400 (appcarc-backend#212).
+    if (req.query.hijoSocioId) {
+      if (!mongoose.isValidObjectId(req.query.hijoSocioId)) {
+        return res.status(400).json({ message: 'hijoSocioId inválido' });
+      }
+      filter.hijoSocioId = req.query.hijoSocioId;
+    }
+    if (req.query.padreUserId) {
+      if (!mongoose.isValidObjectId(req.query.padreUserId)) {
+        return res.status(400).json({ message: 'padreUserId inválido' });
+      }
+      filter.padreUserId = req.query.padreUserId;
+    }
 
     const vinculos = await VinculoFamiliar.find(filter)
       .sort({ createdAt: -1 })

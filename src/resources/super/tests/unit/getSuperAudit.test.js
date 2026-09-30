@@ -64,6 +64,34 @@ describe('getSuperAuditHandler', () => {
     expect(AuditLog.find.mock.calls[0][0]).toEqual({});
   });
 
+  it('filtra createdAt con from/to válidos (YYYY-MM)', async () => {
+    const req = { query: { from: '2026-01', to: '2026-03' } };
+    const res = mockRes();
+    await getSuperAuditHandler(req, res);
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(AuditLog.find.mock.calls[0][0]).toEqual({
+      createdAt: { $gte: new Date('2026-01-01T00:00:00.000Z'), $lt: new Date('2026-04-01T00:00:00.000Z') },
+    });
+  });
+
+  it.each(['abc', '2026', '2026-13', '2026-1'])(
+    'appcarc-backend#205: devuelve 400 (no 500) con from="%s" mal formado',
+    async (from) => {
+      const req = { query: { from } };
+      const res = mockRes();
+      await getSuperAuditHandler(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(AuditLog.find).not.toHaveBeenCalled();
+    },
+  );
+
+  it('appcarc-backend#205: devuelve 400 con to mal formado', async () => {
+    const req = { query: { to: 'abc' } };
+    const res = mockRes();
+    await getSuperAuditHandler(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
   it('retorna 500 si hay error inesperado', async () => {
     AuditLog.countDocuments.mockRejectedValue(new Error('DB error'));
     const req = { query: {} };

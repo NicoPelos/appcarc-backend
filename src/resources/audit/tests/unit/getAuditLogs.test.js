@@ -50,15 +50,46 @@ describe('getAuditLogsHandler', () => {
     AuditLog.countDocuments.mockResolvedValue(0);
     mockFindChain([]);
 
-    const req = { user: USER, query: { resource: 'Cobro', userId: 'abc', action: 'DELETE' } };
+    const validUserId = '507f1f77bcf86cd799439022';
+    const req = { user: USER, query: { resource: 'Cobro', userId: validUserId, action: 'DELETE' } };
     await getAuditLogsHandler(req, mockRes());
 
     expect(AuditLog.find).toHaveBeenCalledWith(expect.objectContaining({
       resource: 'Cobro',
-      userId: 'abc',
+      userId: validUserId,
       action: 'DELETE',
     }));
   });
+
+  it.each(['abc', '123'])(
+    'appcarc-backend#223: devuelve 400 (no 500) con userId "%s" mal formado',
+    async (userId) => {
+      const req = { user: USER, query: { userId } };
+      const res = mockRes();
+      await getAuditLogsHandler(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(AuditLog.find).not.toHaveBeenCalled();
+    },
+  );
+
+  it('appcarc-backend#223: devuelve 400 si resource no es un string (operator injection)', async () => {
+    const req = { user: USER, query: { resource: { $ne: 'Socio' } } };
+    const res = mockRes();
+    await getAuditLogsHandler(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(AuditLog.find).not.toHaveBeenCalled();
+  });
+
+  it.each(['abc', '2026', '2026-13'])(
+    'appcarc-backend#223: devuelve 400 (no 500) con from="%s" mal formado',
+    async (from) => {
+      const req = { user: USER, query: { from } };
+      const res = mockRes();
+      await getAuditLogsHandler(req, res);
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(AuditLog.find).not.toHaveBeenCalled();
+    },
+  );
 
   it('aplica filtro de rango de fechas con from y to', async () => {
     AuditLog.countDocuments.mockResolvedValue(0);
