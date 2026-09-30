@@ -68,7 +68,7 @@ describe('Usuarios auth handlers (unit)', () => {
 
   it('register should create user and return token', async () => {
     User.findOne.mockResolvedValue(null);
-    const req = { body: { email: 'a@b.com', password: 'pass', nombre: 'N', clubId: 'club1' } };
+    const req = { body: { email: 'a@b.com', password: 'pass', nombre: 'N' }, user: { clubId: 'club1' } };
     const res = mockRes();
 
     await authHandlers.register(req, res);
@@ -78,12 +78,26 @@ describe('Usuarios auth handlers (unit)', () => {
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ token: 'mock-token' }));
   });
 
+  it('appcarc-backend#209: register usa el club del staff autenticado, no un clubId arbitrario del body', async () => {
+    User.findOne.mockResolvedValue(null);
+    const req = { body: { email: 'a@b.com', password: 'pass', clubId: 'club-ajeno' }, user: { clubId: 'club1' } };
+    const res = mockRes();
+
+    await authHandlers.register(req, res);
+
+    expect(User.findOne).toHaveBeenCalledWith({ email: 'a@b.com', clubId: 'club1' });
+    expect(res.status).toHaveBeenCalledWith(201);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      user: expect.objectContaining({ clubId: 'club1' }),
+    }));
+  });
+
   it('appcarc-backend#67: register no debe setear socioId:null explícito cuando no hay socio (rompe el índice unique+sparse)', async () => {
     User.findOne.mockResolvedValue(null);
     Socio.findOne.mockResolvedValue(null);
     let constructedUser = null;
     User.prototype.save.mockImplementation(async function () { constructedUser = this; return this; });
-    const req = { body: { email: 'sinSocio@b.com', password: 'pass', clubId: 'club1' } };
+    const req = { body: { email: 'sinSocio@b.com', password: 'pass' }, user: { clubId: 'club1' } };
     const res = mockRes();
 
     await authHandlers.register(req, res);
@@ -96,7 +110,7 @@ describe('Usuarios auth handlers (unit)', () => {
   it('register should link socioId when socio exists with same email', async () => {
     User.findOne.mockResolvedValue(null);
     Socio.findOne.mockResolvedValue({ _id: 'socio1', nombre: 'Ana', clubId: 'club1' });
-    const req = { body: { email: 'ana@b.com', password: 'pass', clubId: 'club1' } };
+    const req = { body: { email: 'ana@b.com', password: 'pass' }, user: { clubId: 'club1' } };
     const res = mockRes();
 
     await authHandlers.register(req, res);

@@ -73,7 +73,10 @@ router.get('/google/callback', googleCallback);
  * /api/auth/register:
  *   post:
  *     summary: Registrar un nuevo usuario con email y contraseña
+ *     description: El club del nuevo usuario es siempre el del staff autenticado (req.user.clubId) — no se puede pasar por body (appcarc-backend#209).
  *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -83,7 +86,6 @@ router.get('/google/callback', googleCallback);
  *             required:
  *               - email
  *               - password
- *               - clubId
  *             properties:
  *               email:
  *                 type: string
@@ -97,8 +99,6 @@ router.get('/google/callback', googleCallback);
  *                 type: string
  *                 enum: [admin, secretary, socio]
  *                 default: secretary
- *               clubId:
- *                 type: string
  *     responses:
  *       201:
  *         description: Usuario registrado exitosamente

@@ -210,7 +210,12 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
 const VALID_ROLES = ['admin', 'autoridad', 'secretaria', 'profesor', 'palestrero', 'limpieza', 'arreglos', 'colaborador', 'socio'];
 
 export const register = async (req, res) => {
-  const { email, password, dni, nombre, role, clubId } = req.body;
+  const { email, password, dni, nombre, role } = req.body;
+  // El club es el del staff autenticado, nunca el que venga en el body — ver
+  // appcarc-backend#209: tomar clubId del body permitía a cualquier staff
+  // con usuarios:write crear (o pisar el vínculo de) una cuenta en OTRO
+  // club, rompiendo el aislamiento multi-tenant.
+  const clubId = req.user.clubId;
 
   if (role && !VALID_ROLES.includes(role)) {
     return res.status(400).json({ message: `Rol inválido. Roles permitidos: ${VALID_ROLES.join(', ')}` });
