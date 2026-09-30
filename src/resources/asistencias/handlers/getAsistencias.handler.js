@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 import Asistencia from '../models/Asistencia.js';
+import { tienePermiso } from '../../../services/permisosCache.js';
+import { PERMISOS } from '../../../constants/permisos.js';
 
 const VALID_TIPOS = ['muro_libre', 'escuelita'];
 
@@ -57,11 +59,26 @@ export const getAsistenciasHandler = async (req, res) => {
     const isSocioOnly = req.user?.roles?.length > 0 && req.user.roles.every(r => r === 'socio');
     if (isSocioOnly && req.user.socioId) filter.socioId = new mongoose.Types.ObjectId(req.user.socioId);
 
+    // ASISTENCIAS_READ no implica muroLibre:read — un rol como "profesor" del
+    // club demo tiene el primero sin el segundo a propósito, precisamente
+    // porque no debería ver datos (montos, forma de pago) de muro libre
+    // (appcarc-backend#218). Un socio viendo SU PROPIO historial (isSocioOnly,
+    // ya filtrado por su socioId arriba) es un caso aparte: eso es "mis
+    // visitas", no una fuga entre roles, así que pasa siempre.
+    const puedeVerMuroLibre = isSocioOnly
+      || req.user?.roles?.includes('superadmin')
+      || await tienePermiso(req.user?.clubId, req.user?.roles ?? [], PERMISOS.MURO_LIBRE_READ);
+
     if (tipo) {
       if (!VALID_TIPOS.includes(tipo)) {
         return res.status(400).json({ message: 'El tipo debe ser muro_libre o escuelita' });
       }
+      if (tipo === 'muro_libre' && !puedeVerMuroLibre) {
+        return res.status(403).json({ message: 'No autorizado' });
+      }
       filter.tipo = tipo;
+    } else if (!puedeVerMuroLibre) {
+      filter.tipo = { $ne: 'muro_libre' };
     }
 
     if (socioId) {

@@ -14,8 +14,12 @@ export const updateAsistenciaHandler = async (req, res) => {
       updates.fecha = d;
     }
 
+    // Restringido a escuelita a propósito (appcarc-backend#219): muro_libre
+    // tiene su propio CRUD dedicado en /api/muro-libre/:id, protegido por
+    // MURO_LIBRE_WRITE (que ASISTENCIAS_WRITE no implica) y con su propia
+    // cascada de cobro/cuota que esta ruta genérica no replica.
     const asistencia = await Asistencia.findOneAndUpdate(
-      { _id: req.params.id, clubId: req.user?.clubId, active: true },
+      { _id: req.params.id, clubId: req.user?.clubId, tipo: 'escuelita', active: true },
       updates,
       { returnDocument: 'after' },
     );

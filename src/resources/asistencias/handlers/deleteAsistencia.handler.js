@@ -2,8 +2,12 @@ import Asistencia from '../models/Asistencia.js';
 
 export const deleteAsistenciaHandler = async (req, res) => {
   try {
+    // Restringido a escuelita a propósito (appcarc-backend#219): anular acá
+    // un check-in de muro_libre dejaría el Movimiento/Cobro y la Cuota del
+    // pase mensual asociados activos (sin la cascada que sí aplica
+    // deleteMuroLibreHandler) — usar /api/muro-libre/:id para esos.
     const asistencia = await Asistencia.findOneAndUpdate(
-      { _id: req.params.id, clubId: req.user?.clubId, active: true },
+      { _id: req.params.id, clubId: req.user?.clubId, tipo: 'escuelita', active: true },
       { active: false, updatedBy: req.user.email || req.user.id },
       { returnDocument: 'after' },
     );

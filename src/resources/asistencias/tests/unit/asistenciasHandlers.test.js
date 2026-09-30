@@ -1,10 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import mongoose from 'mongoose';
+
+vi.mock('../../../../services/permisosCache.js', () => ({
+  tienePermiso: vi.fn(),
+}));
+
 import { getAsistenciasHandler } from '../../handlers/getAsistencias.handler.js';
 import { createAsistenciaEscuelitaHandler } from '../../handlers/createAsistenciaEscuelita.handler.js';
 import Asistencia from '../../models/Asistencia.js';
 import * as socioQrService from '../../../socios/services/socioQr.service.js';
 import * as registrarService from '../../services/registrarAsistenciaEscuelita.service.js';
+import { tienePermiso } from '../../../../services/permisosCache.js';
 
 const mockRes = () => {
   const res = {};
@@ -26,6 +32,10 @@ describe('getAsistenciasHandler', () => {
         { _id: 'a2', tipo: 'muro_libre' },
       ]),
     });
+    // Por defecto, el rol del USER de estos tests sí tiene muroLibre:read —
+    // preserva el comportamiento de los tests existentes (staff con acceso
+    // completo). Los tests de appcarc-backend#218 lo pisan a false aparte.
+    tienePermiso.mockResolvedValue(true);
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -134,6 +144,56 @@ describe('getAsistenciasHandler', () => {
     expect(Asistencia.find).toHaveBeenCalledWith(expect.objectContaining({
       socioId: new mongoose.Types.ObjectId('507f1f77bcf86cd799439099'),
     }));
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  // appcarc-backend#218: ASISTENCIAS_READ no implica muroLibre:read — un rol
+  // como "profesor" (tiene el primero, no el segundo) no debe poder ver
+  // datos de muro libre vía este endpoint unificado.
+  it('appcarc-backend#218: excluye muro_libre del listado cuando el rol no tiene muroLibre:read', async () => {
+    tienePermiso.mockResolvedValue(false);
+    const req = { query: {}, user: { ...USER, roles: ['profesor'] } };
+    const res = mockRes();
+
+    await getAsistenciasHandler(req, res);
+
+    expect(Asistencia.find).toHaveBeenCalledWith(expect.objectContaining({
+      tipo: { $ne: 'muro_libre' },
+    }));
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('appcarc-backend#218: 403 si pide explícitamente tipo=muro_libre sin muroLibre:read', async () => {
+    tienePermiso.mockResolvedValue(false);
+    const req = { query: { tipo: 'muro_libre' }, user: { ...USER, roles: ['profesor'] } };
+    const res = mockRes();
+
+    await getAsistenciasHandler(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(Asistencia.find).not.toHaveBeenCalled();
+  });
+
+  it('appcarc-backend#218: un rol con muroLibre:read sigue viendo todo sin filtrar', async () => {
+    tienePermiso.mockResolvedValue(true);
+    const req = { query: {}, user: { ...USER, roles: ['secretaria'] } };
+    const res = mockRes();
+
+    await getAsistenciasHandler(req, res);
+
+    expect(Asistencia.find).toHaveBeenCalledWith(expect.not.objectContaining({ tipo: expect.anything() }));
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('appcarc-backend#218: un socio viendo su propio historial ve muro_libre aunque su rol no tenga el permiso', async () => {
+    tienePermiso.mockResolvedValue(false);
+    const socioUser = { id: 'u1', roles: ['socio'], clubId: 'club1', socioId: '507f1f77bcf86cd799439011' };
+    const req = { query: {}, user: socioUser };
+    const res = mockRes();
+
+    await getAsistenciasHandler(req, res);
+
+    expect(Asistencia.find).toHaveBeenCalledWith(expect.not.objectContaining({ tipo: expect.anything() }));
     expect(res.status).toHaveBeenCalledWith(200);
   });
 });

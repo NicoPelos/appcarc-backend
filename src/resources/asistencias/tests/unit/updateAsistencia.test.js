@@ -35,7 +35,7 @@ describe('updateAsistenciaHandler', () => {
     }, res);
 
     expect(updateSpy).toHaveBeenCalledWith(
-      { _id: 'a1', clubId: USER.clubId, active: true },
+      { _id: 'a1', clubId: USER.clubId, tipo: 'escuelita', active: true },
       expect.objectContaining({
         observaciones: 'ok',
         categoria: 'niños',
@@ -44,6 +44,20 @@ describe('updateAsistenciaHandler', () => {
       { returnDocument: 'after' },
     );
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('appcarc-backend#219: no toca asistencias de muro_libre — la query filtra por tipo:escuelita', async () => {
+    const updateSpy = vi.spyOn(Asistencia, 'findOneAndUpdate').mockResolvedValue(null);
+    const res = mockRes();
+
+    await updateAsistenciaHandler({ params: { id: 'muro1' }, body: { observaciones: 'x' }, user: USER }, res);
+
+    expect(updateSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ tipo: 'escuelita' }),
+      expect.anything(),
+      expect.anything(),
+    );
+    expect(res.status).toHaveBeenCalledWith(404);
   });
 
   it('rechaza una fecha inválida', async () => {
