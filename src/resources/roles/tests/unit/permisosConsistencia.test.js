@@ -120,8 +120,9 @@ describe('Consistencia de permisos entre rutas y permisos.js', () => {
     // no create/delete) — sin decidirlo caso por caso todavía, se documentan
     // acá en vez de dejar el test en rojo. Sacar de esta lista a medida que
     // se decida asignarlos a algún rol.
+    // advertencias:read salió de acá el 2026-10-01: secretaria lo tiene por
+    // defecto ahora (pedido explícito del usuario).
     const EXCEPCIONES_CONOCIDAS = new Set([
-      'advertencias:read',
       'audit:revert',
       'precios:write',
       'precios:delete',
