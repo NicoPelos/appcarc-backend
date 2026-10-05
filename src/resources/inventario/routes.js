@@ -7,7 +7,7 @@ import { getItemInventarioHandler } from './handlers/getItemInventario.handler.j
 import { createItemInventarioHandler } from './handlers/createItemInventario.handler.js';
 import { updateItemInventarioHandler } from './handlers/updateItemInventario.handler.js';
 import { deleteItemInventarioHandler } from './handlers/deleteItemInventario.handler.js';
-import { getCategoriasInventarioHandler, createCategoriaInventarioHandler } from './handlers/categoriasInventario.handler.js';
+import { getCategoriasInventarioHandler, createCategoriaInventarioHandler, updateCategoriaInventarioHandler, deleteCategoriaInventarioHandler } from './handlers/categoriasInventario.handler.js';
 import { uploadFoto, handleUploadFotoError, uploadFotoItemInventarioHandler, deleteFotoItemInventarioHandler } from './handlers/fotosItemInventario.handler.js';
 
 const router = express.Router();
@@ -18,6 +18,8 @@ router.param('id', (req, res, next, id) => (
 
 router.get('/categorias', protect, authorize(PERMISOS.INVENTARIO_READ), getCategoriasInventarioHandler);
 router.post('/categorias', protect, authorize(PERMISOS.INVENTARIO_WRITE), createCategoriaInventarioHandler);
+router.put('/categorias/:id', protect, authorize(PERMISOS.INVENTARIO_WRITE), updateCategoriaInventarioHandler);
+router.delete('/categorias/:id', protect, authorize(PERMISOS.INVENTARIO_DELETE), deleteCategoriaInventarioHandler);
 router.get('/', protect, authorize(PERMISOS.INVENTARIO_READ), getItemsInventarioHandler);
 router.post('/', protect, authorize(PERMISOS.INVENTARIO_WRITE), createItemInventarioHandler);
 router.get('/:id', protect, authorize(PERMISOS.INVENTARIO_READ), getItemInventarioHandler);
