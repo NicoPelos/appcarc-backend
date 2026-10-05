@@ -31,8 +31,13 @@ export const buildDomicilioCompleto = ({ domicilioCompleto, calle, altura, direc
 // su soft-delete sin pasar por los endpoints pensados para eso.
 const CAMPOS_PROTEGIDOS = ['clubId', 'active', 'deletedAt', 'deletedBy', 'sheetRowNumber', 'spreadsheetId'];
 
+// Las claves con $ son operadores de Mongo (ej. {$set: {clubId}}) y no pueden
+// llegar a un update, porque bypasean CAMPOS_PROTEGIDOS (appcarc-backend#230).
 const sinCamposProtegidos = (body) => {
   const rest = { ...(body ?? {}) };
+  for (const clave of Object.keys(rest)) {
+    if (clave.startsWith('$')) delete rest[clave];
+  }
   for (const campo of CAMPOS_PROTEGIDOS) delete rest[campo];
   return rest;
 };

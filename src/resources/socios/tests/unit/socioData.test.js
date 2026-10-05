@@ -141,6 +141,16 @@ describe('prepareSocioUpdateData', () => {
     expect(result.sheetRowNumber).toBeUndefined();
     expect(result.spreadsheetId).toBeUndefined();
   });
+
+  it('appcarc-backend#230: descarta operadores de Mongo ($set) que podrían pisar campos protegidos', () => {
+    const result = prepareSocioUpdateData({
+      nombre: 'Ana',
+      $set: { clubId: 'club-ajeno', active: false },
+    }, USER);
+    expect(result.$set).toBeUndefined();
+    expect(result.clubId).toBeUndefined();
+    expect(result.active).toBeUndefined();
+  });
 });
 
 describe('asignarSocioNumber', () => {

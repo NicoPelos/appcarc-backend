@@ -27,11 +27,17 @@ export async function findValidRefreshToken(raw) {
   return RefreshToken.findOne({ tokenHash: hashToken(raw), expiresAt: { $gt: new Date() } });
 }
 
-/** Revoca (borra) un refresh token puntual — usado al rotar en /auth/refresh
- * y al hacer logout explícito. */
+/** Consume un refresh token vigente en un solo paso: quien lo borra primero
+ * es el único que se lleva la sesión (appcarc-backend#248). */
+export async function claimRefreshToken(raw) {
+  if (!raw) return null;
+  return RefreshToken.findOneAndDelete({ tokenHash: hashToken(raw), expiresAt: { $gt: new Date() } });
+}
+
+/** Revoca (borra) un refresh token puntual — usado al hacer logout explícito. */
 export async function revokeRefreshToken(raw) {
   if (!raw) return;
   await RefreshToken.deleteOne({ tokenHash: hashToken(raw) });
 }
 
-export default { issueRefreshToken, findValidRefreshToken, revokeRefreshToken };
+export default { issueRefreshToken, findValidRefreshToken, claimRefreshToken, revokeRefreshToken };

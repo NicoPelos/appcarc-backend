@@ -12,7 +12,7 @@ vi.mock('../../../roles/services/resolverRoles.service.js', () => ({
 
 vi.mock('../../../../services/refreshTokenService.js', () => ({
   issueRefreshToken: vi.fn().mockResolvedValue('mock-refresh-token'),
-  findValidRefreshToken: vi.fn(),
+  claimRefreshToken: vi.fn(),
   revokeRefreshToken: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -31,7 +31,7 @@ import tokenService from '../../../../services/tokenBlacklistService.js';
 import mongoose from 'mongoose';
 import { OAuth2Client } from 'google-auth-library';
 import { obtenerRolIdsPorNombres, obtenerSlugsPorRolIds } from '../../../roles/services/resolverRoles.service.js';
-import { issueRefreshToken, findValidRefreshToken, revokeRefreshToken } from '../../../../services/refreshTokenService.js';
+import { issueRefreshToken, claimRefreshToken, revokeRefreshToken } from '../../../../services/refreshTokenService.js';
 import { esClubActivo } from '../../../../services/clubActivoCache.js';
 
 function mockRes() {
@@ -466,7 +466,7 @@ describe('Usuarios auth handlers (unit)', () => {
   });
 
   it('refresh should return 401 when the refreshToken is invalid or expired', async () => {
-    findValidRefreshToken.mockResolvedValue(null);
+    claimRefreshToken.mockResolvedValue(null);
     const req = { body: { refreshToken: 'nope' } };
     const res = mockRes();
 
@@ -476,19 +476,18 @@ describe('Usuarios auth handlers (unit)', () => {
   });
 
   it('refresh should return 401 and revoke the token when the user no longer exists or is inactive', async () => {
-    findValidRefreshToken.mockResolvedValue({ userId: 'u1', payload: { socioId: null, roles: ['secretaria'], clubId: 'club1' } });
+    claimRefreshToken.mockResolvedValue({ userId: 'u1', payload: { socioId: null, roles: ['secretaria'], clubId: 'club1' } });
     User.findById.mockResolvedValue(null);
     const req = { body: { refreshToken: 'rt1' } };
     const res = mockRes();
 
     await authHandlers.refresh(req, res);
 
-    expect(revokeRefreshToken).toHaveBeenCalledWith('rt1');
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
   it('refresh should return 403 and revoke the token when the club is suspended (appcarc-backend#169)', async () => {
-    findValidRefreshToken.mockResolvedValue({ userId: 'u1', payload: { socioId: null, roles: ['secretaria'], clubId: 'club1' } });
+    claimRefreshToken.mockResolvedValue({ userId: 'u1', payload: { socioId: null, roles: ['secretaria'], clubId: 'club1' } });
     User.findById.mockResolvedValue({ _id: 'u1', email: 'a@b.com', roles: [], clubId: 'club1', mustChangePassword: false, active: true });
     esClubActivo.mockResolvedValue(false);
     const req = { body: { refreshToken: 'rt1' } };
@@ -496,25 +495,23 @@ describe('Usuarios auth handlers (unit)', () => {
 
     await authHandlers.refresh(req, res);
 
-    expect(revokeRefreshToken).toHaveBeenCalledWith('rt1');
     expect(res.status).toHaveBeenCalledWith(403);
   });
 
   it('refresh should reject and revoke a token issued before a password change (appcarc-backend#199)', async () => {
-    findValidRefreshToken.mockResolvedValue({ userId: 'u1', createdAt: new Date('2026-09-01T10:00:00Z'), payload: { socioId: null, roles: ['secretaria'], clubId: 'club1' } });
+    claimRefreshToken.mockResolvedValue({ userId: 'u1', createdAt: new Date('2026-09-01T10:00:00Z'), payload: { socioId: null, roles: ['secretaria'], clubId: 'club1' } });
     User.findById.mockResolvedValue({ _id: 'u1', email: 'a@b.com', roles: [], clubId: 'club1', mustChangePassword: false, active: true, passwordChangedAt: new Date('2026-09-10T10:00:00Z') });
     const req = { body: { refreshToken: 'rt1' } };
     const res = mockRes();
 
     await authHandlers.refresh(req, res);
 
-    expect(revokeRefreshToken).toHaveBeenCalledWith('rt1');
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ message: 'Sesión expirada, la contraseña fue cambiada' });
   });
 
   it('refresh should still work for a token issued after the password change', async () => {
-    findValidRefreshToken.mockResolvedValue({ userId: 'u1', createdAt: new Date('2026-09-11T10:00:00Z'), payload: { socioId: null, roles: ['secretaria'], clubId: 'club1' } });
+    claimRefreshToken.mockResolvedValue({ userId: 'u1', createdAt: new Date('2026-09-11T10:00:00Z'), payload: { socioId: null, roles: ['secretaria'], clubId: 'club1' } });
     User.findById.mockResolvedValue({ _id: 'u1', email: 'a@b.com', roles: [], clubId: 'club1', mustChangePassword: false, active: true, passwordChangedAt: new Date('2026-09-10T10:00:00Z') });
     const req = { body: { refreshToken: 'rt1' } };
     const res = mockRes();
@@ -525,20 +522,65 @@ describe('Usuarios auth handlers (unit)', () => {
   });
 
   it('refresh should rotate the token and preserve the active profile (ej. un perfil vinculado)', async () => {
-    findValidRefreshToken.mockResolvedValue({ userId: 'u1', payload: { socioId: 'socio-hijo', roles: ['socio'], clubId: 'club1' } });
-    User.findById.mockResolvedValue({ _id: 'u1', email: 'a@b.com', roles: [], clubId: 'club1', mustChangePassword: false, active: true });
+    claimRefreshToken.mockResolvedValue({ userId: 'u1', payload: { socioId: 'socio-hijo', roles: ['socio'], clubId: 'club1' } });
+    User.findById.mockResolvedValue({ _id: 'u1', email: 'a@b.com', roles: ['rol-socio'], clubId: 'club1', mustChangePassword: false, active: true });
+    obtenerSlugsPorRolIds.mockResolvedValueOnce(['socio']);
     const req = { body: { refreshToken: 'rt1' } };
     const res = mockRes();
 
     await authHandlers.refresh(req, res);
 
-    expect(revokeRefreshToken).toHaveBeenCalledWith('rt1');
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       token: 'mock-token',
       refreshToken: 'mock-refresh-token',
       user: expect.objectContaining({ socioId: 'socio-hijo', roles: ['socio'] }),
     }));
+  });
+
+  it('refresh should take the roles from the database, not from the frozen token payload (appcarc-backend#247)', async () => {
+    claimRefreshToken.mockResolvedValue({ userId: 'u1', payload: { socioId: null, roles: ['admin'], clubId: 'club1' } });
+    User.findById.mockResolvedValue({ _id: 'u1', email: 'a@b.com', roles: ['rol-secretaria'], clubId: 'club1', mustChangePassword: false, active: true });
+    obtenerSlugsPorRolIds.mockResolvedValueOnce(['secretaria']);
+    const req = { body: { refreshToken: 'rt1' } };
+    const res = mockRes();
+
+    await authHandlers.refresh(req, res);
+
+    expect(obtenerSlugsPorRolIds).toHaveBeenCalledWith({ clubId: 'club1', rolIds: ['rol-secretaria'] });
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+      user: expect.objectContaining({ roles: ['secretaria'] }),
+    }));
+  });
+
+  it('refresh should reject a body whose refreshToken is not a string (appcarc-backend#245)', async () => {
+    const req = { body: { refreshToken: { $ne: null } } };
+    const res = mockRes();
+
+    await authHandlers.refresh(req, res);
+
+    expect(claimRefreshToken).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('login should reject operators in email or password without querying users (appcarc-backend#245)', async () => {
+    User.find.mockClear();
+    const req = { body: { email: { $ne: null }, password: 'DNI123' } };
+    const res = mockRes();
+
+    await authHandlers.login(req, res);
+
+    expect(User.find).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('login should return 400 instead of 500 when the password is missing (appcarc-backend#245)', async () => {
+    const req = { body: { email: 'a@b.com' } };
+    const res = mockRes();
+
+    await authHandlers.login(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
   });
 
   it('registerPushToken should update user and return 200', async () => {

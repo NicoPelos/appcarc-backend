@@ -6,7 +6,7 @@ import VinculoFamiliar from '../../vinculos/models/VinculoFamiliar.js';
 import Notification from '../../notificaciones/models/Notification.js';
 import bcrypt from 'bcryptjs';
 import tokenService from '../../../services/tokenBlacklistService.js';
-import { issueRefreshToken, findValidRefreshToken, revokeRefreshToken } from '../../../services/refreshTokenService.js';
+import { issueRefreshToken, claimRefreshToken, revokeRefreshToken } from '../../../services/refreshTokenService.js';
 import { getPermisosUsuario } from '../../../services/permisosCache.js';
 import { esClubActivo } from '../../../services/clubActivoCache.js';
 import { generarPasswordTemporal } from '../../../services/generarPasswordTemporal.service.js';
@@ -20,6 +20,10 @@ import {
 // el uso diario normal ya estaba vencido para la tarde — appcarc-mobile#107)
 // porque ahora el refresh token lo renueva solo mientras haya actividad.
 const ACCESS_TOKEN_TTL = '1h';
+
+// Un body con objetos o operadores de Mongo ({ $ne: null }) llegaría directo a
+// los filtros y a bcrypt (appcarc-backend#245): solo se aceptan strings no vacíos.
+const esTexto = (v) => typeof v === 'string' && v.length > 0;
 
 /** Arma la respuesta final de auth (token + refreshToken + user + permisos +
  * socio) para un `User` ya autenticado, con el `socioId` del perfil activo
@@ -337,6 +341,9 @@ export const googleCallback = async (req, res) => {
 
 export const login = async (req, res) => {
   const { email, password, clubId } = req.body;
+  if (!esTexto(email) || !esTexto(password) || (clubId !== undefined && !esTexto(clubId))) {
+    return res.status(400).json({ message: 'Credenciales inválidas.' });
+  }
   try {
     // El email no es único entre clubes (ver User.js): antes se tomaba una
     // cuenta arbitraria con findOne({ email }) y, con la misma contraseña
@@ -382,7 +389,7 @@ const resolverPerfilElegido = async (user, socioId) => {
 
 export const selectProfile = async (req, res) => {
   const { selectToken, socioId } = req.body;
-  if (!selectToken || !socioId) {
+  if (!esTexto(selectToken) || !esTexto(socioId)) {
     return res.status(400).json({ message: 'selectToken y socioId son requeridos.' });
   }
 
@@ -432,7 +439,7 @@ export const getProfiles = async (req, res) => {
  * duración emitido en el login), acá se usa el token normal ya válido. */
 export const switchProfile = async (req, res) => {
   const { socioId } = req.body;
-  if (!socioId) return res.status(400).json({ message: 'socioId es requerido.' });
+  if (!esTexto(socioId)) return res.status(400).json({ message: 'socioId es requerido.' });
 
   try {
     const user = await User.findById(req.user?.id);
@@ -498,15 +505,16 @@ export const registerPushToken = async (req, res) => {
  * que el dispositivo pudo haber perdido. */
 export const refresh = async (req, res) => {
   const { refreshToken } = req.body;
-  if (!refreshToken) return res.status(400).json({ message: 'refreshToken es requerido.' });
+  if (!esTexto(refreshToken)) return res.status(400).json({ message: 'refreshToken es requerido.' });
 
   try {
-    const doc = await findValidRefreshToken(refreshToken);
+    // Se consume el token antes de validar nada: dos renovaciones concurrentes
+    // con el mismo token no pueden emitir dos sesiones (appcarc-backend#248).
+    const doc = await claimRefreshToken(refreshToken);
     if (!doc) return res.status(401).json({ message: 'Sesión expirada, iniciá sesión de nuevo.' });
 
     const user = await User.findById(doc.userId);
     if (!user || !user.active) {
-      await revokeRefreshToken(refreshToken);
       return res.status(401).json({ message: 'Usuario no encontrado o desactivado' });
     }
     // appcarc-backend#169: el refresh token re-emite el access token sin
@@ -514,7 +522,6 @@ export const refresh = async (req, res) => {
     // seguía renovando sesiones indefinidamente mientras el refresh token
     // siguiera vigente.
     if (!(await esClubActivo(user.clubId))) {
-      await revokeRefreshToken(refreshToken);
       return res.status(403).json({ message: 'El club está suspendido' });
     }
 
@@ -522,12 +529,13 @@ export const refresh = async (req, res) => {
     // emitido antes de un cambio de contraseña no puede seguir renovando
     // sesiones (appcarc-backend#199).
     if (user.passwordChangedAt && doc.createdAt < user.passwordChangedAt) {
-      await revokeRefreshToken(refreshToken);
       return res.status(401).json({ message: 'Sesión expirada, la contraseña fue cambiada' });
     }
 
-    await revokeRefreshToken(refreshToken);
-    const response = await buildAuthResponse(user, { socioId: doc.payload.socioId, rolesSlugs: doc.payload.roles });
+    // Los roles se releen de la base: un cambio o baja de rol tiene que
+    // aplicarse en la próxima renovación, no quedar congelado en el payload
+    // (appcarc-backend#247). El perfil activo sí se conserva.
+    const response = await buildAuthResponse(user, { socioId: doc.payload.socioId });
     res.status(200).json(response);
   } catch (error) {
     console.error('Error renovando sesión:', error);
