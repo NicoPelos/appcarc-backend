@@ -1,30 +1,16 @@
 import express from 'express';
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import { crearLoginLimiter } from './middleware/loginLimiter.js';
 import { googleLogin, googleCallback, register, login, selectProfile, getProfiles, switchProfile, refresh, logout, changePassword, registerPushToken } from './handlers/auth.handler.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { PERMISOS } from '../../constants/permisos.js';
 
 // No-op en test: los tests de integración (supertest) pegan contra este mismo
-// Express real, todos desde el mismo origen — max:10 cada 15min se agota
-// enseguida corriendo la suite completa y algunos tests reciben un 429 real
-// en vez del código que están probando (mismo criterio que apiLimiter en
-// index.js, appcarc-backend#143 — este limiter quedó afuera de ese fix por
-// vivir en otro archivo).
-// Solo el login recibe contraseña, así que es el único que se limita. La clave
-// combina IP y email: varias personas detrás de la misma IP del club no se
-// bloquean entre sí, pero sí se frena la fuerza bruta contra una cuenta
-// (appcarc-backend#250). Los logins exitosos no cuentan.
+// Express real, todos desde el mismo origen — el límite se agota enseguida
+// corriendo la suite completa. El limiter real se prueba aparte
+// (tests/unit/loginLimiter.test.js).
 const loginLimiter = process.env.NODE_ENV === 'test'
   ? (req, res, next) => next()
-  : rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutos
-    max: 10,
-    skipSuccessfulRequests: true,
-    keyGenerator: (req) => `${ipKeyGenerator(req.ip)}|${String(req.body?.email ?? '').toLowerCase()}`,
-    standardHeaders: true,
-    legacyHeaders: false,
-    message: { message: 'Demasiados intentos de login. Intentá de nuevo en 15 minutos.' },
-  });
+  : crearLoginLimiter();
 
 const router = express.Router();
 
