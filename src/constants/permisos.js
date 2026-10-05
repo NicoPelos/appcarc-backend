@@ -101,6 +101,12 @@ export const PERMISOS = {
   EVENTOS_WRITE:  'eventos:write',
   EVENTOS_DELETE: 'eventos:delete',
 
+  // Inventario (equipo del club: cuerdas, cascos, herramientas, etc.) — cada
+  // ítem con su foto y su estado. Lectura y escritura separadas por rol.
+  INVENTARIO_READ:   'inventario:read',
+  INVENTARIO_WRITE:  'inventario:write',
+  INVENTARIO_DELETE: 'inventario:delete',
+
   // Juego (mini-juego "Escalada Infinita" dentro de la app — registrar
   // puntaje y ver el podio). Un solo permiso, sin read/write/delete: no hay
   // dato del club detrás para separar por nivel de acceso, solo "puede jugar".
@@ -134,4 +140,5 @@ export const PERMISOS_POR_CATEGORIA = [
   { categoria: 'Recursos externos', permisos: [PERMISOS.RECURSOS_READ, PERMISOS.RECURSOS_WRITE, PERMISOS.RECURSOS_DELETE] },
   { categoria: 'Eventos', permisos: [PERMISOS.EVENTOS_READ, PERMISOS.EVENTOS_WRITE, PERMISOS.EVENTOS_DELETE] },
   { categoria: 'Juego', permisos: [PERMISOS.JUEGO_JUGAR] },
+  { categoria: 'Inventario', permisos: [PERMISOS.INVENTARIO_READ, PERMISOS.INVENTARIO_WRITE, PERMISOS.INVENTARIO_DELETE] },
 ];
