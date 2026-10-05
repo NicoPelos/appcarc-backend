@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { protectSuper } from '../../middleware/auth.js';
 
 import { getClubsHandler }       from './handlers/getClubs.handler.js';
@@ -26,6 +27,12 @@ import { deleteSuperRolHandler } from './handlers/deleteSuperRol.handler.js';
 import { getPermisosCatalogoHandler } from './handlers/getPermisosCatalogo.handler.js';
 
 const router = express.Router();
+
+// Un id que no es ObjectId llegaba a los handlers y terminaba en 500 por
+// CastError (appcarc-backend#240).
+router.param('id', (req, res, next, id) => (
+  mongoose.isValidObjectId(id) ? next() : res.status(400).json({ message: 'ID inválido' })
+));
 
 // Clubs
 router.get('/clubs',              protectSuper, getClubsHandler);

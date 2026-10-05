@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import mongoose from 'mongoose';
 
 vi.mock('../../../audit/models/AuditLog.js', () => ({
-  default: { findById: vi.fn() },
+  default: { findById: vi.fn(), findOneAndUpdate: vi.fn(), updateOne: vi.fn() },
 }));
 
 vi.mock('../../../audit/services/audit.service.js', () => ({
@@ -45,6 +45,8 @@ const buildLog = (overrides = {}) => ({
 describe('revertSuperAuditHandler', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    AuditLog.findOneAndUpdate.mockResolvedValue({ _id: VALID_ID, revertedAt: new Date() });
+    AuditLog.updateOne.mockResolvedValue({});
     Object.keys(REVERSERS).forEach((key) => delete REVERSERS[key]);
     vi.spyOn(mongoose, 'startSession').mockResolvedValue({
       withTransaction: vi.fn(async (cb) => cb()),
@@ -88,7 +90,7 @@ describe('revertSuperAuditHandler', () => {
     await revertSuperAuditHandler(req, res);
 
     expect(mockUpdate).toHaveBeenCalledWith(VALID_ID, { $set: expect.objectContaining({ nombre: 'Antes', active: true }) }, { upsert: false });
-    expect(log.save).toHaveBeenCalled();
+    expect(AuditLog.findOneAndUpdate).toHaveBeenCalledWith({ _id: VALID_ID, revertedAt: null }, expect.anything(), expect.anything());
     // el log del revert se registra contra el club dueño del dato, no contra el clubId del superadmin
     expect(logAudit).toHaveBeenCalledWith(expect.objectContaining({ clubId: 'otroClub' }));
     expect(res.status).toHaveBeenCalledWith(200);
@@ -118,7 +120,7 @@ describe('revertSuperAuditHandler', () => {
     await revertSuperAuditHandler({ params: { id: VALID_ID }, user: SUPERADMIN }, res);
 
     expect(res.status).toHaveBeenCalledWith(422);
-    expect(log.save).not.toHaveBeenCalled();
+    expect(AuditLog.updateOne).toHaveBeenCalledWith({ _id: VALID_ID }, { $set: { revertedAt: null, revertedBy: null } });
   });
 
   it('#193: devuelve 422 si el documento ya no existe al revertir un CREATE', async () => {
@@ -130,7 +132,7 @@ describe('revertSuperAuditHandler', () => {
     await revertSuperAuditHandler({ params: { id: VALID_ID }, user: SUPERADMIN }, res);
 
     expect(res.status).toHaveBeenCalledWith(422);
-    expect(log.save).not.toHaveBeenCalled();
+    expect(AuditLog.updateOne).toHaveBeenCalledWith({ _id: VALID_ID }, { $set: { revertedAt: null, revertedBy: null } });
   });
 
   it('devuelve 422 si no hay snapshot before para UPDATE', async () => {

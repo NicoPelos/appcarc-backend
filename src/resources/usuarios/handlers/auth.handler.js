@@ -491,6 +491,13 @@ export const registerPushToken = async (req, res) => {
   }
 
   try {
+    // Un mismo dispositivo puede loguearse con otra cuenta: el token pasa a
+    // ser de quien lo registró último, sin dejar pushes duplicados en la otra
+    // (appcarc-backend#249).
+    await User.updateMany(
+      { expoPushToken, _id: { $ne: req.user?.id } },
+      { $set: { expoPushToken: null } },
+    );
     await User.findByIdAndUpdate(req.user?.id, { expoPushToken });
     res.status(200).json({ message: 'Token registrado correctamente' });
   } catch (error) {
@@ -549,6 +556,7 @@ export const logout = async (req, res) => {
     if (!token) return res.status(400).json({ message: 'Falta token' });
     await tokenService.addToken(token);
     if (req.body?.refreshToken) await revokeRefreshToken(req.body.refreshToken);
+    if (req.user?.id) await User.findByIdAndUpdate(req.user.id, { expoPushToken: null });
     return res.status(200).json({ message: 'Desconectado correctamente' });
   } catch (error) {
     console.error('Error en logout:', error);

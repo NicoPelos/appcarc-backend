@@ -5,6 +5,7 @@ vi.mock('../../../../services/clubActivoCache.js', () => ({
 import { getClubsHandler }    from '../../handlers/getClubs.handler.js';
 import { createClubHandler }  from '../../handlers/createClub.handler.js';
 import { suspendClubHandler } from '../../handlers/suspendClub.handler.js';
+import { updateClubHandler } from '../../handlers/updateClub.handler.js';
 import Club from '../../../clubs/models/Club.js';
 import User from '../../../usuarios/models/User.js';
 import Socio from '../../../socios/models/Socio.js';
@@ -23,6 +24,7 @@ describe('Super — clubs handlers (unit)', () => {
     Club.findOne          = vi.fn();
     Club.findByIdAndUpdate = vi.fn();
     Club.findById         = vi.fn();
+    Club.findOneAndUpdate = vi.fn().mockImplementation(async (_filtro, { $set }) => ({ _id: 'c1', slug: 'carc', ...$set }));
     Club.create           = vi.fn();
     User.countDocuments   = vi.fn().mockResolvedValue(3);
     Socio.countDocuments  = vi.fn().mockResolvedValue(10);
@@ -83,22 +85,59 @@ describe('Super — clubs handlers (unit)', () => {
   });
 
   it('suspendClubHandler togglea active', async () => {
-    const fakeClub = { _id: 'c1', slug: 'carc', active: true, suspendidoAt: null, save: vi.fn() };
+    const fakeClub = { _id: 'c1', slug: 'carc', active: true, suspendidoAt: null };
     Club.findById.mockResolvedValue(fakeClub);
     const req = { params: { id: 'c1' } };
     const res = mockRes();
     await suspendClubHandler(req, res);
-    expect(fakeClub.active).toBe(false);
-    expect(fakeClub.save).toHaveBeenCalled();
+    expect(Club.findOneAndUpdate).toHaveBeenCalledWith({ _id: 'c1', active: true }, { $set: { active: false, suspendidoAt: expect.any(Date) } }, { new: true });
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith({ active: false, suspendidoAt: expect.any(Date) });
+  });
+
+  it('suspendClubHandler con activo explícito es idempotente: repetir no reactiva (appcarc-backend#242)', async () => {
+    const fakeClub = { _id: 'c1', slug: 'carc', active: false, suspendidoAt: new Date() };
+    Club.findById.mockResolvedValue(fakeClub);
+    const req = { params: { id: 'c1' }, body: { activo: false } };
+    const res = mockRes();
+    await suspendClubHandler(req, res);
+    expect(Club.findOneAndUpdate).not.toHaveBeenCalled();
+    expect(res.json).toHaveBeenCalledWith({ active: false, suspendidoAt: fakeClub.suspendidoAt });
+  });
+
+  it('suspendClubHandler no da vuelta el estado si otro request ya lo cambió (appcarc-backend#242)', async () => {
+    const fakeClub = { _id: 'c1', slug: 'carc', active: true, suspendidoAt: null };
+    Club.findById.mockResolvedValueOnce(fakeClub).mockResolvedValueOnce({ _id: 'c1', active: false, suspendidoAt: new Date() });
+    Club.findOneAndUpdate.mockResolvedValueOnce(null);
+    const req = { params: { id: 'c1' } };
+    const res = mockRes();
+    await suspendClubHandler(req, res);
+    expect(res.json).toHaveBeenCalledWith({ active: false, suspendidoAt: expect.any(Date) });
   });
 
   it('suspendClubHandler invalida el cache de esClubActivo (appcarc-backend#169)', async () => {
-    const fakeClub = { _id: 'c1', slug: 'carc', active: true, suspendidoAt: null, save: vi.fn() };
+    const fakeClub = { _id: 'c1', slug: 'carc', active: true, suspendidoAt: null };
     Club.findById.mockResolvedValue(fakeClub);
     const req = { params: { id: 'c1' } };
     const res = mockRes();
     await suspendClubHandler(req, res);
     expect(invalidarClubActivo).toHaveBeenCalledWith('carc');
+  });
+
+  it('updateClubHandler no pisa módulos ni integraciones que no vienen en el body (appcarc-backend#238)', async () => {
+    Club.findByIdAndUpdate.mockResolvedValue({ _id: 'c1' });
+    const req = { params: { id: 'c1' }, body: { modulos: { eventos: true } } };
+    const res = mockRes();
+    await updateClubHandler(req, res);
+    expect(Club.findByIdAndUpdate).toHaveBeenCalledWith('c1', { $set: { 'modulos.eventos': true } }, { new: true, runValidators: true });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('updateClubHandler rechaza modulos que no es un objeto (appcarc-backend#240)', async () => {
+    const req = { params: { id: 'c1' }, body: { modulos: 'todo' } };
+    const res = mockRes();
+    await updateClubHandler(req, res);
+    expect(Club.findByIdAndUpdate).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
   });
 });

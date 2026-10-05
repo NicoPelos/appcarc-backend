@@ -585,6 +585,7 @@ describe('Usuarios auth handlers (unit)', () => {
 
   it('registerPushToken should update user and return 200', async () => {
     User.findByIdAndUpdate = vi.fn().mockResolvedValue({});
+    User.updateMany = vi.fn().mockResolvedValue({});
     const req = {
       body: { expoPushToken: 'ExponentPushToken[abc123]' },
       user: { id: 'u1' },
@@ -594,6 +595,34 @@ describe('Usuarios auth handlers (unit)', () => {
     await authHandlers.registerPushToken(req, res);
 
     expect(User.findByIdAndUpdate).toHaveBeenCalledWith('u1', { expoPushToken: 'ExponentPushToken[abc123]' });
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('registerPushToken should clear that token from any other user first (appcarc-backend#249)', async () => {
+    User.findByIdAndUpdate = vi.fn().mockResolvedValue({});
+    User.updateMany = vi.fn().mockResolvedValue({});
+    const req = {
+      body: { expoPushToken: 'ExponentPushToken[abc123]' },
+      user: { id: 'u1' },
+    };
+    const res = mockRes();
+
+    await authHandlers.registerPushToken(req, res);
+
+    expect(User.updateMany).toHaveBeenCalledWith(
+      { expoPushToken: 'ExponentPushToken[abc123]', _id: { $ne: 'u1' } },
+      { $set: { expoPushToken: null } },
+    );
+  });
+
+  it('logout should clear the push token of the user that logs out (appcarc-backend#249)', async () => {
+    User.findByIdAndUpdate = vi.fn().mockResolvedValue({});
+    const req = { headers: { authorization: 'Bearer abc' }, body: {}, user: { id: 'u1' } };
+    const res = mockRes();
+
+    await authHandlers.logout(req, res);
+
+    expect(User.findByIdAndUpdate).toHaveBeenCalledWith('u1', { expoPushToken: null });
     expect(res.status).toHaveBeenCalledWith(200);
   });
 

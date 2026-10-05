@@ -1,5 +1,5 @@
 import express from 'express';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { googleLogin, googleCallback, register, login, selectProfile, getProfiles, switchProfile, refresh, logout, changePassword, registerPushToken } from './handlers/auth.handler.js';
 import { protect, authorize } from '../../middleware/auth.js';
 import { PERMISOS } from '../../constants/permisos.js';
@@ -10,11 +10,17 @@ import { PERMISOS } from '../../constants/permisos.js';
 // en vez del código que están probando (mismo criterio que apiLimiter en
 // index.js, appcarc-backend#143 — este limiter quedó afuera de ese fix por
 // vivir en otro archivo).
+// Solo el login recibe contraseña, así que es el único que se limita. La clave
+// combina IP y email: varias personas detrás de la misma IP del club no se
+// bloquean entre sí, pero sí se frena la fuerza bruta contra una cuenta
+// (appcarc-backend#250). Los logins exitosos no cuentan.
 const loginLimiter = process.env.NODE_ENV === 'test'
   ? (req, res, next) => next()
   : rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutos
     max: 10,
+    skipSuccessfulRequests: true,
+    keyGenerator: (req) => `${ipKeyGenerator(req.ip)}|${String(req.body?.email ?? '').toLowerCase()}`,
     standardHeaders: true,
     legacyHeaders: false,
     message: { message: 'Demasiados intentos de login. Intentá de nuevo en 15 minutos.' },
@@ -154,7 +160,7 @@ router.post('/login', loginLimiter, login);
  *       401: { description: selectToken inválido o expirado }
  *       403: { description: No tenés acceso a ese perfil }
  */
-router.post('/select-profile', loginLimiter, selectProfile);
+router.post('/select-profile', selectProfile);
 
 /**
  * @openapi
@@ -214,7 +220,7 @@ router.post('/switch-profile', protect, switchProfile);
  *       400: { description: Falta refreshToken }
  *       401: { description: refreshToken inválido, vencido o ya usado }
  */
-router.post('/refresh', loginLimiter, refresh);
+router.post('/refresh', refresh);
 
 /**
  * @openapi

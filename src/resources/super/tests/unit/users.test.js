@@ -3,6 +3,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 vi.mock('../../../roles/services/resolverRoles.service.js', () => ({
   obtenerRolIdsPorNombres: vi.fn().mockResolvedValue(['rol-id-1']),
 }));
+vi.mock('../../../clubs/models/Club.js', () => ({
+  default: { exists: vi.fn().mockResolvedValue({ _id: 'c1' }) },
+}));
+
 vi.mock('../../../socios/models/Socio.js', () => ({
   default: { find: vi.fn() },
 }));
@@ -10,6 +14,7 @@ vi.mock('../../../socios/models/Socio.js', () => ({
 import { getUsersHandler }        from '../../handlers/getUsers.handler.js';
 import { createSuperUserHandler } from '../../handlers/createSuperUser.handler.js';
 import { deleteSuperUserHandler } from '../../handlers/deleteSuperUser.handler.js';
+import Club from '../../../clubs/models/Club.js';
 import { resetUserPasswordHandler } from '../../handlers/resetUserPassword.handler.js';
 import User from '../../../usuarios/models/User.js';
 import Socio from '../../../socios/models/Socio.js';
@@ -146,6 +151,15 @@ describe('Super — users handlers (unit)', () => {
     const req = { body: { clubId: 'CARC' } };
     const res = mockRes();
     await createSuperUserHandler(req, res);
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('createSuperUserHandler rechaza un clubId que no existe (appcarc-backend#240)', async () => {
+    Club.exists.mockResolvedValueOnce(null);
+    const req = { body: { email: 'a@b.com', clubId: 'NOEXISTE' } };
+    const res = mockRes();
+    await createSuperUserHandler(req, res);
+    expect(User.create).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(400);
   });
 

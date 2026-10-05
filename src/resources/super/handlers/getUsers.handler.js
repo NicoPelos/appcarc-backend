@@ -1,6 +1,6 @@
 import User from '../../usuarios/models/User.js';
 import Socio from '../../socios/models/Socio.js';
-import { obtenerRolIdsPorNombres } from '../../roles/services/resolverRoles.service.js';
+import Rol from '../../roles/models/Rol.js';
 
 export const getUsersHandler = async (req, res) => {
   try {
@@ -10,7 +10,12 @@ export const getUsersHandler = async (req, res) => {
 
     const filter = {};
     if (clubId) filter.clubId = clubId;
-    if (rol) filter.roles = { $in: await obtenerRolIdsPorNombres({ clubId, nombres: [rol] }) };
+    // Sin clubId, el rol se busca en todos los clubes: antes resolvía contra
+    // clubId undefined y devolvía siempre una lista vacía (appcarc-backend#241).
+    if (rol) {
+      const rolFilter = clubId ? { clubId, nombre: rol } : { nombre: rol };
+      filter.roles = { $in: await Rol.find(rolFilter).distinct('_id') };
+    }
     if (active !== undefined) filter.active = active === 'true';
 
     if (search) {
