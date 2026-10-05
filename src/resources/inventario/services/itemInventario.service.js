@@ -1,4 +1,5 @@
 import { ESTADOS_ITEM } from '../models/ItemInventario.js';
+import CategoriaInventario from '../models/CategoriaInventario.js';
 
 const CAMPOS = ['nombre', 'categoria', 'cantidad', 'ubicacion', 'estado', 'notas'];
 
@@ -34,3 +35,11 @@ export const prepararItem = (body = {}, { parcial = false } = {}) => {
 };
 
 export const escaparRegex = (texto) => texto.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+// Una categoría vacía es válida (ítem sin categoría); cualquier otra tiene que
+// estar en la lista del club, así el filtro y el listado no quedan con
+// nombres sueltos que no se pueden elegir de nuevo.
+export const categoriaExiste = async ({ clubId, categoria }) => {
+  if (!categoria) return true;
+  return CategoriaInventario.exists({ clubId, active: true, nombre: categoria }).then(Boolean);
+};

@@ -99,3 +99,15 @@ describe('getItemsInventarioHandler', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 });
+
+describe('categorías de inventario', () => {
+  it('createItem rechaza una categoría que el club no tiene cargada', async () => {
+    vi.clearAllMocks();
+    const { default: CategoriaInventario } = await import('../../models/CategoriaInventario.js');
+    CategoriaInventario.exists = vi.fn().mockResolvedValue(null);
+    const res = mockRes();
+    await createItemInventarioHandler({ body: { nombre: 'Cuerda', categoria: 'Inventada' }, user: USER }, res);
+    expect(ItemInventario.create).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+});

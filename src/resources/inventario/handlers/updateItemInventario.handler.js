@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import ItemInventario from '../models/ItemInventario.js';
-import { prepararItem } from '../services/itemInventario.service.js';
+import { prepararItem, categoriaExiste } from '../services/itemInventario.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 export const updateItemInventarioHandler = async (req, res) => {
@@ -10,6 +10,9 @@ export const updateItemInventarioHandler = async (req, res) => {
 
     const { data, error } = prepararItem(req.body, { parcial: true });
     if (error) return res.status(400).json({ message: error });
+    if (data.categoria !== undefined && !(await categoriaExiste({ clubId: req.user?.clubId, categoria: data.categoria }))) {
+      return res.status(400).json({ message: `La categoría "${data.categoria}" no existe en el inventario` });
+    }
 
     const item = await ItemInventario.findOne({ _id: id, clubId: req.user?.clubId, active: true });
     if (!item) return res.status(404).json({ message: 'Ítem no encontrado' });
