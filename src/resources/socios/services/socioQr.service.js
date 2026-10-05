@@ -5,6 +5,7 @@ import Cuota from '../../cuotas/models/Cuota.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
+import { periodoDeFecha } from '../../../services/fechaArgentina.js';
 
 const QR_TYPE = 'socio_qr';
 
@@ -129,10 +130,9 @@ export const getLastMuroLibre = async (socioId, clubId) => {
   return Asistencia.findOne({ clubId, socioId, tipo: 'muro_libre', active: true }).sort({ fecha: -1 });
 };
 
-const periodoActual = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-};
+// Período en huso argentino, no en el de la hora local del servidor: a fin de
+// mes el servidor en UTC ya está en el mes siguiente (appcarc-backend#233).
+const periodoActual = () => periodoDeFecha(new Date());
 
 export const getPaseMuroLibreVigente = async (socioId, clubId) => {
   const periodo = periodoActual();
@@ -164,6 +164,7 @@ export const getPaseMuroLibreVigente = async (socioId, clubId) => {
     etiquetaId: etiquetaMensual._id,
     periodo,
     estado: 'pagada',
+    active: true,
   }).lean();
 
   return { suscripto: true, vigente: Boolean(cuota), periodo };

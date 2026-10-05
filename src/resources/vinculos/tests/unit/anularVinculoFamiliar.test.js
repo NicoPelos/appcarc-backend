@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { BusinessError, anularVinculoFamiliar } from '../../services/anularVinculoFamiliar.service.js';
+import { anularVinculoFamiliar } from '../../services/anularVinculoFamiliar.service.js';
+import { BusinessError } from '../../services/businessError.js';
 import VinculoFamiliar from '../../models/VinculoFamiliar.js';
 
 const CLUB_ID = 'club1';

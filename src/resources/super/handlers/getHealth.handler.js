@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { JOBS } from './runJob.handler.js';
 
 const MONGO_STATES = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' };
 
@@ -18,7 +19,7 @@ export const getHealthHandler = async (req, res) => {
       uptimeHuman: formatUptime(uptime),
       mongoStatus: MONGO_STATES[mongoose.connection.readyState] ?? 'unknown',
       timestamp: new Date().toISOString(),
-      jobs: ['syncInstagram', 'recordatorioCuotas', 'syncSheets'],
+      jobs: Object.keys(JOBS),
     });
   } catch (error) {
     res.status(500).json({ status: 'error', message: error.message });

@@ -18,7 +18,7 @@ const runPerClub = async (clubIds, task) => {
   return { clubes: detalle.length, detalle };
 };
 
-const JOBS = {
+export const JOBS = {
   syncSheets: async () => {
     const clubs = await Club.find({ active: true, 'modulos.exportSheets': true });
     return runPerClub(clubs.map((c) => c.slug), async (clubId) => {

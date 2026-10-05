@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Socio from '../models/Socio.js';
 import { calcularDeuda } from '../../cuotas/services/calcularDeuda.service.js';
 
@@ -56,7 +57,10 @@ export const getSociosMorososHandler = async (req, res) => {
     const incluirCuotas = req.query.incluirCuotas !== 'false';
     const comparador = COMPARADORES_VALIDOS.includes(req.query.comparador) ? req.query.comparador : 'gte';
     const meses = Math.max(parseInt(req.query.meses, 10) || 1, 1);
-    const etiquetaId = req.query.etiquetaId || null;
+    const etiquetaId = typeof req.query.etiquetaId === 'string' && req.query.etiquetaId ? req.query.etiquetaId : null;
+    if (etiquetaId && !mongoose.isValidObjectId(etiquetaId)) {
+      return res.status(400).json({ message: 'etiquetaId inválido' });
+    }
     const incluirCargosPuntuales = req.query.incluirCargosPuntuales === 'true';
     const incluirMuroLibreVisita = req.query.incluirMuroLibreVisita === 'true';
 

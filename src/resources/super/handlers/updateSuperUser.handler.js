@@ -1,4 +1,5 @@
 import User from '../../usuarios/models/User.js';
+import { anularVinculosFamiliares } from '../../vinculos/services/anularVinculosFamiliares.service.js';
 import { obtenerRolIdsPorNombres } from '../../roles/services/resolverRoles.service.js';
 
 export const updateSuperUserHandler = async (req, res) => {
@@ -22,6 +23,14 @@ export const updateSuperUserHandler = async (req, res) => {
 
     const user = await User.findByIdAndUpdate(id, { $set: update }, { new: true })
       .select('-password -expoPushToken');
+
+    if (update.active === false) {
+      await anularVinculosFamiliares({
+        clubId: existente.clubId,
+        padreUserIds: [existente._id],
+        actor: req.user?.email || req.user?.id,
+      });
+    }
 
     res.status(200).json(user);
   } catch (error) {

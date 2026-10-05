@@ -16,14 +16,13 @@ export const slugify = (texto) => (
 // socio") — el nombre es solo la etiqueta editable que ve el humano. Si el
 // slugify básico ya existe en el club (ej. dos roles que dan "instructor"),
 // se desambigua con un sufijo numérico en vez de fallar.
-export const generarSlugUnico = async ({ clubId, nombre, excludeId }) => {
+export const generarSlugUnico = async ({ clubId, nombre }) => {
   const base = slugify(nombre) || 'rol';
   let candidato = base;
   let sufijo = 2;
 
   while (true) {
     const filter = { clubId, slug: candidato, active: true };
-    if (excludeId) filter._id = { $ne: excludeId };
     const existe = await Rol.findOne(filter);
     if (!existe) return candidato;
     candidato = `${base}-${sufijo}`;

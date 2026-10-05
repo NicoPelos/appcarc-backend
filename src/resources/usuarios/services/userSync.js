@@ -2,7 +2,8 @@ import bcrypt from 'bcryptjs';
 import User from '../models/User.js';
 import { obtenerRolIdsPorSlugs, obtenerSlugsPorRolIds } from '../../roles/services/resolverRoles.service.js';
 
-export const syncSocioUserFromSocio = async (socio) => {
+export const syncSocioUserFromSocio = async (socio, { session } = {}) => {
+  const conSesion = (query) => (session ? query.session(session) : query);
   if (!socio?.correoElectronico || !socio?.dni) return null;
 
   const email = socio.correoElectronico.toLowerCase().trim();
@@ -13,14 +14,14 @@ export const syncSocioUserFromSocio = async (socio) => {
 
   let user = null;
   if (socio._id) {
-    user = await User.findOne({ socioId: socio._id.toString() });
+    user = await conSesion(User.findOne({ socioId: socio._id.toString() }));
   }
   if (!user) {
     // Acotado por clubId: el email no es único globalmente (ver User.js), y
     // Socio.correoElectronico tampoco — sin este filtro, un socio de OTRO club
     // con el mismo email de contacto podía "robarse" el User ajeno y quedar
     // reasignado a este club (appcarc-backend#66).
-    user = await User.findOne({ email, clubId: socio.clubId });
+    user = await conSesion(User.findOne({ email, clubId: socio.clubId }));
   }
 
   if (user) {
@@ -51,7 +52,7 @@ export const syncSocioUserFromSocio = async (socio) => {
       const salt = await bcrypt.genSalt(10);
       user.password = await bcrypt.hash(password, salt);
     }
-    await user.save();
+    await user.save({ session });
     return user;
   }
 
@@ -70,6 +71,6 @@ export const syncSocioUserFromSocio = async (socio) => {
     mustChangePassword: true,
   });
 
-  await user.save();
+  await user.save({ session });
   return user;
 };

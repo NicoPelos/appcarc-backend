@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import mongoose from 'mongoose';
 
-import { BusinessError, crearVinculoFamiliar } from '../../services/crearVinculoFamiliar.service.js';
+import { crearVinculoFamiliar } from '../../services/crearVinculoFamiliar.service.js';
+import { BusinessError } from '../../services/businessError.js';
 import User from '../../../usuarios/models/User.js';
 import Socio from '../../../socios/models/Socio.js';
 import VinculoFamiliar from '../../models/VinculoFamiliar.js';
@@ -85,7 +86,7 @@ describe('crearVinculoFamiliar service (unit)', () => {
     Socio.findOne
       .mockReturnValueOnce(chainableFindOne({ _id: HIJO_ID, clubId: CLUB_ID })) // hijo
       .mockReturnValueOnce(chainableFindOne({ _id: SOCIO_PAPA_ID, clubId: CLUB_ID })); // padre socio
-    User.findOne.mockReturnValue(chainableFindOneSessionOnly({ _id: PADRE_ID, clubId: CLUB_ID, socioId: SOCIO_PAPA_ID }));
+    User.findOne.mockReturnValue(chainableFindOneSessionOnly({ _id: PADRE_ID, clubId: CLUB_ID, socioId: SOCIO_PAPA_ID, active: true }));
 
     const { vinculo, passwordTemporal } = await crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: { padreSocioId: SOCIO_PAPA_ID } });
 
@@ -99,7 +100,7 @@ describe('crearVinculoFamiliar service (unit)', () => {
       .mockReturnValueOnce(chainableFindOne({ _id: HIJO_ID, clubId: CLUB_ID }))
       .mockReturnValueOnce(chainableFindOne({ _id: SOCIO_PAPA_ID, clubId: CLUB_ID, correoElectronico: 'papa@test.com', dni: '12345678' }));
     User.findOne.mockReturnValue(chainableFindOneSessionOnly(null));
-    syncSocioUserFromSocio.mockResolvedValue({ _id: USER_PAPA_NUEVO_ID, socioId: SOCIO_PAPA_ID });
+    syncSocioUserFromSocio.mockResolvedValue({ _id: USER_PAPA_NUEVO_ID, socioId: SOCIO_PAPA_ID, active: true });
 
     const { vinculo, passwordTemporal } = await crearVinculoFamiliar({ clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID, body: { padreSocioId: SOCIO_PAPA_ID } });
 
@@ -120,7 +121,7 @@ describe('crearVinculoFamiliar service (unit)', () => {
   });
 
   it('should reuse an existing User found by padreEmail', async () => {
-    User.findOne.mockReturnValue(chainableFindOneSessionOnly({ _id: USER_TUTOR_ID, clubId: CLUB_ID, socioId: null }));
+    User.findOne.mockReturnValue(chainableFindOneSessionOnly({ _id: USER_TUTOR_ID, clubId: CLUB_ID, socioId: null, active: true }));
 
     const { vinculo, passwordTemporal } = await crearVinculoFamiliar({
       clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID,
@@ -208,5 +209,14 @@ describe('crearVinculoFamiliar service (unit)', () => {
       .rejects.toThrow('DB down');
 
     expect(endSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('should reject a padreEmail whose existing User is inactive (appcarc-backend#254)', async () => {
+    User.findOne.mockReturnValue(chainableFindOneSessionOnly({ _id: USER_TUTOR_ID, clubId: CLUB_ID, socioId: null, active: false }));
+
+    await expect(crearVinculoFamiliar({
+      clubId: CLUB_ID, user: USER, hijoSocioId: HIJO_ID,
+      body: { padreEmail: 'tutor@test.com' },
+    })).rejects.toBeInstanceOf(BusinessError);
   });
 });

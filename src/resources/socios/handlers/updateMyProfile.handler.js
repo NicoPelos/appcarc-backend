@@ -135,7 +135,7 @@ export const updateMyProfileHandler = async (req, res) => {
     }
 
     // Sincronizar con Google Sheets
-    await syncSocioToSheet(socio);
+    await syncSocioToSheet(socio).catch((err) => console.error('Error sincronizando socio a Google Sheets:', err.message));
 
     res.status(200).json({
       message: 'Perfil actualizado exitosamente',

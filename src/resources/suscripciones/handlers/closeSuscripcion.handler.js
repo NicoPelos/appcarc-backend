@@ -2,8 +2,8 @@ import mongoose from 'mongoose';
 import Suscripcion from '../models/Suscripcion.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { sincronizarEscuelitaPorSuscripcionModificada } from '../../escuelita/services/sincronizarSuscripcionPlan.service.js';
+import { PERIODO_PATTERN } from '../../../services/periodos.js';
 
-const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 /**
  * @openapi

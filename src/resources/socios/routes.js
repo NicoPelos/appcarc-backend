@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import { createSocioHandler } from './handlers/createSocio.handler.js';
 import { getSociosHandler } from './handlers/getSocios.handler.js';
 import { getSocioByIdHandler } from './handlers/getSocioById.handler.js';
@@ -17,6 +18,11 @@ import { protect, authorize, authorizeSelfSocioOr } from '../../middleware/auth.
 import { PERMISOS } from '../../constants/permisos.js';
 
 const router = express.Router();
+
+// Un id que no es ObjectId terminaba en 500 por CastError (appcarc-backend#234).
+router.param('id', (req, res, next, id) => (
+  mongoose.isValidObjectId(id) ? next() : res.status(400).json({ message: 'ID inválido' })
+));
 
 /**
  * @openapi

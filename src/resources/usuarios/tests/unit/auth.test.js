@@ -574,6 +574,16 @@ describe('Usuarios auth handlers (unit)', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
+  it('login normaliza el email (mayúsculas y espacios) antes de buscar la cuenta (appcarc-backend#246)', async () => {
+    User.find.mockResolvedValue([{ _id: 'u1', email: 'a@b.com', password: 'hashed-pass', roles: ['secretaria'], clubId: 'c1', active: true, socioId: null }]);
+    const req = { body: { email: '  A@B.com ', password: 'pass' } };
+    const res = mockRes();
+
+    await authHandlers.login(req, res);
+
+    expect(User.find).toHaveBeenCalledWith({ email: 'a@b.com' });
+  });
+
   it('login should return 400 instead of 500 when the password is missing (appcarc-backend#245)', async () => {
     const req = { body: { email: 'a@b.com' } };
     const res = mockRes();

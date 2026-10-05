@@ -3,6 +3,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 vi.mock('../../../roles/services/resolverRoles.service.js', () => ({
   obtenerRolIdsPorNombres: vi.fn().mockResolvedValue(['rol-id-1']),
 }));
+vi.mock('../../../vinculos/services/anularVinculosFamiliares.service.js', () => ({ anularVinculosFamiliares: vi.fn().mockResolvedValue() }));
+
 vi.mock('../../../clubs/models/Club.js', () => ({
   default: { exists: vi.fn().mockResolvedValue({ _id: 'c1' }) },
 }));

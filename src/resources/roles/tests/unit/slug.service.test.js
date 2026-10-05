@@ -65,9 +65,4 @@ describe('generarSlugUnico', () => {
     expect(Rol.findOne).toHaveBeenCalledWith(expect.objectContaining({ active: true }));
   });
 
-  it('excludeId se pasa al filtro (para no chocar contra el propio rol al editar)', async () => {
-    Rol.findOne.mockResolvedValue(null);
-    await generarSlugUnico({ clubId: 'CARC', nombre: 'Entrenador', excludeId: 'abc123' });
-    expect(Rol.findOne).toHaveBeenCalledWith(expect.objectContaining({ _id: { $ne: 'abc123' } }));
-  });
 });

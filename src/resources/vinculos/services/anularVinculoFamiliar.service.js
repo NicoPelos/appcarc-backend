@@ -1,12 +1,6 @@
 import VinculoFamiliar from '../models/VinculoFamiliar.js';
 
-class BusinessError extends Error {
-  constructor(message, status = 400) {
-    super(message);
-    this.name = 'BusinessError';
-    this.status = status;
-  }
-}
+import { BusinessError } from './businessError.js';
 
 export const anularVinculoFamiliar = async ({ clubId, user, id }) => {
   const vinculo = await VinculoFamiliar.findOne({ _id: id, clubId, active: true });
@@ -20,4 +14,3 @@ export const anularVinculoFamiliar = async ({ clubId, user, id }) => {
   return vinculo;
 };
 
-export { BusinessError };

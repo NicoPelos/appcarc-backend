@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-import { crearVinculoFamiliar, BusinessError } from '../services/crearVinculoFamiliar.service.js';
+import { crearVinculoFamiliar } from '../services/crearVinculoFamiliar.service.js';
+import { BusinessError } from '../services/businessError.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 
 /**

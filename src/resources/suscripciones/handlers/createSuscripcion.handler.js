@@ -5,14 +5,8 @@ import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Plan from '../../planes/models/Plan.js';
 import Escuelita from '../../escuelita/models/Escuelita.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { PERIODO_PATTERN, periodoAnterior } from '../../../services/periodos.js';
 
-const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
-
-const periodoAnterior = (periodo) => {
-  const [year, month] = periodo.split('-').map(Number);
-  const prev = new Date(Date.UTC(year, month - 2, 1));
-  return `${prev.getUTCFullYear()}-${String(prev.getUTCMonth() + 1).padStart(2, '0')}`;
-};
 
 // Un socio solo puede tener una suscripción activa por vez para la misma
 // etiqueta, o — si se asigna con Plan — para el mismo tipo de plan (social /

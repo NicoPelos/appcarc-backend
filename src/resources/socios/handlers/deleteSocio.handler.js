@@ -3,6 +3,8 @@ import Advertencia from '../../advertencias/models/Advertencia.js';
 import { syncSocioToSheet } from '../services/socioSheetSync.js';
 import { cerrarSuscripcionesPorBaja } from '../services/cerrarSuscripcionesPorBaja.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import User from '../../usuarios/models/User.js';
+import { anularVinculosFamiliares } from '../../vinculos/services/anularVinculosFamiliares.service.js';
 
 /**
  * @openapi
@@ -53,7 +55,15 @@ export const deleteSocioHandler = async (req, res) => {
     // reaparece al restaurarlo (appcarc-backend#131).
     await cerrarSuscripcionesPorBaja({ clubId: req.user?.clubId, socioId: id, req });
 
-    await syncSocioToSheet(socio, { appendIfMissing: false, deleted: true });
+    const cuentasDelSocio = await User.find({ clubId: req.user?.clubId, socioId: id }).select('_id').lean();
+    await anularVinculosFamiliares({
+      clubId: req.user?.clubId,
+      hijoSocioIds: [id],
+      padreUserIds: cuentasDelSocio.map((u) => u._id),
+      actor: req.user?.email || req.user?.id,
+    });
+
+    await syncSocioToSheet(socio, { appendIfMissing: false, deleted: true }).catch((err) => console.error('Error sincronizando baja a Google Sheets:', err.message));
 
     logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'Socio', resourceId: id, before: socioAntes, after: null });
 

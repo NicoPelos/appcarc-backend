@@ -7,18 +7,19 @@ import { syncSocioUserFromSocio } from '../../usuarios/services/userSync.js';
 import { obtenerRolIdsPorSlugs } from '../../roles/services/resolverRoles.service.js';
 import { generarPasswordTemporal } from '../../../services/generarPasswordTemporal.service.js';
 
-class BusinessError extends Error {
-  constructor(message, status = 400) {
-    super(message);
-    this.name = 'BusinessError';
-    this.status = status;
-  }
-}
+import { BusinessError } from './businessError.js';
 
 // Devuelve { user, passwordTemporal } — passwordTemporal solo viene seteado
 // cuando se creó una cuenta nueva en este llamado, para que quien está
 // vinculando pueda comunicársela al tutor (no hay ningún otro canal: no es
 // socio, no tiene DNI conocido, y el sistema no manda emails de bienvenida).
+const exigirActivo = (user) => {
+  if (!user.active) throw new BusinessError('La cuenta del tutor está desactivada', 400);
+  return user;
+};
+
+// Una cuenta de tutor desactivada no puede quedar vinculada: un vínculo
+// activo le daría acceso a los datos del menor (appcarc-backend#254).
 const resolverPadre = async ({ clubId, padreUserId, padreSocioId, padreEmail, padreNombre, actor, session }) => {
   if (padreUserId) {
     const user = await User.findOne({ _id: padreUserId, clubId, active: true }).session(session);
@@ -31,15 +32,15 @@ const resolverPadre = async ({ clubId, padreUserId, padreSocioId, padreEmail, pa
     if (!socioPadre) throw new BusinessError('El socio tutor indicado no existe o pertenece a otro club', 404);
 
     const existente = await User.findOne({ socioId: padreSocioId, clubId }).session(session);
-    if (existente) return { user: existente, passwordTemporal: null };
+    if (existente) return { user: exigirActivo(existente), passwordTemporal: null };
 
-    const creado = await syncSocioUserFromSocio(socioPadre);
+    const creado = await syncSocioUserFromSocio(socioPadre, { session });
     if (!creado) {
       throw new BusinessError('Ese socio no tiene email y DNI cargados: no se le puede crear una cuenta propia', 400);
     }
     // syncSocioUserFromSocio usa el DNI como contraseña inicial — mismo dato
     // que ya se le pide a cualquier socio para su primer login.
-    return { user: creado, passwordTemporal: socioPadre.dni };
+    return { user: exigirActivo(creado), passwordTemporal: socioPadre.dni };
   }
 
   const email = String(padreEmail || '').trim().toLowerCase();
@@ -47,7 +48,7 @@ const resolverPadre = async ({ clubId, padreUserId, padreSocioId, padreEmail, pa
   if (!email) throw new BusinessError('Indicá padreUserId, padreSocioId o padreEmail', 400);
 
   const existente = await User.findOne({ email, clubId }).session(session);
-  if (existente) return { user: existente, passwordTemporal: null };
+  if (existente) return { user: exigirActivo(existente), passwordTemporal: null };
 
   if (!nombre) throw new BusinessError('padreNombre es requerido para crear una cuenta de tutor nueva', 400);
 
@@ -126,4 +127,3 @@ export const crearVinculoFamiliar = async ({ clubId, user: actorUser, hijoSocioI
   }
 };
 
-export { BusinessError };

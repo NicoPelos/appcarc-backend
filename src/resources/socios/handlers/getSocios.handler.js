@@ -60,11 +60,11 @@ export const getSociosHandler = async (req, res) => {
     const filter = { clubId: req.user?.clubId };
     filter.active = req.query.trash === 'true' ? false : true;
 
-    if (req.query.estado) {
+    if (typeof req.query.estado === 'string' && req.query.estado) {
       filter.estado = req.query.estado;
     }
 
-    if (req.query.search) {
+    if (typeof req.query.search === 'string' && req.query.search) {
       const re = new RegExp(req.query.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       filter.$or = [{ nombre: re }, { apellido: re }, { dni: re }];
     }

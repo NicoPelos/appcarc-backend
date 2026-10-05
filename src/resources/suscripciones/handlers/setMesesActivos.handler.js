@@ -6,8 +6,8 @@ import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import Plan from '../../planes/models/Plan.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { sincronizarEscuelitaPorSuscripcionModificada } from '../../escuelita/services/sincronizarSuscripcionPlan.service.js';
+import { PERIODO_PATTERN } from '../../../services/periodos.js';
 
-const PERIODO_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
 const cubrePeriodo = (tramos, periodo) =>
   tramos.some((t) => t.fechaDesde <= periodo && (t.fechaHasta === null || periodo <= t.fechaHasta));

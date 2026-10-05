@@ -138,7 +138,8 @@ const client = new OAuth2Client(
 );
 
 const buildGoogleLoginResponse = async (payload, clubId) => {
-  const { email, picture, sub: googleId, email_verified } = payload;
+  const email = String(payload.email || '').trim().toLowerCase();
+  const { picture, sub: googleId, email_verified } = payload;
 
   if (email_verified === false) {
     const error = new Error('Email de Google no verificado.');
@@ -214,7 +215,8 @@ const buildGoogleLoginResponse = async (payload, clubId) => {
 const VALID_ROLES = ['admin', 'autoridad', 'secretaria', 'profesor', 'palestrero', 'limpieza', 'arreglos', 'colaborador', 'socio'];
 
 export const register = async (req, res) => {
-  const { email, password, dni, nombre, role } = req.body;
+  const { password, dni, nombre, role } = req.body;
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email;
   // El club es el del staff autenticado, nunca el que venga en el body — ver
   // appcarc-backend#209: tomar clubId del body permitía a cualquier staff
   // con usuarios:write crear (o pisar el vínculo de) una cuenta en OTRO
@@ -340,7 +342,8 @@ export const googleCallback = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  const { email, password, clubId } = req.body;
+  const { password, clubId } = req.body;
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : req.body.email;
   if (!esTexto(email) || !esTexto(password) || (clubId !== undefined && !esTexto(clubId))) {
     return res.status(400).json({ message: 'Credenciales inválidas.' });
   }

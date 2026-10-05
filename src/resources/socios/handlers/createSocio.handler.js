@@ -71,8 +71,10 @@ export const createSocioHandler = async (req, res) => {
     const socio = new Socio(data);
     await socio.save();
 
-    await syncSocioUserIfPossible(socio);
-    await syncSocioToSheet(socio);
+    // El socio ya está guardado: un fallo de sincronización no puede responder
+    // error al cliente (appcarc-backend#232).
+    await syncSocioUserIfPossible(socio).catch((err) => console.error('Error sincronizando usuario del socio:', err.message));
+    await syncSocioToSheet(socio).catch((err) => console.error('Error sincronizando socio a Google Sheets:', err.message));
 
     logAudit({ clubId: req.user?.clubId, req, action: 'CREATE', resource: 'Socio', resourceId: socio._id, before: null, after: socio.toObject() });
 

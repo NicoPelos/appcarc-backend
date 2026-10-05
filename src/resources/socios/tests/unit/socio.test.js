@@ -11,7 +11,8 @@ vi.mock('../../../services/pushNotification.service.js', () => ({
   sendPushNotification: vi.fn().mockResolvedValue(),
   notifyRolesByPermiso: vi.fn().mockResolvedValue(),
 }));
-vi.mock('../../../usuarios/models/User.js', () => ({ default: { findOne: vi.fn().mockResolvedValue(null) } }));
+vi.mock('../../../usuarios/models/User.js', () => ({ default: { findOne: vi.fn().mockResolvedValue(null), find: vi.fn().mockReturnValue({ select: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }) }) } }));
+vi.mock('../../../vinculos/services/anularVinculosFamiliares.service.js', () => ({ anularVinculosFamiliares: vi.fn().mockResolvedValue() }));
 vi.mock('../../../suscripciones/models/Suscripcion.js', () => ({ default: { find: vi.fn() } }));
 vi.mock('../../../advertencias/models/Advertencia.js', () => ({ default: { updateMany: vi.fn().mockResolvedValue({}) } }));
 
