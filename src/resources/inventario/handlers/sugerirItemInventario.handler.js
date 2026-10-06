@@ -1,9 +1,10 @@
 import sharp from 'sharp';
 import CategoriaInventario from '../models/CategoriaInventario.js';
 
-const MODELO = process.env.GEMINI_MODEL || 'gemini-flash-latest';
-const URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`;
-const TIMEOUT_MS = 45000;
+// Si un modelo está saturado (503/429), se prueba el siguiente.
+const MODELOS = [process.env.GEMINI_MODEL, 'gemini-flash-latest', 'gemini-2.5-flash-lite'].filter(Boolean);
+const TIMEOUT_MS = 20000;
+const url = (modelo) => `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`;
 
 const limpiarTexto = (valor, max) => (typeof valor === 'string' ? valor.trim().slice(0, max) : '');
 
@@ -31,26 +32,26 @@ export const sugerirItemInventarioHandler = async (req, res) => {
       '- "descripcion": una o dos frases en español sobre el objeto y su estado visible.',
     ].join('\n');
 
-    const pedir = () => fetch(URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-goog-api-key': apiKey },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: prompt },
-            { inline_data: { mime_type: 'image/jpeg', data: imagen.toString('base64') } },
-          ],
-        }],
-        generationConfig: { responseMimeType: 'application/json' },
-      }),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+    const cuerpo = JSON.stringify({
+      contents: [{
+        parts: [
+          { text: prompt },
+          { inline_data: { mime_type: 'image/jpeg', data: imagen.toString('base64') } },
+        ],
+      }],
+      generationConfig: { responseMimeType: 'application/json' },
     });
 
-    // Gemini a veces responde 503 o 429 por carga momentánea: se reintenta un par de veces.
-    let respuesta = await pedir();
-    for (let intento = 1; intento <= 2 && (respuesta.status === 503 || respuesta.status === 429); intento++) {
-      await new Promise((resolver) => setTimeout(resolver, 2000 * intento));
-      respuesta = await pedir();
+    let respuesta;
+    for (const modelo of MODELOS) {
+      respuesta = await fetch(url(modelo), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-goog-api-key': apiKey },
+        body: cuerpo,
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (respuesta.status !== 503 && respuesta.status !== 429) break;
+      console.error(`Gemini ${modelo} respondió ${respuesta.status}, pruebo el siguiente modelo`);
     }
 
     if (!respuesta.ok) {
