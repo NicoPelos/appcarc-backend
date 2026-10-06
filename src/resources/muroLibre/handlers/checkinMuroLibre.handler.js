@@ -3,6 +3,7 @@ import { resolveSocioFromQrTokenOrDni, findActiveSocioById, getPaseMuroLibreVige
 import { notifyRolesByPermiso, notifySocio } from '../../../services/pushNotification.service.js';
 import { tienePermiso } from '../../../services/permisosCache.js';
 import { PERMISOS } from '../../../constants/permisos.js';
+import { pasesIncluidosSemana } from '../services/pasesClases.service.js';
 
 /**
  * @openapi
@@ -161,7 +162,8 @@ export const checkinMuroLibreHandler = async (req, res) => {
       ]).catch((err) => console.error('[Push] Error enviando notificaciones de advertencia:', err.message));
     }
 
-    res.status(201).json({ asistencia: result.registro, movimiento: result.movimiento, socio, advertencias: advertenciasResult });
+    const pasesSemana = method === 'SELF' ? await pasesIncluidosSemana({ clubId: req.user?.clubId, socioId: socio._id, fecha: new Date() }) : undefined;
+    res.status(201).json({ asistencia: result.registro, movimiento: result.movimiento, socio, advertencias: advertenciasResult, ...(pasesSemana ? { pasesSemana } : {}) });
   } catch (error) {
     if (error instanceof BusinessError || error.status) {
       return res.status(error.status).json({ message: error.message, ...(error.data ?? {}) });

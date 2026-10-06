@@ -1,3 +1,6 @@
+vi.mock('../../services/pasesClases.service.js', () => ({
+  pasesIncluidosSemana: vi.fn().mockResolvedValue({ max: 0, usados: 0, restantes: 0, proximaRenovacion: null }),
+}));
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { checkinMuroLibreHandler } from '../../handlers/checkinMuroLibre.handler.js';
 import * as socioQrService from '../../../socios/services/socioQr.service.js';

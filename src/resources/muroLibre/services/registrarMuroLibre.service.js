@@ -255,7 +255,8 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
       // plan de clases genera deuda, así que se pide confirmación antes de cargarla.
       let motivoExento = '';
       if (body?.autoescaneo && socio && esSocio && tipoPase === 'diario' && estadoPago === 'pendiente') {
-        const { restantes } = await pasesIncluidosSemana({ clubId, socioId: socio._id, fecha, session });
+        const pasesSemana = await pasesIncluidosSemana({ clubId, socioId: socio._id, fecha, session });
+        const { restantes } = pasesSemana;
         if (restantes > 0) {
           estadoPago = 'exento';
           motivoExento = MOTIVO_EXENTO_PLAN_CLASES;
@@ -263,7 +264,7 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
           throw new BusinessError(
             'Esta visita genera una deuda. Confirmá para continuar.',
             409,
-            { requiereConfirmacion: true, monto: precioSugeridoSnapshot },
+            { requiereConfirmacion: true, monto: precioSugeridoSnapshot, pasesSemana },
           );
         }
       }

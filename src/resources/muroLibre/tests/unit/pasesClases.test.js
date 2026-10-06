@@ -38,7 +38,7 @@ describe('pasesIncluidosSemana', () => {
     Suscripcion.find = vi.fn().mockReturnValue(suscripcionesCon(1, 3));
     Asistencia.countDocuments = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(0) });
     const r = await pasesIncluidosSemana({ clubId: 'CARC', socioId: 's1', fecha: new Date('2026-10-07T18:00:00.000Z') });
-    expect(r).toEqual({ max: 3, usados: 0, restantes: 3 });
+    expect(r).toEqual(expect.objectContaining({ max: 3, usados: 0, restantes: 3 }));
   });
 
   it('descuenta las visitas ya incluidas de la semana', async () => {
@@ -52,7 +52,7 @@ describe('pasesIncluidosSemana', () => {
   it('sin plan con pases no da ninguno (planes de niños)', async () => {
     Suscripcion.find = vi.fn().mockReturnValue(suscripcionesCon(0));
     const r = await pasesIncluidosSemana({ clubId: 'CARC', socioId: 's1', fecha: new Date('2026-10-07T18:00:00.000Z') });
-    expect(r).toEqual({ max: 0, usados: 0, restantes: 0 });
+    expect(r).toEqual(expect.objectContaining({ max: 0, usados: 0, restantes: 0 }));
     expect(Asistencia.countDocuments).not.toHaveBeenCalled();
   });
 
@@ -61,5 +61,14 @@ describe('pasesIncluidosSemana', () => {
     Asistencia.countDocuments = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(3) });
     const r = await pasesIncluidosSemana({ clubId: 'CARC', socioId: 's1', fecha: new Date('2026-10-07T18:00:00.000Z') });
     expect(r.restantes).toBe(0);
+  });
+});
+
+describe('proximaRenovacion', () => {
+  it('es el lunes siguiente a las 00:00 argentina', async () => {
+    Suscripcion.find = vi.fn().mockReturnValue(suscripcionesCon(3));
+    Asistencia.countDocuments = vi.fn().mockReturnValue({ session: vi.fn().mockResolvedValue(0) });
+    const r = await pasesIncluidosSemana({ clubId: 'CARC', socioId: 's1', fecha: new Date('2026-10-07T18:00:00.000Z') });
+    expect(new Date(r.proximaRenovacion).toISOString()).toBe('2026-10-12T03:00:00.000Z');
   });
 });

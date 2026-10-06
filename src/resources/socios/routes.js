@@ -15,6 +15,7 @@ import { getSociosMorososHandler } from './handlers/getSociosMorosos.handler.js'
 import { upload, uploadFotoSocioHandler, handleUploadError } from './handlers/uploadFotoSocio.handler.js';
 import { deleteFotoSocioHandler } from './handlers/deleteFotoSocio.handler.js';
 import { protect, authorize, authorizeSelfSocioOr } from '../../middleware/auth.js';
+import { getPasesSemanaSocioHandler } from './handlers/getPasesSemanaSocio.handler.js';
 import { PERMISOS } from '../../constants/permisos.js';
 
 const router = express.Router();
@@ -111,6 +112,7 @@ router.put('/:id/foto', protect, authorizeSelfSocioOr(PERMISOS.SOCIOS_WRITE), up
 router.delete('/:id/foto', protect, authorizeSelfSocioOr(PERMISOS.SOCIOS_WRITE), deleteFotoSocioHandler);
 
 router.get('/:id/qr', protect, authorizeSelfSocioOr(PERMISOS.SOCIOS_READ), getSocioQrHandler);
+router.get('/:id/pases-semana', protect, authorizeSelfSocioOr(PERMISOS.SOCIOS_READ), getPasesSemanaSocioHandler);
 router.post('/verify', protect, authorize(PERMISOS.SOCIOS_READ), verifySocioQrHandler);
 
 router.get('/morosos', protect, authorize(PERMISOS.COBROS_READ), getSociosMorososHandler);

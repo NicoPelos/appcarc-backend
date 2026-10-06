@@ -24,10 +24,11 @@ export const pasesIncluidosSemana = async ({ clubId, socioId, fecha, session }) 
     $or: [{ fechaHasta: null }, { fechaHasta: { $gte: periodo } }],
   }).populate('etiquetaId', 'pasesMuroPorSemana').session(session ?? null).lean();
 
-  const max = suscripciones.reduce((mayor, s) => Math.max(mayor, s.etiquetaId?.pasesMuroPorSemana ?? 0), 0);
-  if (max <= 0) return { max: 0, usados: 0, restantes: 0 };
-
   const { inicio, fin } = rangoSemanaArgentina(fecha);
+  const proximaRenovacion = new Date(fin.getTime() + 1).toISOString();
+
+  const max = suscripciones.reduce((mayor, s) => Math.max(mayor, s.etiquetaId?.pasesMuroPorSemana ?? 0), 0);
+  if (max <= 0) return { max: 0, usados: 0, restantes: 0, proximaRenovacion };
   const usados = await Asistencia.countDocuments({
     clubId,
     socioId,
@@ -38,5 +39,5 @@ export const pasesIncluidosSemana = async ({ clubId, socioId, fecha, session }) 
     fecha: { $gte: inicio, $lte: fin },
   }).session(session ?? null);
 
-  return { max, usados, restantes: Math.max(0, max - usados) };
+  return { max, usados, restantes: Math.max(0, max - usados), proximaRenovacion };
 };
