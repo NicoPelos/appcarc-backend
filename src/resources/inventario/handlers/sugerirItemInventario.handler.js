@@ -31,7 +31,7 @@ export const sugerirItemInventarioHandler = async (req, res) => {
       'Mirá la foto del objeto y respondé solo con JSON con estas claves:',
       '- "nombre": nombre corto del objeto, en español.',
       `- "categoria": exactamente una de estas opciones, o "" si ninguna encaja: ${JSON.stringify(categorias)}.`,
-      '- "descripcion": una o dos frases en español sobre el objeto y su estado visible.',
+      '- "descripcion": una o dos frases en español que describan solo el objeto: qué es, para qué sirve, material, color y estado visible. No describas dónde está, la superficie, el fondo ni el entorno.',
     ].join('\n');
 
     const cuerpo = JSON.stringify({
