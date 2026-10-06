@@ -68,7 +68,7 @@ describe('sugerirItemInventarioHandler', () => {
   });
 
   it('responde 502 si Gemini devuelve error', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 429 }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 400 }));
     const res = mockRes();
     await sugerirItemInventarioHandler(req, res);
     expect(res.status).toHaveBeenCalledWith(502);
