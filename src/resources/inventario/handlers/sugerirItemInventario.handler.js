@@ -5,7 +5,7 @@ import CategoriaInventario from '../models/CategoriaInventario.js';
 const MODELOS = [process.env.GEMINI_MODEL, 'gemini-flash-latest', 'gemini-3-flash-preview'].filter(Boolean);
 const TIMEOUT_MS = 35000;
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODELO = process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
+const GROQ_MODELO = process.env.GROQ_VISION_MODEL || 'qwen/qwen3.8-27b';
 const url = (modelo) => `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`;
 
 const limpiarTexto = (valor, max) => (typeof valor === 'string' ? valor.trim().slice(0, max) : '');
@@ -61,6 +61,7 @@ export const sugerirItemInventarioHandler = async (req, res) => {
               ],
             }],
             response_format: { type: 'json_object' },
+            max_tokens: 400,
           }),
           signal: AbortSignal.timeout(TIMEOUT_MS),
         });
