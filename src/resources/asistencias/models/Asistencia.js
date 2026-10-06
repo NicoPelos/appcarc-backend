@@ -61,6 +61,9 @@ const asistenciaSchema = new mongoose.Schema({
   },
 
   observaciones: { type: String, default: '' },
+  // Por qué una visita quedó exenta (ej. 'plan_clases'): permite contar los pases
+  // incluidos de la semana sin mezclar otras exenciones.
+  motivoExento: { type: String, default: '' },
   createdBy: { type: String, required: true },
   updatedBy: { type: String, required: true },
   active: { type: Boolean, default: true, index: true },

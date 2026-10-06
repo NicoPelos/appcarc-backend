@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { pasesIncluidosSemana, MOTIVO_EXENTO_PLAN_CLASES } from './pasesClases.service.js';
 import Socio from '../../socios/models/Socio.js';
 import Cuota from '../../cuotas/models/Cuota.js';
 import Precios from '../../cuotas/models/Precios.js';
@@ -25,10 +26,11 @@ export const USO_SISTEMA_BY_TIPO = {
 };
 
 class BusinessError extends Error {
-  constructor(message, status = 400) {
+  constructor(message, status = 400, data = null) {
     super(message);
     this.name = 'BusinessError';
     this.status = status;
+    this.data = data;
   }
 }
 
@@ -235,7 +237,7 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         }
       }
 
-      const estadoPago = estadoPagoOverride ?? String(body?.estadoPago || 'pendiente').trim().toLowerCase();
+      let estadoPago = estadoPagoOverride ?? String(body?.estadoPago || 'pendiente').trim().toLowerCase();
       if (!['pagado', 'pendiente', 'exento'].includes(estadoPago)) {
         throw new BusinessError('El estado de pago debe ser pagado, pendiente o exento');
       }
@@ -248,6 +250,23 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
       const uso_sistema = USO_SISTEMA_BY_TIPO[tipoPase][esSocio ? 'socio' : 'noSocio'];
       const precio = await findPrecioVigenteByUsoSistema({ clubId, uso_sistema, date: fecha, session });
       const precioSugeridoSnapshot = precio?.monto ?? null;
+
+      // Autoescaneo del socio: una visita diaria que cae fuera de los pases de su
+      // plan de clases genera deuda, así que se pide confirmación antes de cargarla.
+      let motivoExento = '';
+      if (body?.autoescaneo && socio && esSocio && tipoPase === 'diario' && estadoPago === 'pendiente') {
+        const { restantes } = await pasesIncluidosSemana({ clubId, socioId: socio._id, fecha, session });
+        if (restantes > 0) {
+          estadoPago = 'exento';
+          motivoExento = MOTIVO_EXENTO_PLAN_CLASES;
+        } else if (!body?.confirmarDeuda) {
+          throw new BusinessError(
+            'Esta visita genera una deuda. Confirmá para continuar.',
+            409,
+            { requiereConfirmacion: true, monto: precioSugeridoSnapshot },
+          );
+        }
+      }
       const monto = body?.amount == null && body?.monto == null
         ? precioSugeridoSnapshot
         : Number(body.amount ?? body.monto);
@@ -285,7 +304,10 @@ export const registrarMuroLibre = async ({ clubId, user, body, scannedBy = null,
         periodo: tipoPase === 'mensual' ? buildPeriodo(fecha) : '',
         formaPago: estadoPago === 'pagado' ? paymentMethod : 'Sin pago',
         advertencias,
-        observaciones: String(body?.observaciones || '').trim(),
+        observaciones: motivoExento
+          ? [String(body?.observaciones || '').trim(), 'Incluido por plan de clases'].filter(Boolean).join(' — ')
+          : String(body?.observaciones || '').trim(),
+        motivoExento,
         enviarComprobanteWp: Boolean(body?.enviarComprobanteWp),
         createdBy: actor,
         updatedBy: actor,

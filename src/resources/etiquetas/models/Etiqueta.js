@@ -19,6 +19,9 @@ const etiquetaSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  // Pases de muro libre que incluye la etiqueta por semana (lunes a domingo).
+  // Solo aplica a planes de adultos; los de niños quedan en 0.
+  pasesMuroPorSemana: { type: Number, default: 0, min: 0 },
   active: {
     type: Boolean,
     default: true,

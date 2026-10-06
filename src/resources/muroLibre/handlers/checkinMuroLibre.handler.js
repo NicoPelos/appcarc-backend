@@ -65,7 +65,7 @@ import { PERMISOS } from '../../../constants/permisos.js';
 
 export const checkinMuroLibreHandler = async (req, res) => {
   try {
-    const { token, dni, tipoPase, estadoPago, paymentMethod, amount, enviarComprobanteWp, observaciones, fecha } = req.body;
+    const { token, dni, tipoPase, estadoPago, paymentMethod, amount, enviarComprobanteWp, observaciones, fecha, confirmarDeuda } = req.body;
 
     // La decisión de qué flujo usar depende de si LA REQUEST trae token/dni
     // explícito, no de qué permisos tiene quien llama — un miembro del staff
@@ -128,6 +128,8 @@ export const checkinMuroLibreHandler = async (req, res) => {
         amount: identificacionExplicita ? amount : undefined,
         enviarComprobanteWp,
         observaciones,
+        autoescaneo: !identificacionExplicita,
+        confirmarDeuda: confirmarDeuda === true,
         // "fecha" es para que STAFF cargue asistencia de un día anterior
         // (identificacionExplicita) — en el autoescaneo (self) se ignora y
         // se deja que registrarMuroLibre use "ahora" por default, si no un
@@ -162,7 +164,7 @@ export const checkinMuroLibreHandler = async (req, res) => {
     res.status(201).json({ asistencia: result.registro, movimiento: result.movimiento, socio, advertencias: advertenciasResult });
   } catch (error) {
     if (error instanceof BusinessError || error.status) {
-      return res.status(error.status).json({ message: error.message });
+      return res.status(error.status).json({ message: error.message, ...(error.data ?? {}) });
     }
 
     console.error('Error en el checkin de muro libre:', error);
