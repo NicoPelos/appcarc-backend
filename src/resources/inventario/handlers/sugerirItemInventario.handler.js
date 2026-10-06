@@ -31,7 +31,7 @@ export const sugerirItemInventarioHandler = async (req, res) => {
       '- "descripcion": una o dos frases en español sobre el objeto y su estado visible.',
     ].join('\n');
 
-    const respuesta = await fetch(URL, {
+    const pedir = () => fetch(URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-goog-api-key': apiKey },
       body: JSON.stringify({
@@ -45,6 +45,13 @@ export const sugerirItemInventarioHandler = async (req, res) => {
       }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
+
+    // Gemini a veces responde 503 o 429 por carga momentánea: se reintenta un par de veces.
+    let respuesta = await pedir();
+    for (let intento = 1; intento <= 2 && (respuesta.status === 503 || respuesta.status === 429); intento++) {
+      await new Promise((resolver) => setTimeout(resolver, 2000 * intento));
+      respuesta = await pedir();
+    }
 
     if (!respuesta.ok) {
       console.error('Gemini respondió', respuesta.status);
