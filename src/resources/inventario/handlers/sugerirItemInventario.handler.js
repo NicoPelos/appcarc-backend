@@ -3,7 +3,7 @@ import CategoriaInventario from '../models/CategoriaInventario.js';
 
 // Si un modelo está saturado (503/429), se prueba el siguiente.
 const MODELOS = [process.env.GEMINI_MODEL, 'gemini-flash-latest', 'gemini-3-flash-preview'].filter(Boolean);
-const TIMEOUT_MS = 20000;
+const TIMEOUT_MS = 35000;
 const url = (modelo) => `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`;
 
 const limpiarTexto = (valor, max) => (typeof valor === 'string' ? valor.trim().slice(0, max) : '');
