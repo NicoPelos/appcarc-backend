@@ -1,8 +1,9 @@
+import sharp from 'sharp';
 import CategoriaInventario from '../models/CategoriaInventario.js';
 
 const MODELO = process.env.GEMINI_MODEL || 'gemini-flash-latest';
 const URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`;
-const TIMEOUT_MS = 25000;
+const TIMEOUT_MS = 45000;
 
 const limpiarTexto = (valor, max) => (typeof valor === 'string' ? valor.trim().slice(0, max) : '');
 
@@ -14,6 +15,13 @@ export const sugerirItemInventarioHandler = async (req, res) => {
   try {
     const categorias = (await CategoriaInventario.find({ clubId: req.user?.clubId, active: true }).select('nombre').lean())
       .map((c) => c.nombre);
+
+    // Una foto de cámara pesa varios MB: alcanza con una versión chica para
+    // identificar el objeto, y así la llamada no se pasa del tiempo máximo.
+    const imagen = await sharp(req.file.buffer)
+      .resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
 
     const prompt = [
       'Sos el asistente de inventario de un club de montaña y escalada.',
@@ -30,7 +38,7 @@ export const sugerirItemInventarioHandler = async (req, res) => {
         contents: [{
           parts: [
             { text: prompt },
-            { inline_data: { mime_type: req.file.mimetype, data: req.file.buffer.toString('base64') } },
+            { inline_data: { mime_type: 'image/jpeg', data: imagen.toString('base64') } },
           ],
         }],
         generationConfig: { responseMimeType: 'application/json' },

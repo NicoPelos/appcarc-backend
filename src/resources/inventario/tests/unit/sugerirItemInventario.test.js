@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+vi.mock('sharp', () => ({
+  default: () => ({ resize: () => ({ jpeg: () => ({ toBuffer: async () => Buffer.from('jpeg') }) }) }),
+}));
+
 vi.mock('../../models/CategoriaInventario.js', () => ({
   default: { find: vi.fn() },
 }));
