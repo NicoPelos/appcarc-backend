@@ -81,7 +81,7 @@ beforeEach(() => {
   Suscripcion.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: SUSCRIPCION_ID, socioId: SOCIO_ID, clubId: CLUB_ID, etiquetaId: 'etq-1', active: true }) });
   Cuota.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
   CargoPuntual.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
-  Asistencia.find = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) });
+  Asistencia.find = vi.fn().mockReturnValue({ sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }) });
   Etiqueta.findById = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'etq-1', nombre: 'Cuota Social' }) });
   findPrecioVigente.mockResolvedValue({ monto: 7500 });
   mockIntentSave.mockResolvedValue(undefined);
@@ -177,7 +177,7 @@ describe('crearPreferenciaCobroPropioMercadoPago', () => {
   });
 
   it('suma las visitas pendientes de Muro Libre desde su precioSugeridoSnapshot', async () => {
-    Asistencia.find = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([{ precioSugeridoSnapshot: 2000 }, { precioSugeridoSnapshot: 2500 }]) });
+    Asistencia.find = vi.fn().mockReturnValue({ sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([{ precioSugeridoSnapshot: 2000 }, { precioSugeridoSnapshot: 2500 }]) }) });
     const args = { ...baseArgs(), items: [{ socioId: SOCIO_ID, muroLibrePendiente: true }] };
 
     await crearPreferenciaCobroPropioMercadoPago(args);
@@ -213,6 +213,19 @@ describe('crearPreferenciaCobroPropioMercadoPago', () => {
   it('rechaza si items está vacío', async () => {
     const args = { ...baseArgs(), items: [] };
     await expect(crearPreferenciaCobroPropioMercadoPago(args)).rejects.toMatchObject({ message: expect.stringContaining('ítem') });
+  });
+
+  it('muro libre con cantidad paga solo las visitas más viejas pedidas (#201)', async () => {
+    Asistencia.find = vi.fn().mockReturnValue({ sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([{ precioSugeridoSnapshot: 2000 }, { precioSugeridoSnapshot: 2000 }, { precioSugeridoSnapshot: 2000 }]) }) });
+    const args = { ...baseArgs(), items: [{ socioId: SOCIO_ID, muroLibrePendiente: true, cantidad: 1 }] };
+    await crearPreferenciaCobroPropioMercadoPago(args);
+    expect(PagoOnlineIntent).toHaveBeenCalledWith(expect.objectContaining({ totalAmount: 2000 }));
+  });
+
+  it('muro libre rechaza pedir más visitas que las pendientes (#201)', async () => {
+    Asistencia.find = vi.fn().mockReturnValue({ sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([{ precioSugeridoSnapshot: 2000 }]) }) });
+    const args = { ...baseArgs(), items: [{ socioId: SOCIO_ID, muroLibrePendiente: true, cantidad: 3 }] };
+    await expect(crearPreferenciaCobroPropioMercadoPago(args)).rejects.toMatchObject({ message: expect.stringContaining('entre 1 y 1 visitas') });
   });
 
   it('rechaza si un item no indica ni suscripcionId, ni cargoPuntualId, ni muroLibrePendiente', async () => {

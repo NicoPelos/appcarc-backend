@@ -58,11 +58,19 @@ const normalizeItemPropio = async ({ item, index, clubId, socioId, date }) => {
   if (muroLibrePendiente) {
     const pendientes = await Asistencia.find({
       clubId, socioId, tipo: 'muro_libre', tipoPase: 'diario', active: true, estadoPago: 'pendiente',
-    }).lean();
+    }).sort({ fecha: 1 }).lean();
 
     if (!pendientes.length) throw new BusinessError('No tenés visitas de Muro Libre pendientes de pago', 404);
 
-    const total = pendientes.reduce((sum, a) => sum + (a.precioSugeridoSnapshot || 0), 0);
+    // Sin cantidad se paga todo; con cantidad se pagan las visitas más viejas
+    // primero, igual que el cobro manual (registrarCobro).
+    const cantidad = item?.cantidad == null ? pendientes.length : Number(item.cantidad);
+    if (!Number.isInteger(cantidad) || cantidad <= 0 || cantidad > pendientes.length) {
+      throw new BusinessError(`El item ${index + 1} debe indicar entre 1 y ${pendientes.length} visitas`);
+    }
+    const seleccionadas = pendientes.slice(0, cantidad);
+
+    const total = seleccionadas.reduce((sum, a) => sum + (a.precioSugeridoSnapshot || 0), 0);
     if (!Number.isFinite(total) || total <= 0) {
       throw new BusinessError('Las visitas pendientes no tienen un precio configurado');
     }
@@ -73,8 +81,8 @@ const normalizeItemPropio = async ({ item, index, clubId, socioId, date }) => {
         suscripcionId: null,
         cargoPuntualId: null,
         muroLibrePendiente: true,
-        cantidad: pendientes.length,
-        amount: total / pendientes.length,
+        cantidad,
+        amount: total / cantidad,
         description: 'Muro Libre — visitas pendientes',
       },
       montoItem: total,
