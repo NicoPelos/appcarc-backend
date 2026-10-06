@@ -4,6 +4,8 @@ import CategoriaInventario from '../models/CategoriaInventario.js';
 // Si un modelo está saturado (503/429), se prueba el siguiente.
 const MODELOS = [process.env.GEMINI_MODEL, 'gemini-flash-latest', 'gemini-3-flash-preview'].filter(Boolean);
 const TIMEOUT_MS = 35000;
+const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const GROQ_MODELO = process.env.GROQ_VISION_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct';
 const url = (modelo) => `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`;
 
 const limpiarTexto = (valor, max) => (typeof valor === 'string' ? valor.trim().slice(0, max) : '');
@@ -42,8 +44,39 @@ export const sugerirItemInventarioHandler = async (req, res) => {
       generationConfig: { responseMimeType: 'application/json' },
     });
 
+    let texto = '';
+    const groqKey = process.env.GROQ_API_KEY;
+    if (groqKey) {
+      try {
+        const r = await fetch(GROQ_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${groqKey}` },
+          body: JSON.stringify({
+            model: GROQ_MODELO,
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'text', text: prompt },
+                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${imagen.toString('base64')}` } },
+              ],
+            }],
+            response_format: { type: 'json_object' },
+          }),
+          signal: AbortSignal.timeout(TIMEOUT_MS),
+        });
+        if (r.ok) {
+          const data = await r.json();
+          texto = data?.choices?.[0]?.message?.content ?? '';
+        } else {
+          console.error(`Groq respondió ${r.status}, pruebo Gemini`);
+        }
+      } catch (error) {
+        console.error('Groq falló, pruebo Gemini:', error.name);
+      }
+    }
+
     let respuesta;
-    for (const modelo of MODELOS) {
+    for (const modelo of texto ? [] : MODELOS) {
       respuesta = await fetch(url(modelo), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-goog-api-key': apiKey },
@@ -54,13 +87,15 @@ export const sugerirItemInventarioHandler = async (req, res) => {
       console.error(`Gemini ${modelo} respondió ${respuesta.status}, pruebo el siguiente modelo`);
     }
 
-    if (!respuesta.ok) {
+    if (!texto && !respuesta?.ok) {
       console.error('Gemini respondió', respuesta.status);
       return res.status(502).json({ message: 'No se pudo obtener la sugerencia en este momento' });
     }
 
-    const data = await respuesta.json();
-    const texto = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    if (!texto) {
+      const data = await respuesta.json();
+      texto = (data?.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('');
+    }
     let propuesta;
     try {
       propuesta = JSON.parse(texto);
