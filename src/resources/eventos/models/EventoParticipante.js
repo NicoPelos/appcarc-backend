@@ -17,7 +17,11 @@ export const ESTADOS_PARTICIPANTE = ['pendiente', 'parcial', 'pagada', 'anulada'
 const pagoParticipanteSchema = new mongoose.Schema({
   monto: { type: Number, required: true, min: 0 },
   fecha: { type: Date, required: true },
-  paymentMethod: { type: String, enum: ['Efectivo', 'Transferencia'], required: true },
+  // 'MercadoPago' habilitado junto con VALID_PAYMENT_METHODS en
+  // registrarPagoEventoParticipante.service.js (autoservicio de pago de
+  // eventos) — este enum es un segundo lugar separado que validaba lo
+  // mismo y quedó desactualizado en el primer intento de ese cambio.
+  paymentMethod: { type: String, enum: ['Efectivo', 'Transferencia', 'MercadoPago'], required: true },
   movimientoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Movimiento', required: true },
   esPagoParcial: { type: Boolean, default: false },
 }, { _id: true });
