@@ -3,6 +3,8 @@ import Cuota from '../../cuotas/models/Cuota.js';
 import CargoPuntual from '../../cargosPuntuales/models/CargoPuntual.js';
 import Asistencia from '../../asistencias/models/Asistencia.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
+import Evento from '../../eventos/models/Evento.js';
+import EventoParticipante from '../../eventos/models/EventoParticipante.js';
 import { findPrecioVigente } from '../../cuotas/services/findPrecioVigente.service.js';
 import { getSocioIdsAccesibles } from '../../vinculos/services/getSocioIdsAccesibles.service.js';
 import { BusinessError } from './crearPreferenciaCobroMercadoPago.errors.js';
@@ -24,10 +26,47 @@ const normalizeItemPropio = async ({ item, index, clubId, socioId, date }) => {
   const suscripcionId = item?.suscripcionId ? String(item.suscripcionId).trim() : null;
   const cargoPuntualId = item?.cargoPuntualId ? String(item.cargoPuntualId).trim() : null;
   const muroLibrePendiente = Boolean(item?.muroLibrePendiente);
+  const eventoParticipanteId = item?.eventoParticipanteId ? String(item.eventoParticipanteId).trim() : null;
 
-  const tipos = [suscripcionId, cargoPuntualId, muroLibrePendiente || null].filter(Boolean);
+  const tipos = [suscripcionId, cargoPuntualId, muroLibrePendiente || null, eventoParticipanteId].filter(Boolean);
   if (tipos.length !== 1) {
-    throw new BusinessError(`El item ${index + 1} debe indicar exactamente uno de suscripcionId, cargoPuntualId o muroLibrePendiente`);
+    throw new BusinessError(`El item ${index + 1} debe indicar exactamente uno de suscripcionId, cargoPuntualId, muroLibrePendiente o eventoParticipanteId`);
+  }
+
+  // Autoservicio de pago de eventos (viajes, cursos, ventas puntuales) por
+  // Mercado Pago — antes esto no existía ni para staff ni para el socio (ver
+  // el mensaje "todavía no soporta cobrar eventos" en RegistrarCobroScreen).
+  // El pago real NO pasa por registrarCobro (a diferencia de los demás tipos
+  // de este archivo): usa registrarPagoEventoParticipante, que tiene su
+  // propio contrato de saldo — ver procesarPagoMercadoPago.service.js.
+  if (eventoParticipanteId) {
+    const participante = await EventoParticipante.findOne({ _id: eventoParticipanteId, socioId, clubId, active: true }).lean();
+    if (!participante) throw new BusinessError('Participante de evento no encontrado', 404);
+    if (!['pendiente', 'parcial'].includes(participante.estado)) {
+      throw new BusinessError(`Este evento ya está ${participante.estado}`, 409);
+    }
+
+    const evento = await Evento.findOne({ _id: participante.eventoId, clubId, active: true }).lean();
+    if (!evento) throw new BusinessError('Evento no encontrado', 404);
+    if (evento.estado === 'cerrado') {
+      throw new BusinessError(`El evento "${evento.nombre}" está cerrado, no se pueden registrar pagos`, 409);
+    }
+
+    // Igual que el cargo puntual 'parcial' más abajo: se cobra el SALDO
+    // restante y cierra el participante por completo, nunca "otra seña".
+    const amount = participante.montoEsperadoSnapshot - (participante.montoPagadoSnapshot || 0);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BusinessError('El evento no tiene un saldo pendiente válido');
+    }
+
+    return {
+      normalizado: {
+        socioId, suscripcionId: null, cargoPuntualId: null, muroLibrePendiente: false,
+        eventoId: evento._id, eventoParticipanteId, amount, description: evento.nombre,
+      },
+      montoItem: amount,
+      key: `evento:${eventoParticipanteId}`,
+    };
   }
 
   if (cargoPuntualId) {

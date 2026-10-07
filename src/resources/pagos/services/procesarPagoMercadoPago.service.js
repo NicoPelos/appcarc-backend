@@ -1,5 +1,6 @@
 import PagoOnlineIntent from '../models/PagoOnlineIntent.js';
 import { registrarCobro } from '../../cobros/services/registrarCobro.service.js';
+import { registrarPagoEventoParticipante } from '../../eventos/services/registrarPagoEventoParticipante.service.js';
 
 const MP_API_BASE = 'https://api.mercadopago.com';
 
@@ -9,11 +10,13 @@ const estadoFromMpStatus = (status) => {
   return 'pendiente';
 };
 
-// Convierte los items guardados en el intent (shape genérico: suscripcion,
-// cargo puntual o muro libre) de vuelta al body que espera registrarCobro —
-// mismo mecanismo interno que un cobro manual de secretaría, forma de pago
-// 'MercadoPago'.
-const itemsParaRegistrarCobro = (intent) => intent.items.map((item) => ({
+// Convierte items de intent (shape genérico: suscripcion, cargo puntual o
+// muro libre) de vuelta al body que espera registrarCobro — mismo mecanismo
+// interno que un cobro manual de secretaría, forma de pago 'MercadoPago'.
+// Los items de evento NUNCA llegan acá (ver itemsEvento más abajo):
+// registrarCobro no entiende eventoParticipanteId, igual que en
+// RegistrarCobroScreen (mobile) los pagos de evento van aparte de /api/cobros.
+const itemsParaRegistrarCobro = (items) => items.map((item) => ({
   socioId: String(item.socioId),
   ...(item.suscripcionId ? { suscripcionId: String(item.suscripcionId) } : {}),
   ...(item.cargoPuntualId ? { cargoPuntualId: String(item.cargoPuntualId) } : {}),
@@ -24,6 +27,22 @@ const itemsParaRegistrarCobro = (intent) => intent.items.map((item) => ({
   amount: item.amount,
   ...(item.description ? { description: item.description } : {}),
 }));
+
+// El mismo vínculo (mismo paymentId y mismo monto TOTAL del pago, no una
+// porción) se repite en cada Movimiento que resulte de este pago — es el
+// shape que ya espera conciliacionMercadopago.handler.js para detectar
+// "1 pago = varios movimientos" (toma el primer vinculoMonto como "el monto
+// real" y lo compara contra la suma de esos Movimientos).
+const vincularMovimientoAlPago = async (movimiento, payment) => {
+  movimiento.mercadopagoVinculos.push({
+    paymentId: String(payment.id),
+    payerEmail: payment.payer?.email ?? '',
+    monto: payment.transaction_amount,
+    fecha: payment.date_approved,
+    vinculadoPor: 'Sistema (pago online)',
+  });
+  await movimiento.save();
+};
 
 /**
  * Pide un pago a la API de Mercado Pago con nuestras propias credenciales.
@@ -127,37 +146,54 @@ export const procesarPagoMercadoPago = async ({ clubId, payment, accessToken }) 
   }
 
   if (updated.estado === 'aprobado') {
-    try {
-      const result = await registrarCobro({
-        clubId: updated.clubId,
-        user: { id: updated.requestedByUserId, email: updated.requestedByEmail },
-        body: {
-          paymentMethod: 'MercadoPago',
-          description: `Pago online Mercado Pago (payment ${payment.id})`,
-          items: itemsParaRegistrarCobro(updated),
-        },
-      });
-      updated.cobroId = result.cobro._id;
-      await updated.save();
+    // Los items de evento se registran con registrarPagoEventoParticipante
+    // (su propio contrato de saldo, fuera de /api/cobros); el resto sigue el
+    // camino de siempre con un único registrarCobro por lote.
+    const itemsEvento = updated.items.filter((item) => item.eventoParticipanteId);
+    const itemsNormales = updated.items.filter((item) => !item.eventoParticipanteId);
 
-      // El pago vino de nuestro propio link (webhook/cron con nuestro
-      // accessToken) — ya sabemos exactamente qué pago real de Mercado Pago
-      // le corresponde a este Movimiento, así que se autovincula acá mismo
-      // en vez de dejarlo pendiente para la reconciliación bancaria manual
-      // (que es para movimientos importados de un extracto, no para estos).
-      result.movimiento.mercadopagoVinculos.push({
-        paymentId: String(payment.id),
-        payerEmail: payment.payer?.email ?? '',
-        monto: payment.transaction_amount,
-        fecha: payment.date_approved,
-        vinculadoPor: 'Sistema (pago online)',
-      });
-      await result.movimiento.save();
+    try {
+      if (itemsNormales.length) {
+        const result = await registrarCobro({
+          clubId: updated.clubId,
+          user: { id: updated.requestedByUserId, email: updated.requestedByEmail },
+          body: {
+            paymentMethod: 'MercadoPago',
+            description: `Pago online Mercado Pago (payment ${payment.id})`,
+            items: itemsParaRegistrarCobro(itemsNormales),
+          },
+        });
+        updated.cobroId = result.cobro._id;
+        await updated.save();
+
+        // El pago vino de nuestro propio link (webhook/cron con nuestro
+        // accessToken) — ya sabemos exactamente qué pago real de Mercado Pago
+        // le corresponde a este Movimiento, así que se autovincula acá mismo
+        // en vez de dejarlo pendiente para la reconciliación bancaria manual
+        // (que es para movimientos importados de un extracto, no para estos).
+        await vincularMovimientoAlPago(result.movimiento, payment);
+      }
+
+      for (const item of itemsEvento) {
+        const { movimiento } = await registrarPagoEventoParticipante({
+          clubId: updated.clubId,
+          user: { id: updated.requestedByUserId, email: updated.requestedByEmail },
+          eventoId: String(item.eventoId),
+          participanteId: String(item.eventoParticipanteId),
+          monto: item.amount,
+          paymentMethod: 'MercadoPago',
+          esPagoParcial: false,
+          date: payment.date_approved ? new Date(payment.date_approved) : new Date(),
+        });
+        await vincularMovimientoAlPago(movimiento, payment);
+      }
     } catch (err) {
       // No reintentar automáticamente: si esto falla es un conflicto de negocio real
       // (ej. la cuota ya se cobró por otro medio mientras el checkout estaba abierto),
-      // no algo transitorio. Queda para revisión manual.
-      console.error(`Error registrando cobro para intent ${updated._id} tras pago aprobado ${payment.id}:`, err);
+      // no algo transitorio. Queda para revisión manual. Si itemsNormales ya se
+      // registró antes de que fallara un item de evento, esa parte queda hecha
+      // (y vinculada) — el resultado de error es sobre lo que falta.
+      console.error(`Error registrando el pago para intent ${updated._id} tras pago aprobado ${payment.id}:`, err);
       return { resultado: 'error_registrar_cobro', intentId: updated._id, error: err };
     }
   }

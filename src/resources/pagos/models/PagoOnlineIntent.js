@@ -9,6 +9,13 @@ const pagoOnlineItemSchema = new mongoose.Schema({
   suscripcionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Suscripcion', default: null },
   cargoPuntualId: { type: mongoose.Schema.Types.ObjectId, ref: 'CargoPuntual', default: null },
   muroLibrePendiente: { type: Boolean, default: false },
+  // Deuda de un EventoParticipante (appcarc-backend#258-related self-service
+  // de eventos) — a diferencia de suscripcionId/cargoPuntualId, este item NO
+  // se procesa con registrarCobro al confirmarse el pago: necesita su propio
+  // eventoId porque registrarPagoEventoParticipante lo pide aparte del
+  // participanteId (ver procesarPagoMercadoPago.service.js).
+  eventoId: { type: mongoose.Schema.Types.ObjectId, ref: 'Evento', default: null },
+  eventoParticipanteId: { type: mongoose.Schema.Types.ObjectId, ref: 'EventoParticipante', default: null },
   periodos: { type: [String], default: undefined },
   cantidad: { type: Number, default: undefined },
   // Visitas puntuales elegidas por el socio/secretaría al generar el link

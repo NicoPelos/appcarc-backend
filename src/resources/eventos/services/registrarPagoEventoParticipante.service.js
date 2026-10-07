@@ -13,7 +13,11 @@ export class BusinessError extends Error {
   }
 }
 
-const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
+// 'MercadoPago' habilitado para el autoservicio: el socio paga su propia
+// deuda de evento con un link de Checkout Pro desde "Deudas y pagos", igual
+// que ya puede hacerlo con una cuota o Muro Libre (ver
+// crearPreferenciaCobroPropioMercadoPago.service.js y procesarPagoMercadoPago.service.js).
+const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia', 'MercadoPago'];
 
 // Mismo criterio que registrarCobro.service.js: compara por día calendario
 // argentino (UTC-3), no por timestamp exacto, para no rechazar "hoy" como

@@ -163,10 +163,25 @@ describe('registrarPagoEventoParticipante service (unit)', () => {
     })).rejects.toBeInstanceOf(BusinessError);
   });
 
-  it('rechaza paymentMethod inválido (MercadoPago no es un método manual válido)', async () => {
+  it('rechaza paymentMethod inválido', async () => {
     await expect(registrarPagoEventoParticipante({
-      clubId: CLUB_ID, user: USER, eventoId: EVENTO_ID, participanteId: PARTICIPANTE_ID, monto: 1000, paymentMethod: 'MercadoPago',
+      clubId: CLUB_ID, user: USER, eventoId: EVENTO_ID, participanteId: PARTICIPANTE_ID, monto: 1000, paymentMethod: 'Cheque',
     })).rejects.toBeInstanceOf(BusinessError);
+  });
+
+  // Habilitado para el autoservicio de pago de eventos por Mercado Pago
+  // (self-service desde "Deudas y pagos" vía crearPreferenciaCobroPropioMercadoPago
+  // + procesarPagoMercadoPago) — antes solo Efectivo/Transferencia eran válidos.
+  it('acepta paymentMethod MercadoPago', async () => {
+    const participante = buildParticipante();
+    EventoParticipante.findOne.mockReturnValue({ session: vi.fn().mockResolvedValue(participante) });
+
+    await registrarPagoEventoParticipante({
+      clubId: CLUB_ID, user: USER, eventoId: EVENTO_ID, participanteId: PARTICIPANTE_ID, monto: 20000, paymentMethod: 'MercadoPago',
+    });
+
+    expect(participante.estado).toBe('pagada');
+    expect(participante.pagos[0]).toMatchObject({ paymentMethod: 'MercadoPago' });
   });
 
   it('rechaza fecha futura', async () => {

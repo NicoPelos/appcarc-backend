@@ -6,9 +6,13 @@ vi.mock('../../models/PagoOnlineIntent.js', () => ({
 vi.mock('../../../cobros/services/registrarCobro.service.js', () => ({
   registrarCobro: vi.fn(),
 }));
+vi.mock('../../../eventos/services/registrarPagoEventoParticipante.service.js', () => ({
+  registrarPagoEventoParticipante: vi.fn(),
+}));
 
 import PagoOnlineIntent from '../../models/PagoOnlineIntent.js';
 import { registrarCobro } from '../../../cobros/services/registrarCobro.service.js';
+import { registrarPagoEventoParticipante } from '../../../eventos/services/registrarPagoEventoParticipante.service.js';
 import { obtenerPagoMercadoPago, procesarPagoMercadoPago } from '../../services/procesarPagoMercadoPago.service.js';
 
 const buildIntent = (overrides = {}) => ({
@@ -245,5 +249,87 @@ describe('procesarPagoMercadoPago', () => {
 
     expect(result.resultado).toBe('error_registrar_cobro');
     expect(updatedIntent.save).not.toHaveBeenCalled();
+  });
+
+  describe('autoservicio de pago de eventos', () => {
+    it('un intent con solo un item de evento llama registrarPagoEventoParticipante, no registrarCobro', async () => {
+      const intent = buildIntent({
+        items: [{ socioId: 'socio-1', eventoId: 'evento-1', eventoParticipanteId: 'participante-1', amount: 20000 }],
+        totalAmount: 20000,
+      });
+      const movimiento = { mercadopagoVinculos: [], save: vi.fn().mockResolvedValue(undefined) };
+      PagoOnlineIntent.findOne.mockResolvedValue(intent);
+      PagoOnlineIntent.findOneAndUpdate.mockResolvedValue({ ...intent, estado: 'aprobado' });
+      registrarPagoEventoParticipante.mockResolvedValue({ participante: {}, movimiento });
+
+      const result = await procesarPagoMercadoPago({
+        clubId: 'CARC',
+        accessToken: 'TEST-token',
+        payment: { id: '999', status: 'approved', transaction_amount: 20000, external_reference: 'ext-ref-1', payer: { email: 'pagador@test.com' } },
+      });
+
+      expect(registrarCobro).not.toHaveBeenCalled();
+      expect(registrarPagoEventoParticipante).toHaveBeenCalledWith(expect.objectContaining({
+        clubId: 'CARC', eventoId: 'evento-1', participanteId: 'participante-1', monto: 20000,
+        paymentMethod: 'MercadoPago', esPagoParcial: false,
+      }));
+      expect(result.resultado).toBe('aprobado');
+      expect(movimiento.mercadopagoVinculos).toEqual([
+        expect.objectContaining({ paymentId: '999', payerEmail: 'pagador@test.com', monto: 20000 }),
+      ]);
+      expect(movimiento.save).toHaveBeenCalled();
+    });
+
+    it('un intent que combina una cuota y un evento llama a ambos y vincula los dos movimientos', async () => {
+      const intent = buildIntent({
+        items: [
+          { socioId: 'socio-1', suscripcionId: 'sus-1', periodos: ['2026-06'], amount: 7500 },
+          { socioId: 'socio-1', eventoId: 'evento-1', eventoParticipanteId: 'participante-1', amount: 20000 },
+        ],
+        totalAmount: 27500,
+      });
+      const movimientoCobro = { mercadopagoVinculos: [], save: vi.fn().mockResolvedValue(undefined) };
+      const movimientoEvento = { mercadopagoVinculos: [], save: vi.fn().mockResolvedValue(undefined) };
+      PagoOnlineIntent.findOne.mockResolvedValue(intent);
+      PagoOnlineIntent.findOneAndUpdate.mockResolvedValue({ ...intent, estado: 'aprobado' });
+      registrarCobro.mockResolvedValue({ cobro: { _id: 'cobro-1' }, movimiento: movimientoCobro });
+      registrarPagoEventoParticipante.mockResolvedValue({ participante: {}, movimiento: movimientoEvento });
+
+      await procesarPagoMercadoPago({
+        clubId: 'CARC',
+        accessToken: 'TEST-token',
+        payment: { id: '999', status: 'approved', transaction_amount: 27500, external_reference: 'ext-ref-1' },
+      });
+
+      // registrarCobro solo recibe el item de la cuota, nunca el de evento
+      // (no entiende eventoParticipanteId).
+      expect(registrarCobro).toHaveBeenCalledWith(expect.objectContaining({
+        body: expect.objectContaining({ items: [expect.objectContaining({ suscripcionId: 'sus-1' })] }),
+      }));
+      expect(registrarCobro.mock.calls[0][0].body.items).toHaveLength(1);
+      expect(registrarPagoEventoParticipante).toHaveBeenCalledTimes(1);
+      // "1 pago = varios movimientos": mismo monto TOTAL (27500, no 7500 ni
+      // 20000) vinculado en cada uno de los dos movimientos resultantes —
+      // así lo espera conciliacionMercadopago.handler.js.
+      expect(movimientoCobro.mercadopagoVinculos[0]).toMatchObject({ monto: 27500 });
+      expect(movimientoEvento.mercadopagoVinculos[0]).toMatchObject({ monto: 27500 });
+    });
+
+    it('si registrarPagoEventoParticipante falla, devuelve error_registrar_cobro', async () => {
+      const intent = buildIntent({
+        items: [{ socioId: 'socio-1', eventoId: 'evento-1', eventoParticipanteId: 'participante-1', amount: 20000 }],
+        totalAmount: 20000,
+      });
+      PagoOnlineIntent.findOne.mockResolvedValue(intent);
+      PagoOnlineIntent.findOneAndUpdate.mockResolvedValue({ ...intent, estado: 'aprobado' });
+      registrarPagoEventoParticipante.mockRejectedValue(new Error('El evento está cerrado'));
+
+      const result = await procesarPagoMercadoPago({
+        clubId: 'CARC',
+        payment: { id: '999', status: 'approved', transaction_amount: 20000, external_reference: 'ext-ref-1' },
+      });
+
+      expect(result.resultado).toBe('error_registrar_cobro');
+    });
   });
 });

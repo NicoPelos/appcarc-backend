@@ -36,6 +36,12 @@ vi.mock('../../../usuarios/models/User.js', () => ({
 vi.mock('../../../vinculos/models/VinculoFamiliar.js', () => ({
   default: { find: vi.fn() },
 }));
+vi.mock('../../../eventos/models/Evento.js', () => ({
+  default: { findOne: vi.fn() },
+}));
+vi.mock('../../../eventos/models/EventoParticipante.js', () => ({
+  default: { findOne: vi.fn() },
+}));
 
 import Socio from '../../../socios/models/Socio.js';
 import MercadoPagoConfig from '../../models/MercadoPagoConfig.js';
@@ -47,6 +53,8 @@ import Asistencia from '../../../asistencias/models/Asistencia.js';
 import Etiqueta from '../../../etiquetas/models/Etiqueta.js';
 import User from '../../../usuarios/models/User.js';
 import VinculoFamiliar from '../../../vinculos/models/VinculoFamiliar.js';
+import Evento from '../../../eventos/models/Evento.js';
+import EventoParticipante from '../../../eventos/models/EventoParticipante.js';
 import { findPrecioVigente } from '../../../cuotas/services/findPrecioVigente.service.js';
 import { crearPreferenciaCobroPropioMercadoPago, BusinessError } from '../../services/crearPreferenciaCobroPropioMercadoPago.service.js';
 
@@ -83,6 +91,8 @@ beforeEach(() => {
   CargoPuntual.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
   Asistencia.find = vi.fn().mockReturnValue({ sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }) });
   Etiqueta.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'etq-1', nombre: 'Cuota Social' }) });
+  EventoParticipante.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
+  Evento.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
   findPrecioVigente.mockResolvedValue({ monto: 7500 });
   mockIntentSave.mockResolvedValue(undefined);
   stubMpFetch({ id: 'pref-1', init_point: 'https://mp.test/checkout/pref-1' });
@@ -230,7 +240,7 @@ describe('crearPreferenciaCobroPropioMercadoPago', () => {
 
   it('rechaza si un item no indica ni suscripcionId, ni cargoPuntualId, ni muroLibrePendiente', async () => {
     const args = { ...baseArgs(), items: [{ socioId: SOCIO_ID }] };
-    await expect(crearPreferenciaCobroPropioMercadoPago(args)).rejects.toMatchObject({ message: expect.stringContaining('suscripcionId, cargoPuntualId o muroLibrePendiente') });
+    await expect(crearPreferenciaCobroPropioMercadoPago(args)).rejects.toMatchObject({ message: expect.stringContaining('suscripcionId, cargoPuntualId, muroLibrePendiente o eventoParticipanteId') });
   });
 
   it('rechaza items duplicados', async () => {
@@ -264,5 +274,87 @@ describe('crearPreferenciaCobroPropioMercadoPago', () => {
     await crearPreferenciaCobroPropioMercadoPago(baseArgs());
 
     expect(Etiqueta.findOne).toHaveBeenCalledWith({ _id: 'etq-1', clubId: CLUB_ID });
+  });
+
+  describe('autoservicio de pago de eventos', () => {
+    const PARTICIPANTE_ID = 'participante-1';
+    const EVENTO_ID = 'evento-1';
+
+    const mockParticipante = (overrides = {}) => {
+      EventoParticipante.findOne = vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue({
+          _id: PARTICIPANTE_ID, eventoId: EVENTO_ID, socioId: SOCIO_ID,
+          montoEsperadoSnapshot: 20000, montoPagadoSnapshot: 0, estado: 'pendiente', active: true,
+          ...overrides,
+        }),
+      });
+    };
+    const mockEvento = (overrides = {}) => {
+      Evento.findOne = vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue({ _id: EVENTO_ID, nombre: 'Asado Villa Alpina', estado: 'abierto', active: true, ...overrides }),
+      });
+    };
+
+    it('resuelve el monto desde el saldo pendiente del participante', async () => {
+      mockParticipante();
+      mockEvento();
+      const args = { ...baseArgs(), items: [{ socioId: SOCIO_ID, eventoParticipanteId: PARTICIPANTE_ID }] };
+
+      await crearPreferenciaCobroPropioMercadoPago(args);
+
+      expect(PagoOnlineIntent).toHaveBeenCalledWith(expect.objectContaining({
+        totalAmount: 20000,
+        items: [expect.objectContaining({ eventoId: EVENTO_ID, eventoParticipanteId: PARTICIPANTE_ID, amount: 20000, description: 'Asado Villa Alpina' })],
+      }));
+    });
+
+    it('con una seña ya pagada (estado parcial), cobra el SALDO restante', async () => {
+      mockParticipante({ estado: 'parcial', montoPagadoSnapshot: 8000 });
+      mockEvento();
+      const args = { ...baseArgs(), items: [{ socioId: SOCIO_ID, eventoParticipanteId: PARTICIPANTE_ID }] };
+
+      await crearPreferenciaCobroPropioMercadoPago(args);
+
+      expect(PagoOnlineIntent).toHaveBeenCalledWith(expect.objectContaining({ totalAmount: 12000 }));
+    });
+
+    it('rechaza si el participante no existe o no es accesible', async () => {
+      EventoParticipante.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
+      const args = { ...baseArgs(), items: [{ socioId: SOCIO_ID, eventoParticipanteId: PARTICIPANTE_ID }] };
+
+      await expect(crearPreferenciaCobroPropioMercadoPago(args)).rejects.toMatchObject({ status: 404 });
+    });
+
+    it('rechaza si el participante ya está pagado', async () => {
+      mockParticipante({ estado: 'pagada' });
+      mockEvento();
+      const args = { ...baseArgs(), items: [{ socioId: SOCIO_ID, eventoParticipanteId: PARTICIPANTE_ID }] };
+
+      await expect(crearPreferenciaCobroPropioMercadoPago(args)).rejects.toMatchObject({ status: 409 });
+    });
+
+    it('rechaza si el evento está cerrado', async () => {
+      mockParticipante();
+      mockEvento({ estado: 'cerrado' });
+      const args = { ...baseArgs(), items: [{ socioId: SOCIO_ID, eventoParticipanteId: PARTICIPANTE_ID }] };
+
+      await expect(crearPreferenciaCobroPropioMercadoPago(args)).rejects.toMatchObject({ status: 409 });
+    });
+
+    it('permite combinar en un mismo link una cuota y un evento', async () => {
+      mockParticipante();
+      mockEvento();
+      const args = {
+        ...baseArgs(),
+        items: [
+          { socioId: SOCIO_ID, suscripcionId: SUSCRIPCION_ID, periodos: ['2026-07'] }, // 7500
+          { socioId: SOCIO_ID, eventoParticipanteId: PARTICIPANTE_ID }, // 20000
+        ],
+      };
+
+      await crearPreferenciaCobroPropioMercadoPago(args);
+
+      expect(PagoOnlineIntent).toHaveBeenCalledWith(expect.objectContaining({ totalAmount: 27500 }));
+    });
   });
 });
