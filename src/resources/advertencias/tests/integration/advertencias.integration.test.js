@@ -160,11 +160,18 @@ describe('GET /api/advertencias (integración)', () => {
 
   it('incluye advertencias de morosidad abiertas junto con las de check-in', async () => {
     const { token } = await createAdminUser();
+    // appcarc-backend#210 (agruparPorSocio, 969d77d): el resultado es una
+    // fila por SOCIO, no una fila por advertencia — con un solo socio, el
+    // check-in y la morosidad se fusionan en la misma fila (total pasaría a
+    // ser 1, no 2). Se usan dos socios distintos para que esta prueba siga
+    // verificando lo que dice su nombre (ambos tipos aparecen en el
+    // resultado) sin pisarse con esa fusión, que tiene su propia cobertura.
     const socio = await createSocio();
+    const otroSocio = await createSocio();
     await crearAsistenciaConAdvertencia({ socio });
     await Advertencia.create({
-      clubId: 'CARC', socioId: socio._id, codigo: 'MOROSIDAD_CUOTA_SOCIAL',
-      mensaje: 'Debe 3 meses de cuota social', nombre: socio.nombre, apellido: socio.apellido,
+      clubId: 'CARC', socioId: otroSocio._id, codigo: 'MOROSIDAD_CUOTA_SOCIAL',
+      mensaje: 'Debe 3 meses de cuota social', nombre: otroSocio.nombre, apellido: otroSocio.apellido,
       estado: 'abierta', detectadoEn: new Date(), ultimaRevision: new Date(),
     });
 

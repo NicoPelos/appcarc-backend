@@ -89,6 +89,9 @@ describe('POST /api/super/users (integración)', () => {
   it('crea un usuario admin para un club con contraseña temporal', async () => {
     const { token } = await createAdminUser();
     await getOrCreateRol({ clubId: CLUB_ID, nombre: 'admin' });
+    // appcarc-backend#240: el handler rechaza clubId que no tenga un Club
+    // real — este test quedó desactualizado cuando se agregó ese chequeo.
+    await Club.create({ nombre: 'Club Andino Rio Cuarto', slug: CLUB_ID });
 
     const res = await request(app)
       .post('/api/super/users')
@@ -103,6 +106,7 @@ describe('POST /api/super/users (integración)', () => {
   it('rechaza un email duplicado en el mismo club (409)', async () => {
     const { token } = await createAdminUser();
     await getOrCreateRol({ clubId: CLUB_ID, nombre: 'admin' });
+    await Club.create({ nombre: 'Club Andino Rio Cuarto', slug: CLUB_ID });
     await request(app).post('/api/super/users').set('Authorization', `Bearer ${token}`).send({ email: 'dup@carc.local', clubId: CLUB_ID });
 
     const res = await request(app).post('/api/super/users').set('Authorization', `Bearer ${token}`).send({ email: 'dup@carc.local', clubId: CLUB_ID });

@@ -1,19 +1,32 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
-
-vi.mock('../../../../services/pushNotification.service.js', async (importOriginal) => ({
-  ...(await importOriginal()),
-  sendPushNotification: vi.fn().mockResolvedValue({ sent: 1 }),
-}));
 
 import app from '../../../../index.js';
 import Cuota from '../../../cuotas/models/Cuota.js';
 import Movimiento from '../../../movimientos/models/Movimiento.js';
 import User from '../../../usuarios/models/User.js';
-import { sendPushNotification } from '../../../../services/pushNotification.service.js';
+import * as pushNotificationService from '../../../../services/pushNotification.service.js';
 import {
   CLUB_ID, createAdminUser, createSocio, createEtiqueta, createPrecio, createSuscripcion, getOrCreateRol,
 } from '../../../../testUtils/integrationHelpers.js';
+
+// Bajo isolate:false (ver vitest.integration.config.js) todos los archivos
+// de integración comparten un único module graph: si OTRO archivo ya
+// importó app/createCobro.handler.js antes de que el vi.mock(...) de este
+// archivo llegara a aplicarse, ese import queda atado para siempre a la
+// implementación real de sendPushNotification (los bindings de ESM se
+// resuelven una sola vez, al evaluar el módulo por primera vez) — el mock
+// nunca se nota y el test queda flaky según el orden de ejecución de los
+// demás archivos. vi.spyOn sobre el namespace ya importado no depende de
+// quién lo importó primero: parchea la función en el mismo objeto que
+// cualquier otro importador ya está usando.
+let sendPushNotification;
+beforeEach(() => {
+  sendPushNotification = vi.spyOn(pushNotificationService, 'sendPushNotification').mockResolvedValue({ sent: 1 });
+});
+afterEach(() => {
+  sendPushNotification.mockRestore();
+});
 
 const setupSocioConSuscripcion = async () => {
   const socio = await createSocio();

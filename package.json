@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.js",
     "import-socios": "node scripts/import-socios-from-sheet.js",
     "import-cuotas": "node scripts/import-cuotas-from-sheet.js",
