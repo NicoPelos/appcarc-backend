@@ -25,7 +25,7 @@ vi.mock('../../../asistencias/models/Asistencia.js', () => ({
   default: { find: vi.fn() },
 }));
 vi.mock('../../../etiquetas/models/Etiqueta.js', () => ({
-  default: { findById: vi.fn() },
+  default: { findOne: vi.fn() },
 }));
 vi.mock('../../../cuotas/services/findPrecioVigente.service.js', () => ({
   findPrecioVigente: vi.fn(),
@@ -82,7 +82,7 @@ beforeEach(() => {
   Cuota.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
   CargoPuntual.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue(null) });
   Asistencia.find = vi.fn().mockReturnValue({ sort: vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue([]) }) });
-  Etiqueta.findById = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'etq-1', nombre: 'Cuota Social' }) });
+  Etiqueta.findOne = vi.fn().mockReturnValue({ lean: vi.fn().mockResolvedValue({ _id: 'etq-1', nombre: 'Cuota Social' }) });
   findPrecioVigente.mockResolvedValue({ monto: 7500 });
   mockIntentSave.mockResolvedValue(undefined);
   stubMpFetch({ id: 'pref-1', init_point: 'https://mp.test/checkout/pref-1' });
@@ -249,5 +249,20 @@ describe('crearPreferenciaCobroPropioMercadoPago', () => {
     MercadoPagoConfig.findOne.mockResolvedValue(null);
 
     await expect(crearPreferenciaCobroPropioMercadoPago(baseArgs())).rejects.toBeInstanceOf(BusinessError);
+  });
+
+  it('appcarc-backend#258: deduplica períodos repetidos dentro de un mismo item', async () => {
+    const args = { ...baseArgs(), items: [{ socioId: SOCIO_ID, suscripcionId: SUSCRIPCION_ID, periodos: ['2026-07', '2026-07'] }] };
+
+    await crearPreferenciaCobroPropioMercadoPago(args);
+
+    // Sin el dedup esto sería 15000 (7500 × 2 "períodos")
+    expect(PagoOnlineIntent).toHaveBeenCalledWith(expect.objectContaining({ totalAmount: 7500 }));
+  });
+
+  it('appcarc-backend#261: busca la etiqueta de la suscripción filtrando por clubId', async () => {
+    await crearPreferenciaCobroPropioMercadoPago(baseArgs());
+
+    expect(Etiqueta.findOne).toHaveBeenCalledWith({ _id: 'etq-1', clubId: CLUB_ID });
   });
 });

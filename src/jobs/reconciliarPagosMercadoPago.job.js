@@ -8,17 +8,22 @@ export const reconciliarPagosMercadoPago = async () => {
   const configs = await MercadoPagoConfig.find({ active: true });
 
   let total = 0;
+  let totalExpirados = 0;
   for (const config of configs) {
     try {
-      const { resueltos } = await reconciliarPagosMercadoPagoClub({ clubId: config.clubId, accessToken: config.accessToken });
+      const { resueltos, errores, expirados } = await reconciliarPagosMercadoPagoClub({ clubId: config.clubId, accessToken: config.accessToken });
       total += resueltos;
+      totalExpirados += expirados;
+      if (errores) {
+        console.error(`⚠️ Reconciliación Mercado Pago [${config.clubId}]: ${errores} intent(s) fallaron y se saltearon (ver logs arriba)`);
+      }
     } catch (err) {
       console.error(`❌ Reconciliación Mercado Pago [${config.clubId}]: error revisando:`, err.message);
       await notifyJobFailure(config.clubId, 'Reconciliación Mercado Pago', err.message);
     }
   }
 
-  console.log(`💳 Reconciliación Mercado Pago: ${total} pagos resueltos por polling`);
+  console.log(`💳 Reconciliación Mercado Pago: ${total} pagos resueltos por polling, ${totalExpirados} intents expirados`);
 };
 
 export const startReconciliarPagosMercadoPagoJob = () => {

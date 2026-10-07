@@ -23,7 +23,7 @@ describe('reconciliarPagosMercadoPago', () => {
       { clubId: 'CARC', accessToken: 'token-carc' },
       { clubId: 'OTROCLUB', accessToken: 'token-otro' },
     ]);
-    reconciliarPagosMercadoPagoClub.mockResolvedValue({ revisados: 2, resueltos: 1 });
+    reconciliarPagosMercadoPagoClub.mockResolvedValue({ revisados: 2, resueltos: 1, errores: 0, expirados: 0 });
 
     await reconciliarPagosMercadoPago();
 

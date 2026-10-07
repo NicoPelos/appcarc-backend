@@ -90,10 +90,16 @@ const normalizeItemPropio = async ({ item, index, clubId, socioId, date }) => {
     };
   }
 
-  const periodos = Array.isArray(item?.periodos) ? item.periodos.map((p) => String(p || '').trim()) : [];
-  if (!periodos.length) throw new BusinessError(`El item ${index + 1} debe indicar al menos un período`);
-  const periodoInvalido = periodos.find((p) => !PERIODO_PATTERN.test(p));
+  const periodosCrudos = Array.isArray(item?.periodos) ? item.periodos.map((p) => String(p || '').trim()) : [];
+  if (!periodosCrudos.length) throw new BusinessError(`El item ${index + 1} debe indicar al menos un período`);
+  const periodoInvalido = periodosCrudos.find((p) => !PERIODO_PATTERN.test(p));
   if (periodoInvalido) throw new BusinessError(`El item ${index + 1} contiene un período inválido`);
+  // appcarc-backend#258: sin este dedup, un período repetido en el mismo item
+  // (ej. ["2026-09","2026-09"] por un doble tap en el selector del cliente)
+  // se cobraba dos veces: montoItem se calculaba con periodos.length SIN
+  // deduplicar, multiplicando el precio vigente por una cantidad mayor a la
+  // real de meses a pagar.
+  const periodos = [...new Set(periodosCrudos)];
 
   const suscripcion = await Suscripcion.findOne({
     _id: suscripcionId, socioId, clubId, active: true,
@@ -108,7 +114,13 @@ const normalizeItemPropio = async ({ item, index, clubId, socioId, date }) => {
   const etiquetaId = String(suscripcion.etiquetaId);
   const [precio, etiqueta] = await Promise.all([
     findPrecioVigente({ clubId, etiquetaId, date }),
-    Etiqueta.findById(etiquetaId).lean(),
+    // appcarc-backend#261: Etiqueta.findById no filtraba por clubId. La
+    // suscripción ya está validada contra este club más arriba, pero si
+    // etiquetaId apuntara a una etiqueta de otro club (dato corrupto, o un
+    // bug futuro que la deje desincronizada) esto la hubiera traído igual —
+    // acá solo se usa para el nombre a mostrar, pero el mismo patrón se
+    // repite en otros handlers donde sí podría filtrar datos cross-club.
+    Etiqueta.findOne({ _id: etiquetaId, clubId }).lean(),
   ]);
 
   if (!precio || !Number.isFinite(precio.monto) || precio.monto <= 0) {

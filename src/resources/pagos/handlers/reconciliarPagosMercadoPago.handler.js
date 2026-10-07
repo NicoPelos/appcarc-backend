@@ -27,8 +27,8 @@ export const reconciliarPagosMercadoPagoHandler = async (req, res) => {
       return res.status(400).json({ message: 'Este club todavía no configuró Mercado Pago' });
     }
 
-    const { revisados, resueltos } = await reconciliarPagosMercadoPagoClub({ clubId, accessToken: config.accessToken });
-    res.status(200).json({ revisados, resueltos });
+    const { revisados, resueltos, errores, expirados } = await reconciliarPagosMercadoPagoClub({ clubId, accessToken: config.accessToken });
+    res.status(200).json({ revisados, resueltos, errores, expirados });
   } catch (error) {
     console.error('Error revisando pagos pendientes de Mercado Pago:', error);
     res.status(500).json({ message: 'Error al revisar pagos pendientes' });

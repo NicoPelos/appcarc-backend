@@ -23,7 +23,7 @@ beforeEach(() => vi.clearAllMocks());
 describe('reconciliarPagosMercadoPagoHandler', () => {
   it('revisa los pagos pendientes del club del usuario logueado', async () => {
     MercadoPagoConfig.findOne.mockResolvedValue({ clubId: 'CARC', accessToken: 'token-carc', active: true });
-    reconciliarPagosMercadoPagoClub.mockResolvedValue({ revisados: 3, resueltos: 1 });
+    reconciliarPagosMercadoPagoClub.mockResolvedValue({ revisados: 3, resueltos: 1, errores: 0, expirados: 2 });
 
     const req = { user: { clubId: 'CARC' } };
     const res = mockRes();
@@ -33,7 +33,7 @@ describe('reconciliarPagosMercadoPagoHandler', () => {
     expect(MercadoPagoConfig.findOne).toHaveBeenCalledWith({ clubId: 'CARC', active: true });
     expect(reconciliarPagosMercadoPagoClub).toHaveBeenCalledWith({ clubId: 'CARC', accessToken: 'token-carc' });
     expect(res.status).toHaveBeenCalledWith(200);
-    expect(res.json).toHaveBeenCalledWith({ revisados: 3, resueltos: 1 });
+    expect(res.json).toHaveBeenCalledWith({ revisados: 3, resueltos: 1, errores: 0, expirados: 2 });
   });
 
   it('responde 400 si el club no tiene Mercado Pago configurado', async () => {

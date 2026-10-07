@@ -204,8 +204,30 @@ describe('procesarPagoMercadoPago', () => {
     expect(registrarCobro).not.toHaveBeenCalled();
     expect(result.resultado).toBe('rechazado');
     expect(PagoOnlineIntent.findOneAndUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ _id: intent._id, estado: 'pendiente' }),
+      expect.objectContaining({ _id: intent._id, estado: { $in: ['pendiente', 'rechazado'] } }),
       expect.objectContaining({ $set: expect.objectContaining({ estado: 'rechazado' }) }),
+    );
+  });
+
+  it('appcarc-backend#257: un pago aprobado llega después de que el mismo intent ya quedó rechazado (reintento de Checkout Pro) y sí se procesa', async () => {
+    const intent = buildIntent({ estado: 'rechazado' });
+    const movimiento = { mercadopagoVinculos: [], save: vi.fn().mockResolvedValue(undefined) };
+    PagoOnlineIntent.findOne.mockResolvedValue(intent);
+    PagoOnlineIntent.findOneAndUpdate.mockResolvedValue({ ...intent, estado: 'aprobado' });
+    registrarCobro.mockResolvedValue({ cobro: { _id: 'cobro-1' }, movimiento });
+
+    const result = await procesarPagoMercadoPago({
+      clubId: 'CARC',
+      accessToken: 'TEST-token',
+      payment: { id: '999', status: 'approved', transaction_amount: 15000, external_reference: 'ext-ref-1' },
+    });
+
+    expect(result.resultado).toBe('aprobado');
+    expect(registrarCobro).toHaveBeenCalled();
+    expect(PagoOnlineIntent.findOneAndUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ _id: intent._id, estado: { $in: ['pendiente', 'rechazado'] } }),
+      expect.objectContaining({ $set: expect.objectContaining({ estado: 'aprobado' }) }),
+      expect.anything(),
     );
   });
 

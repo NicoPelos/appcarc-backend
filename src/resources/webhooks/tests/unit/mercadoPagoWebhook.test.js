@@ -196,7 +196,9 @@ describe('mercadoPagoWebhookHandler', () => {
 
     expect(registrarCobro).not.toHaveBeenCalled();
     expect(PagoOnlineIntent.findOneAndUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ _id: intent._id, estado: 'pendiente' }),
+      // appcarc-backend#257: el guard ahora también acepta 'rechazado' como
+      // estado previo (ver procesarPagoMercadoPago.service.js).
+      expect.objectContaining({ _id: intent._id, estado: { $in: ['pendiente', 'rechazado'] } }),
       expect.objectContaining({ $set: expect.objectContaining({ estado: 'rechazado' }) }),
     );
   });

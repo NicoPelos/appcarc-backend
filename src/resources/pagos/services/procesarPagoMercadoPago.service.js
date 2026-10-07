@@ -93,14 +93,23 @@ export const procesarPagoMercadoPago = async ({ clubId, payment, accessToken }) 
 
   if (estadoNuevo === 'aprobado' && Number(payment.transaction_amount) !== intent.totalAmount) {
     await PagoOnlineIntent.findOneAndUpdate(
-      { _id: intent._id, estado: 'pendiente' },
+      // appcarc-backend#257: el guard original solo permitía 'pendiente', así
+      // que un intent que ya había quedado 'rechazado' (ej. un primer intento
+      // fallido del mismo checkout) bloqueaba para siempre cualquier
+      // resultado posterior del mismo link — nunca 'aprobado' ya matcheado
+      // acá, así que no hay riesgo de reprocesar un cobro ya registrado.
+      { _id: intent._id, estado: { $in: ['pendiente', 'rechazado'] } },
       { $set: { estado: 'rechazado', mpPaymentId: String(payment.id), mpStatus: payment.status, mpStatusDetail: 'monto_no_coincide' } },
     );
     return { resultado: 'rechazado', motivo: 'monto_no_coincide', intentId: intent._id };
   }
 
   const updated = await PagoOnlineIntent.findOneAndUpdate(
-    { _id: intent._id, estado: 'pendiente' },
+    // appcarc-backend#257: mismo motivo — permitir la transición
+    // rechazado -> aprobado/rechazado para que un pago aprobado después de
+    // un rechazo previo (reintento de Checkout Pro con otro medio de pago)
+    // se procese y registre el cobro en vez de perderse silenciosamente.
+    { _id: intent._id, estado: { $in: ['pendiente', 'rechazado'] } },
     {
       $set: {
         estado: estadoNuevo,

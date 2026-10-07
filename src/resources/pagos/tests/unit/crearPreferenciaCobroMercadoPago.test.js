@@ -201,4 +201,15 @@ describe('crearPreferenciaCobroMercadoPago', () => {
     await expect(crearPreferenciaCobroMercadoPago(baseArgs())).rejects.toMatchObject({ status: 502 });
     expect(mockIntentSave).not.toHaveBeenCalled();
   });
+
+  it('appcarc-backend#258: deduplica períodos repetidos dentro de un mismo item', async () => {
+    const args = baseArgs();
+    args.items = [{ socioId: SOCIO_ID, suscripcionId: SUSCRIPCION_ID, periodos: ['2026-07', '2026-07', '2026-08'], amount: 7500 }];
+
+    await crearPreferenciaCobroMercadoPago(args);
+
+    expect(PagoOnlineIntent).toHaveBeenCalledWith(expect.objectContaining({
+      items: [expect.objectContaining({ periodos: ['2026-07', '2026-08'] })],
+    }));
+  });
 });

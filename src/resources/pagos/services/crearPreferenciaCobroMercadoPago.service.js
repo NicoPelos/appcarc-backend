@@ -27,7 +27,14 @@ const normalizeItemParaLink = (item, index, socioId) => {
     throw new BusinessError(`El item ${index + 1} necesita un monto asignado para generar el link de pago`);
   }
 
-  const periodos = Array.isArray(item?.periodos) && item.periodos.length ? item.periodos.map(String) : undefined;
+  // appcarc-backend#258: dedup igual que en el flujo propio — acá "amount" ya
+  // viene fijado por secretaría y no se recalcula a partir de periodos.length,
+  // así que un período repetido no duplica el monto cobrado, pero sí queda
+  // guardado dos veces en el intent/cobro resultante (reportes, Cuota por
+  // período duplicada). Se deduplica para que el registro sea consistente.
+  const periodos = Array.isArray(item?.periodos) && item.periodos.length
+    ? [...new Set(item.periodos.map(String))]
+    : undefined;
   const asistenciaIds = Array.isArray(item?.asistenciaIds) && item.asistenciaIds.length ? item.asistenciaIds.map(String) : undefined;
   const cantidad = item?.cantidad == null ? undefined : Number(item.cantidad);
   // Misma regla que registrarCobro.service.js: sin esto, un cantidad inválido
