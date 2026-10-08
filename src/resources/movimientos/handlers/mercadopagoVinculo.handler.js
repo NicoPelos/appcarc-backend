@@ -2,6 +2,7 @@ import Movimiento from '../models/Movimiento.js';
 import MercadoPagoConfig from '../../pagos/models/MercadoPagoConfig.js';
 import { obtenerPagoMercadoPago } from '../../pagos/services/procesarPagoMercadoPago.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -57,7 +58,7 @@ export const vincularMercadopagoHandler = async (req, res) => {
       return res.status(409).json({ message: 'Ese pago ya está vinculado a este movimiento' });
     }
 
-    const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
+    const actor = getActor(req);
     const before = movimiento.mercadopagoVinculos;
     // Para un Egreso, el club es el payer del pago de MP — la contraparte
     // (a quién se le pagó) es el collector, no el payer.
@@ -111,7 +112,7 @@ export const desvincularMercadopagoHandler = async (req, res) => {
       return res.status(404).json({ message: 'Ese movimiento no tiene ese vínculo' });
     }
 
-    const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
+    const actor = getActor(req);
     if (movimiento.mercadopagoVinculos.length === 0 && movimiento.paymentMethod === 'MercadoPago') {
       movimiento.paymentMethod = 'Transferencia';
     }

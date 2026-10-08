@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import Movimiento from '../models/Movimiento.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -39,7 +40,7 @@ export const deleteComprobanteHandler = async (req, res) => {
     const filename = path.basename(comprobante.url);
     fs.unlink(path.resolve('uploads/comprobantes', filename), () => {}); // best-effort, no bloquea si ya no está
 
-    const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
+    const actor = getActor(req);
     comprobante.deleteOne();
     movimiento.updatedBy = actor;
     await movimiento.save();

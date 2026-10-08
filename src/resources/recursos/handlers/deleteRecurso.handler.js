@@ -1,5 +1,6 @@
 import RecursoExterno from '../models/RecursoExterno.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -32,8 +33,8 @@ export const deleteRecursoHandler = async (req, res) => {
 
     recurso.active = false;
     recurso.deletedAt = new Date();
-    recurso.deletedBy = req.user.email || req.user.id;
-    recurso.updatedBy = req.user.email || req.user.id;
+    recurso.deletedBy = getActor(req);
+    recurso.updatedBy = getActor(req);
     await recurso.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'RecursoExterno', resourceId: recurso._id, before: recursoAntes, after: null });

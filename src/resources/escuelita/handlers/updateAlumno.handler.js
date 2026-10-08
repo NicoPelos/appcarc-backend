@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Escuelita from '../models/Escuelita.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { sincronizarSuscripcionEscuelita } from '../services/sincronizarSuscripcionPlan.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -70,7 +71,7 @@ export const updateAlumnoHandler = async (req, res) => {
       updates.planId = planId || null;
     }
 
-    updates.updatedBy = req.user.email || req.user.id;
+    updates.updatedBy = getActor(req);
 
     const alumnoAntes = await Escuelita.findOne({ _id: req.params.id, clubId: req.user?.clubId, active: true }).lean();
     if (!alumnoAntes) return res.status(404).json({ message: 'Alumno de escuelita no encontrado' });

@@ -3,6 +3,7 @@ import Evento from '../models/Evento.js';
 import EventoParticipante from '../models/EventoParticipante.js';
 import Socio from '../../socios/models/Socio.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -89,7 +90,7 @@ export const crearEventoParticipanteHandler = async (req, res) => {
       return res.status(400).json({ message: 'monto debe ser un número mayor o igual a cero' });
     }
 
-    const actor = req.user.email || req.user.id;
+    const actor = getActor(req);
     const participante = new EventoParticipante({
       clubId: req.user.clubId,
       eventoId,

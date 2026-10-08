@@ -1,5 +1,6 @@
 import Precios from '../models/Precios.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -32,8 +33,8 @@ export const deletePrecioHandler = async (req, res) => {
 
     precio.active = false;
     precio.deletedAt = new Date();
-    precio.deletedBy = req.user.email || req.user.id;
-    precio.updatedBy = req.user.email || req.user.id;
+    precio.deletedBy = getActor(req);
+    precio.updatedBy = getActor(req);
     await precio.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'Precios', resourceId: precio._id, before: precioAntes, after: null });

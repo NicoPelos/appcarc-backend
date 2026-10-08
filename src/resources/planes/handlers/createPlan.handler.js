@@ -1,6 +1,7 @@
 import Plan, { TIPOS, MODALIDADES } from '../models/Plan.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -72,8 +73,8 @@ export const createPlanHandler = async (req, res) => {
       etiquetaId,
       atributos,
       noGeneraDeuda: noGeneraDeuda === true,
-      createdBy: req.user.email || req.user.id,
-      updatedBy: req.user.email || req.user.id,
+      createdBy: getActor(req),
+      updatedBy: getActor(req),
     });
 
     await plan.save();

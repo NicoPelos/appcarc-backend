@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import Socio from '../models/Socio.js';
+import { getActor } from '../../../services/getActor.js';
 
 const FOTO_DIR = path.resolve('uploads/fotos');
 
@@ -40,7 +41,7 @@ export const deleteFotoSocioHandler = async (req, res) => {
     }
 
     socio.fotoPerfil = null;
-    socio.updatedBy = req.user.email || req.user.id;
+    socio.updatedBy = getActor(req);
     await socio.save();
 
     return res.status(200).json({ message: 'Foto de perfil eliminada' });

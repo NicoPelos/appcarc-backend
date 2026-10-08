@@ -1,6 +1,7 @@
 import Plan from '../models/Plan.js';
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -40,8 +41,8 @@ export const deletePlanHandler = async (req, res) => {
     const planAntes = plan.toObject();
     plan.active = false;
     plan.deletedAt = new Date();
-    plan.deletedBy = req.user.email || req.user.id;
-    plan.updatedBy = req.user.email || req.user.id;
+    plan.deletedBy = getActor(req);
+    plan.updatedBy = getActor(req);
     await plan.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'Plan', resourceId: plan._id, before: planAntes, after: null });

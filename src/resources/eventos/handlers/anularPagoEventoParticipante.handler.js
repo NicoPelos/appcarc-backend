@@ -3,6 +3,7 @@ import Movimiento from '../../movimientos/models/Movimiento.js';
 import EventoParticipante from '../models/EventoParticipante.js';
 import { anularPagoEventoParticipante } from '../services/anularPagoEventoParticipante.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -42,7 +43,7 @@ export const anularPagoEventoParticipanteHandler = async (req, res) => {
   const session = await mongoose.startSession();
   try {
     let participanteActualizado = null;
-    const actor = req.user?.email || req.user?.id;
+    const actor = getActor(req);
 
     await session.withTransaction(async () => {
       const participante = await EventoParticipante.findOne({

@@ -4,6 +4,7 @@ import Cuota from '../../cuotas/models/Cuota.js';
 import mongoose from 'mongoose';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { esFechaFutura } from '../../../services/fechaArgentina.js';
+import { getActor } from '../../../services/getActor.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 // 'pagado' queda afuera a propósito: pasar a/desde pagado implica crear o
@@ -60,7 +61,7 @@ export const updateMuroLibreHandler = async (req, res) => {
     await session.withTransaction(async () => {
       const { id } = req.params;
       const { fecha, monto, formaPago, observaciones, estadoPago } = req.body;
-      const actor = req.user.email || req.user.id;
+      const actor = getActor(req);
 
       const registro = await Asistencia.findOne({
         _id: id, clubId: req.user.clubId, tipo: 'muro_libre', active: true,

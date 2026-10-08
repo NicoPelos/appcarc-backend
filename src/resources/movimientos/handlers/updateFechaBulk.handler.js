@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Movimiento from '../models/Movimiento.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 const MAX_IDS = 200;
 
@@ -55,7 +56,7 @@ export const updateFechaBulkHandler = async (req, res) => {
       return res.status(400).json({ message: 'La fecha del movimiento es inválida' });
     }
 
-    const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
+    const actor = getActor(req);
     const idsUnicos = [...new Set(ids)];
     const movimientos = await Movimiento.find({ _id: { $in: idsUnicos }, clubId: req.user?.clubId, active: true });
 

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Precios from '../models/Precios.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { resolverVigenciaPrecio, BusinessError, RequiereConfirmacionError } from '../services/resolverVigenciaPrecio.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -82,7 +83,7 @@ export const updatePrecioHandler = async (req, res) => {
         if (monto !== undefined) precio.monto = Number(monto);
         precio.vigenteDesde = nuevaDesde;
         precio.vigenteHasta = nuevaHasta;
-        precio.updatedBy = req.user.email || req.user.id;
+        precio.updatedBy = getActor(req);
         await precio.save({ session });
       });
     } finally {

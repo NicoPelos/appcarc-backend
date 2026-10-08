@@ -5,6 +5,7 @@ import { cerrarSuscripcionesPorBaja } from '../services/cerrarSuscripcionesPorBa
 import { logAudit } from '../../audit/services/audit.service.js';
 import User from '../../usuarios/models/User.js';
 import { anularVinculosFamiliares } from '../../vinculos/services/anularVinculosFamiliares.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -60,7 +61,7 @@ export const deleteSocioHandler = async (req, res) => {
       clubId: req.user?.clubId,
       hijoSocioIds: [id],
       padreUserIds: cuentasDelSocio.map((u) => u._id),
-      actor: req.user?.email || req.user?.id,
+      actor: getActor(req),
     });
 
     await syncSocioToSheet(socio, { appendIfMissing: false, deleted: true }).catch((err) => console.error('Error sincronizando baja a Google Sheets:', err.message));

@@ -1,5 +1,6 @@
 import Etiqueta from '../models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -53,7 +54,7 @@ export const updateEtiquetaHandler = async (req, res) => {
       etiqueta.uso_sistema = nuevoUsoSistema;
     }
 
-    etiqueta.updatedBy = req.user.email || req.user.id;
+    etiqueta.updatedBy = getActor(req);
     await etiqueta.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Etiqueta', resourceId: etiqueta._id, before: etiquetaAntes, after: etiqueta.toObject() });

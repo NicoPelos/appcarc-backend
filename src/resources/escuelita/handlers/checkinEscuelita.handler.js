@@ -10,6 +10,7 @@ import { notifyRolesByPermiso, notifySocio } from '../../../services/pushNotific
 import { periodoDeFecha, diaBoundsUTC, semanaBoundsUTC, dentroDeVentanaDeGracia, esFechaFutura } from '../../../services/fechaArgentina.js';
 import { tienePermiso } from '../../../services/permisosCache.js';
 import { PERMISOS } from '../../../constants/permisos.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -55,7 +56,7 @@ export const checkinEscuelitaHandler = async (req, res) => {
   try {
     const { token, dni, hijoSocioId, observaciones, fecha: fechaRaw } = req.body;
     const { clubId } = req.user;
-    const actor = req.user.email || req.user.id;
+    const actor = getActor(req);
 
     const fecha = fechaRaw ? new Date(fechaRaw) : new Date();
     if (Number.isNaN(fecha.getTime())) {

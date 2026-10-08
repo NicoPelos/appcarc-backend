@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Movimiento, { CATEGORIAS_MOVIMIENTO } from '../models/Movimiento.js';
 import Evento from '../../eventos/models/Evento.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 
@@ -137,8 +138,8 @@ export const createMovimientoHandler = async (req, res) => {
       description: description || '',
       date: movementDate,
       eventoId: eventoIdValidado,
-      createdBy: req.user.email || req.user.id,
-      updatedBy: req.user.email || req.user.id,
+      createdBy: getActor(req),
+      updatedBy: getActor(req),
     });
 
     await movimiento.save();

@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import EventoParticipante from '../models/EventoParticipante.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -46,7 +47,7 @@ export const anularEventoParticipanteHandler = async (req, res) => {
     const antes = participante.toObject();
     participante.estado = 'anulada';
     participante.active = false;
-    participante.updatedBy = req.user.email || req.user.id;
+    participante.updatedBy = getActor(req);
     await participante.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'EventoParticipante', resourceId: participante._id, before: antes, after: null });

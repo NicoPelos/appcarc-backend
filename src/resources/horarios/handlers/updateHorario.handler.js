@@ -2,6 +2,7 @@ import Horarios from '../models/Horarios.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { ROLES_EDIT_ALL, ROLES_READ_ONLY, MAX_TOTAL_HORAS } from '../constants.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -101,7 +102,7 @@ export const updateHorarioHandler = async (req, res) => {
     }
     if (totalHoras !== undefined) horario.totalHoras = totalHoras;
     if (observaciones !== undefined) horario.observaciones = observaciones;
-    horario.updatedBy = req.user?.email ?? req.user?.id ?? 'Sistema';
+    horario.updatedBy = getActor(req);
 
     await horario.save();
     logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Horarios', resourceId: horario._id, before: horarioAntes, after: horario.toObject() });

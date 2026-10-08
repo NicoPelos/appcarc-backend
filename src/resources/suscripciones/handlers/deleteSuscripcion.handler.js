@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Suscripcion from '../models/Suscripcion.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { sincronizarEscuelitaPorSuscripcionModificada } from '../../escuelita/services/sincronizarSuscripcionPlan.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -37,7 +38,7 @@ export const deleteSuscripcionHandler = async (req, res) => {
 
     await session.withTransaction(async () => {
       suscripcion.active = false;
-      suscripcion.updatedBy = req.user.email || req.user.id;
+      suscripcion.updatedBy = getActor(req);
       await suscripcion.save({ session });
 
       await sincronizarEscuelitaPorSuscripcionModificada({

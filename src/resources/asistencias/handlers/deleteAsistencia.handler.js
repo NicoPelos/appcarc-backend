@@ -1,4 +1,5 @@
 import Asistencia from '../models/Asistencia.js';
+import { getActor } from '../../../services/getActor.js';
 
 export const deleteAsistenciaHandler = async (req, res) => {
   try {
@@ -8,7 +9,7 @@ export const deleteAsistenciaHandler = async (req, res) => {
     // deleteMuroLibreHandler) — usar /api/muro-libre/:id para esos.
     const asistencia = await Asistencia.findOneAndUpdate(
       { _id: req.params.id, clubId: req.user?.clubId, tipo: 'escuelita', active: true },
-      { active: false, updatedBy: req.user.email || req.user.id },
+      { active: false, updatedBy: getActor(req) },
       { returnDocument: 'after' },
     );
     if (!asistencia) {

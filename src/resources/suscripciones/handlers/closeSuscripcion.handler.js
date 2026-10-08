@@ -3,6 +3,7 @@ import Suscripcion from '../models/Suscripcion.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { sincronizarEscuelitaPorSuscripcionModificada } from '../../escuelita/services/sincronizarSuscripcionPlan.service.js';
 import { PERIODO_PATTERN } from '../../../services/periodos.js';
+import { getActor } from '../../../services/getActor.js';
 
 
 /**
@@ -70,7 +71,7 @@ export const closeSuscripcionHandler = async (req, res) => {
 
     await session.withTransaction(async () => {
       suscripcion.fechaHasta = fechaHasta;
-      suscripcion.updatedBy = req.user.email || req.user.id;
+      suscripcion.updatedBy = getActor(req);
       await suscripcion.save({ session });
 
       await sincronizarEscuelitaPorSuscripcionModificada({

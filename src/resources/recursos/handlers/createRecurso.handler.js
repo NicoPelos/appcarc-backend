@@ -1,5 +1,6 @@
 import RecursoExterno from '../models/RecursoExterno.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 const VALID_TIPOS = ['topo', 'sendero'];
 
@@ -54,8 +55,8 @@ export const createRecursoHandler = async (req, res) => {
       url,
       urlProvincia: urlProvincia || null,
       orden: orden ?? 0,
-      createdBy: req.user.email || req.user.id,
-      updatedBy: req.user.email || req.user.id,
+      createdBy: getActor(req),
+      updatedBy: getActor(req),
     });
 
     await recurso.save();

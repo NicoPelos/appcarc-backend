@@ -4,6 +4,7 @@ import Cuota from '../../cuotas/models/Cuota.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { sincronizarEscuelitaPorSuscripcionModificada } from '../../escuelita/services/sincronizarSuscripcionPlan.service.js';
 import { PERIODO_PATTERN, periodoAnterior } from '../../../services/periodos.js';
+import { getActor } from '../../../services/getActor.js';
 
 
 const periodoSiguiente = (periodo) => {
@@ -52,7 +53,7 @@ const periodoSiguiente = (periodo) => {
 export const excludePeriodoHandler = async (req, res) => {
   const { id } = req.params;
   const { periodo } = req.body;
-  const actor = req.user.email || req.user.id;
+  const actor = getActor(req);
 
   if (!periodo || !PERIODO_PATTERN.test(periodo)) {
     return res.status(400).json({ message: 'periodo debe tener formato YYYY-MM' });

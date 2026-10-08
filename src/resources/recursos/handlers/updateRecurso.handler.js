@@ -1,5 +1,6 @@
 import RecursoExterno from '../models/RecursoExterno.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 const VALID_TIPOS = ['topo', 'sendero'];
 
@@ -59,7 +60,7 @@ export const updateRecursoHandler = async (req, res) => {
     if (urlProvincia !== undefined) recurso.urlProvincia = urlProvincia || null;
     if (orden !== undefined) recurso.orden = orden;
 
-    recurso.updatedBy = req.user.email || req.user.id;
+    recurso.updatedBy = getActor(req);
     await recurso.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'RecursoExterno', resourceId: recurso._id, before: recursoAntes, after: recurso.toObject() });

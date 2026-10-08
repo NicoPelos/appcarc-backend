@@ -1,5 +1,6 @@
 import Etiqueta from '../models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -59,8 +60,8 @@ export const createEtiquetaHandler = async (req, res) => {
       nombre,
       unidad,
       uso_sistema: uso_sistema || null,
-      createdBy: req.user.email || req.user.id,
-      updatedBy: req.user.email || req.user.id,
+      createdBy: getActor(req),
+      updatedBy: getActor(req),
     });
 
     await etiqueta.save();

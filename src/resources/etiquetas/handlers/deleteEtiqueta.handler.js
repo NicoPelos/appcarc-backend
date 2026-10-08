@@ -1,5 +1,6 @@
 import Etiqueta from '../models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -32,8 +33,8 @@ export const deleteEtiquetaHandler = async (req, res) => {
 
     etiqueta.active = false;
     etiqueta.deletedAt = new Date();
-    etiqueta.deletedBy = req.user.email || req.user.id;
-    etiqueta.updatedBy = req.user.email || req.user.id;
+    etiqueta.deletedBy = getActor(req);
+    etiqueta.updatedBy = getActor(req);
     await etiqueta.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'Etiqueta', resourceId: etiqueta._id, before: etiquetaAntes, after: null });

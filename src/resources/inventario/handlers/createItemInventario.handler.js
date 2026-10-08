@@ -1,6 +1,7 @@
 import ItemInventario from '../models/ItemInventario.js';
 import { prepararItem, categoriaExiste } from '../services/itemInventario.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 export const createItemInventarioHandler = async (req, res) => {
   try {
@@ -10,7 +11,7 @@ export const createItemInventarioHandler = async (req, res) => {
       return res.status(400).json({ message: `La categoría "${data.categoria}" no existe en el inventario` });
     }
 
-    const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
+    const actor = getActor(req);
     const item = await ItemInventario.create({
       ...data,
       clubId: req.user?.clubId,

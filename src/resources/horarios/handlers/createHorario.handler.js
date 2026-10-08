@@ -3,6 +3,7 @@ import Horarios from '../models/Horarios.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { ROLES_EDIT_ALL, ROLES_READ_ONLY, MAX_TOTAL_HORAS } from '../constants.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -92,8 +93,8 @@ export const createHorarioHandler = async (req, res) => {
       horaSalida: horaSalida ? new Date(horaSalida) : undefined,
       totalHoras: totalHoras ?? undefined,
       observaciones: observaciones || '',
-      createdBy: req.user?.email ?? req.user?.id,
-      updatedBy: req.user?.email ?? req.user?.id,
+      createdBy: getActor(req),
+      updatedBy: getActor(req),
     });
 
     await horario.save();

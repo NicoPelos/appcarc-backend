@@ -3,6 +3,7 @@ import Precios from '../models/Precios.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { resolverVigenciaPrecio, BusinessError, RequiereConfirmacionError } from '../services/resolverVigenciaPrecio.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -92,8 +93,8 @@ export const createPrecioHandler = async (req, res) => {
           monto: Number(monto),
           vigenteDesde: desde,
           vigenteHasta: hasta,
-          createdBy: req.user.email || req.user.id,
-          updatedBy: req.user.email || req.user.id,
+          createdBy: getActor(req),
+          updatedBy: getActor(req),
         });
         await precio.save({ session });
       });

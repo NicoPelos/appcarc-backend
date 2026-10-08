@@ -1,6 +1,7 @@
 import Plan, { TIPOS, MODALIDADES } from '../models/Plan.js';
 import Etiqueta from '../../etiquetas/models/Etiqueta.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -78,7 +79,7 @@ export const updatePlanHandler = async (req, res) => {
     if (atributos !== undefined) plan.atributos = atributos;
     if (noGeneraDeuda !== undefined) plan.noGeneraDeuda = noGeneraDeuda === true;
 
-    plan.updatedBy = req.user.email || req.user.id;
+    plan.updatedBy = getActor(req);
     await plan.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Plan', resourceId: plan._id, before: planAntes, after: plan.toObject() });

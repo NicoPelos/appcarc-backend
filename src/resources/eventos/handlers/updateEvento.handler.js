@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Evento, { CATEGORIAS_EVENTO } from '../models/Evento.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -73,7 +74,7 @@ export const updateEventoHandler = async (req, res) => {
       }
     }
 
-    evento.updatedBy = req.user.email || req.user.id;
+    evento.updatedBy = getActor(req);
     await evento.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Evento', resourceId: evento._id, before: eventoAntes, after: evento.toObject() });

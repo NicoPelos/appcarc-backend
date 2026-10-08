@@ -1,10 +1,11 @@
 import Asistencia from '../models/Asistencia.js';
 import { esFechaFutura } from '../../../services/fechaArgentina.js';
+import { getActor } from '../../../services/getActor.js';
 
 export const updateAsistenciaHandler = async (req, res) => {
   try {
     const { observaciones, categoria, fecha } = req.body;
-    const updates = { updatedBy: req.user.email || req.user.id };
+    const updates = { updatedBy: getActor(req) };
     if (observaciones !== undefined) updates.observaciones = String(observaciones).trim();
     if (categoria !== undefined) updates.categoria = String(categoria).trim();
     if (fecha !== undefined) {

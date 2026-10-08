@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Movimiento, { CATEGORIAS_MOVIMIENTO } from '../models/Movimiento.js';
 import Evento from '../../eventos/models/Evento.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 const VALID_PAYMENT_METHODS = ['Efectivo', 'Transferencia'];
 
@@ -140,7 +141,7 @@ export const updateMovimientoHandler = async (req, res) => {
     if (categoria !== undefined) movimiento.categoria = categoria;
     if (paymentMethod !== undefined) movimiento.paymentMethod = paymentMethod;
     if (description !== undefined) movimiento.description = description;
-    movimiento.updatedBy = req.user?.email ?? req.user?.id ?? 'Sistema';
+    movimiento.updatedBy = getActor(req);
 
     await movimiento.save();
     logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Movimiento', resourceId: movimiento._id, before: movimientoAntes, after: movimiento.toObject() });

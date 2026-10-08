@@ -7,6 +7,7 @@ import Plan from '../../planes/models/Plan.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { sincronizarEscuelitaPorSuscripcionModificada } from '../../escuelita/services/sincronizarSuscripcionPlan.service.js';
 import { PERIODO_PATTERN } from '../../../services/periodos.js';
+import { getActor } from '../../../services/getActor.js';
 
 
 const cubrePeriodo = (tramos, periodo) =>
@@ -64,7 +65,7 @@ const cubrePeriodo = (tramos, periodo) =>
 export const setMesesActivosHandler = async (req, res) => {
   const { socioId, etiquetaId } = req.params;
   const { tramos } = req.body;
-  const actor = req.user.email || req.user.id;
+  const actor = getActor(req);
 
   if (!Array.isArray(tramos)) {
     return res.status(400).json({ message: 'tramos debe ser un array' });

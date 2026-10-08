@@ -1,5 +1,6 @@
 import Novedad from '../models/Novedad.js';
 import { notifyClub } from '../../../services/pushNotification.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -55,7 +56,7 @@ export const createNovedadHandler = async (req, res) => {
       linkOriginal: linkOriginal || null,
       categoria: categoria?.trim() || '',
       fechaPublicacion: fechaPublicacion ? new Date(fechaPublicacion) : new Date(),
-      createdBy: req.user?.email || req.user?.id,
+      createdBy: getActor(req),
     });
 
     await novedad.save();

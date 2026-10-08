@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Escuelita from '../models/Escuelita.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { sincronizarSuscripcionEscuelita } from '../services/sincronizarSuscripcionPlan.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -40,7 +41,7 @@ export const deleteAlumnoHandler = async (req, res) => {
     await session.withTransaction(async () => {
       alumno = await Escuelita.findOneAndUpdate(
         { _id: req.params.id, clubId: req.user?.clubId, active: true },
-        { active: false, updatedBy: req.user.email || req.user.id },
+        { active: false, updatedBy: getActor(req) },
         { returnDocument: 'after', session },
       );
 

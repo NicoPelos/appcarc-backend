@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import ItemInventario from '../models/ItemInventario.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 export const deleteItemInventarioHandler = async (req, res) => {
   try {
@@ -12,7 +13,7 @@ export const deleteItemInventarioHandler = async (req, res) => {
 
     const antes = item.toObject();
     item.active = false;
-    item.updatedBy = req.user?.email ?? req.user?.id ?? 'Sistema';
+    item.updatedBy = getActor(req);
     await item.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'ItemInventario', resourceId: item._id, before: antes, after: null });

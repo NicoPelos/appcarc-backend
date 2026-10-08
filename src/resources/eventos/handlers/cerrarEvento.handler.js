@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Evento from '../models/Evento.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -36,7 +37,7 @@ export const cerrarEventoHandler = async (req, res) => {
 
     const eventoAntes = evento.toObject();
     evento.estado = 'cerrado';
-    evento.updatedBy = req.user.email || req.user.id;
+    evento.updatedBy = getActor(req);
     await evento.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Evento', resourceId: evento._id, before: eventoAntes, after: evento.toObject() });

@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import EventoParticipante from '../models/EventoParticipante.js';
 import Socio from '../../socios/models/Socio.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -99,7 +100,7 @@ export const updateEventoParticipanteHandler = async (req, res) => {
 
     if (notas !== undefined) participante.notas = notas.trim();
 
-    participante.updatedBy = req.user.email || req.user.id;
+    participante.updatedBy = getActor(req);
     await participante.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'EventoParticipante', resourceId: participante._id, before: antes, after: participante.toObject() });

@@ -6,6 +6,7 @@ import Plan from '../../planes/models/Plan.js';
 import Escuelita from '../../escuelita/models/Escuelita.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { PERIODO_PATTERN, periodoAnterior } from '../../../services/periodos.js';
+import { getActor } from '../../../services/getActor.js';
 
 
 // Un socio solo puede tener una suscripción activa por vez para la misma
@@ -31,7 +32,7 @@ const cerrarSuscripcionesPrevias = async ({ clubId, socioId, tipo, etiquetaId, f
   for (const s of aCerrar) {
     const before = s.toObject();
     s.fechaHasta = periodoAnterior(fechaDesde);
-    s.updatedBy = req.user.email || req.user.id;
+    s.updatedBy = getActor(req);
     await s.save({ session });
     logAudit({ clubId, req, action: 'UPDATE', resource: 'Suscripcion', resourceId: s._id, before, after: s.toObject() });
   }
@@ -43,7 +44,7 @@ const cerrarSuscripcionesPrevias = async ({ clubId, socioId, tipo, etiquetaId, f
 // ahí dejaba a la persona cobrando sin figurar como alumna (mismo tipo de
 // descalce que causó appcarc-backend#51/Catalina Marzari).
 const sincronizarFichaEscuelita = async ({ clubId, socioId, socio, planDoc, req, session }) => {
-  const actor = req.user.email || req.user.id;
+  const actor = getActor(req);
   const existente = await Escuelita.findOne({ clubId, socioId, active: true }).session(session);
 
   if (existente) {
@@ -180,7 +181,7 @@ export const createSuscripcionHandler = async (req, res) => {
         existente.planId = planDoc?._id ?? null;
         existente.fechaHasta = fechaHasta ?? null;
         existente.exento = Boolean(planDoc?.noGeneraDeuda);
-        existente.updatedBy = req.user.email || req.user.id;
+        existente.updatedBy = getActor(req);
         await existente.save({ session });
         logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Suscripcion', resourceId: existente._id, before, after: existente.toObject() });
         suscripcion = existente;
@@ -193,8 +194,8 @@ export const createSuscripcionHandler = async (req, res) => {
           fechaDesde,
           fechaHasta: fechaHasta ?? null,
           exento: Boolean(planDoc?.noGeneraDeuda),
-          createdBy: req.user.email || req.user.id,
-          updatedBy: req.user.email || req.user.id,
+          createdBy: getActor(req),
+          updatedBy: getActor(req),
         });
 
         await suscripcion.save({ session });

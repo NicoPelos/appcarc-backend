@@ -1,5 +1,6 @@
 import Evento, { CATEGORIAS_EVENTO } from '../models/Evento.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -53,7 +54,7 @@ export const crearEventoHandler = async (req, res) => {
       if (!Number.isFinite(monto) || monto < 0) return res.status(400).json({ message: 'precioSugerido debe ser un número mayor o igual a cero' });
     }
 
-    const actor = req.user.email || req.user.id;
+    const actor = getActor(req);
     const evento = new Evento({
       clubId: req.user.clubId,
       nombre: nombre.trim(),

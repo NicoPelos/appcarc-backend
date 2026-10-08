@@ -3,6 +3,7 @@ import Socio from '../../socios/models/Socio.js';
 import Escuelita from '../models/Escuelita.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { sincronizarSuscripcionEscuelita } from '../services/sincronizarSuscripcionPlan.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -82,8 +83,8 @@ export const createAlumnoHandler = async (req, res) => {
         fechaInscripcion: inscriptionDate,
         planId: planId || null,
         observaciones,
-        createdBy: req.user.email || req.user.id,
-        updatedBy: req.user.email || req.user.id,
+        createdBy: getActor(req),
+        updatedBy: getActor(req),
       });
 
       await alumno.save({ session });

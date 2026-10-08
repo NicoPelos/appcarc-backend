@@ -1,6 +1,7 @@
 import User from '../../usuarios/models/User.js';
 import { anularVinculosFamiliares } from '../../vinculos/services/anularVinculosFamiliares.service.js';
 import { obtenerRolIdsPorNombres } from '../../roles/services/resolverRoles.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 export const updateSuperUserHandler = async (req, res) => {
   try {
@@ -28,7 +29,7 @@ export const updateSuperUserHandler = async (req, res) => {
       await anularVinculosFamiliares({
         clubId: existente.clubId,
         padreUserIds: [existente._id],
-        actor: req.user?.email || req.user?.id,
+        actor: getActor(req),
       });
     }
 

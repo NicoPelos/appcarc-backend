@@ -3,6 +3,7 @@ import Movimiento from '../../movimientos/models/Movimiento.js';
 import mongoose from 'mongoose';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { anularCuotaMuroLibreMensual } from '../services/registrarMuroLibre.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -32,7 +33,7 @@ export const deleteMuroLibreHandler = async (req, res) => {
     let registroAntes = null;
     await session.withTransaction(async () => {
       const { id } = req.params;
-      const actor = req.user.email || req.user.id;
+      const actor = getActor(req);
 
       const registro = await Asistencia.findOne({
         _id: id, clubId: req.user.clubId, tipo: 'muro_libre', active: true,

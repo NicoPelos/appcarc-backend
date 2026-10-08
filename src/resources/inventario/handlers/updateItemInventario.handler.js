@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import ItemInventario from '../models/ItemInventario.js';
 import { prepararItem, categoriaExiste } from '../services/itemInventario.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 export const updateItemInventarioHandler = async (req, res) => {
   try {
@@ -19,7 +20,7 @@ export const updateItemInventarioHandler = async (req, res) => {
 
     const antes = item.toObject();
     Object.assign(item, data);
-    item.updatedBy = req.user?.email ?? req.user?.id ?? 'Sistema';
+    item.updatedBy = getActor(req);
     await item.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'ItemInventario', resourceId: item._id, before: antes, after: item.toObject() });

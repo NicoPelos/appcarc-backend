@@ -1,6 +1,7 @@
 import Suscripcion from '../models/Suscripcion.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { PERIODO_PATTERN } from '../../../services/periodos.js';
+import { getActor } from '../../../services/getActor.js';
 
 
 /**
@@ -75,7 +76,7 @@ export const moverInicioHandler = async (req, res) => {
 
     const suscripcionAntes = suscripcion.toObject();
     suscripcion.fechaDesde = fechaDesde;
-    suscripcion.updatedBy = req.user.email || req.user.id;
+    suscripcion.updatedBy = getActor(req);
     await suscripcion.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'UPDATE', resource: 'Suscripcion', resourceId: suscripcion._id, before: suscripcionAntes, after: suscripcion.toObject() });

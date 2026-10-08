@@ -4,6 +4,7 @@ import MercadopagoDescartado from '../../pagos/models/MercadopagoDescartado.js';
 import { buscarPagosMercadoPago } from '../../pagos/services/buscarPagosMercadoPago.service.js';
 import { obtenerPagoMercadoPago } from '../../pagos/services/procesarPagoMercadoPago.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 const DIAS_DEFAULT = 30;
 
@@ -90,7 +91,7 @@ export const descartarMercadopagoHandler = async (req, res) => {
   try {
     const { paymentId } = req.params;
     const { motivo = '' } = req.body ?? {};
-    const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
+    const actor = getActor(req);
 
     const descartado = await MercadopagoDescartado.findOneAndUpdate(
       { clubId: req.user?.clubId, paymentId },
@@ -134,7 +135,7 @@ export const descartarMercadopagoBulkHandler = async (req, res) => {
     if (!Array.isArray(paymentIds) || paymentIds.length === 0) {
       return res.status(400).json({ message: 'Falta paymentIds' });
     }
-    const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
+    const actor = getActor(req);
 
     const result = await MercadopagoDescartado.bulkWrite(
       paymentIds.map((paymentId) => ({
@@ -257,7 +258,7 @@ export const crearEgresoDesdeMercadopagoHandler = async (req, res) => {
     }).select('_id').lean();
     if (yaVinculado) return res.status(409).json({ message: 'Ese pago ya está vinculado a otro movimiento' });
 
-    const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
+    const actor = getActor(req);
     // El Movimiento refleja lo que recibió la contraparte (transaction_amount),
     // no el total con el cargo de MP (0,6% o intereses de cuotas): así un
     // honorario o una factura figuran por su valor real. La comisión se

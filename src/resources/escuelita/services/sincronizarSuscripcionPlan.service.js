@@ -2,6 +2,7 @@ import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import Plan from '../../planes/models/Plan.js';
 import Escuelita from '../models/Escuelita.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 class BusinessError extends Error {
   constructor(message, status = 400) {
@@ -46,7 +47,7 @@ const getEtiquetaIdsEscuelita = async ({ clubId, session }) => {
 export async function sincronizarSuscripcionEscuelita({ clubId, socioId, planId, req, session }) {
   const periodoActual = currentPeriodo();
   const periodoAnterior = previousPeriodo();
-  const actor = req.user.email || req.user.id;
+  const actor = getActor(req);
 
   let plan = null;
   if (planId) {
@@ -167,7 +168,7 @@ export async function sincronizarEscuelitaPorSuscripcionModificada({ clubId, soc
 
   const before = alumno.toObject();
   alumno.active = false;
-  alumno.updatedBy = req.user.email || req.user.id;
+  alumno.updatedBy = getActor(req);
   await alumno.save({ session });
   logAudit({ clubId, req, action: 'UPDATE', resource: 'Escuelita', resourceId: alumno._id, before, after: alumno.toObject() });
 }

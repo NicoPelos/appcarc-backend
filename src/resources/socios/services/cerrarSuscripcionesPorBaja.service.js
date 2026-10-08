@@ -1,6 +1,7 @@
 import Suscripcion from '../../suscripciones/models/Suscripcion.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { periodoDeFecha } from '../../../services/fechaArgentina.js';
+import { getActor } from '../../../services/getActor.js';
 
 // appcarc-backend#160: reusa fechaArgentina.js en vez de reimplementar el
 // offset ART a mano.
@@ -17,7 +18,7 @@ export const cerrarSuscripcionesPorBaja = async ({ clubId, socioId, req }) => {
   for (const s of activas) {
     const antes = s.toObject();
     s.fechaHasta = periodo;
-    s.updatedBy = req.user.email || req.user.id;
+    s.updatedBy = getActor(req);
     await s.save();
     logAudit({ clubId, req, action: 'UPDATE', resource: 'Suscripcion', resourceId: s._id, before: antes, after: s.toObject() });
   }

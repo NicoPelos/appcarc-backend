@@ -1,6 +1,7 @@
 import Horarios from '../models/Horarios.js';
 import { logAudit } from '../../audit/services/audit.service.js';
 import { ROLES_EDIT_ALL, ROLES_READ_ONLY } from '../constants.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -41,8 +42,8 @@ export const deleteHorarioHandler = async (req, res) => {
 
     horario.active = false;
     horario.deletedAt = new Date();
-    horario.deletedBy = req.user?.email ?? req.user?.id ?? 'Sistema';
-    horario.updatedBy = req.user?.email ?? req.user?.id ?? 'Sistema';
+    horario.deletedBy = getActor(req);
+    horario.updatedBy = getActor(req);
     await horario.save();
 
     logAudit({ clubId: req.user?.clubId, req, action: 'DELETE', resource: 'Horarios', resourceId: horario._id, before: horarioAntes, after: null });

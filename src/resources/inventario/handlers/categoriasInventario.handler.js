@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import CategoriaInventario, { CATEGORIAS_POR_DEFECTO } from '../models/CategoriaInventario.js';
 import ItemInventario from '../models/ItemInventario.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 const SIN_DEFECTOS = 'club-sin-categorias';
 const MAX_NOMBRE = 40;
@@ -45,7 +46,7 @@ export const createCategoriaInventarioHandler = async (req, res) => {
     if (error) return res.status(400).json({ message: error });
 
     await asegurarDefectos(clubId);
-    const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
+    const actor = getActor(req);
     try {
       const categoria = await CategoriaInventario.create({ clubId, nombre, createdBy: actor });
       logAudit({ clubId, req, action: 'CREATE', resource: 'CategoriaInventario', resourceId: categoria._id, before: null, after: categoria.toObject() });

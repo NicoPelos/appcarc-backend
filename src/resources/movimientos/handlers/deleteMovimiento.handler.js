@@ -6,6 +6,7 @@ import { anularCobroConTrazabilidad } from '../../cobros/services/anularCobro.se
 import { anularCuotaMuroLibreMensual } from '../../muroLibre/services/registrarMuroLibre.service.js';
 import { anularPagoEventoParticipante } from '../../eventos/services/anularPagoEventoParticipante.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -49,7 +50,7 @@ export const deleteMovimientoHandler = async (req, res) => {
       }
       movimientoAntes = movimiento.toObject();
 
-      const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
+      const actor = getActor(req);
 
       movimiento.active = false;
       movimiento.updatedBy = actor;

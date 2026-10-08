@@ -3,6 +3,7 @@ import Cobro from '../models/Cobro.js';
 import Movimiento from '../../movimientos/models/Movimiento.js';
 import { anularCobroConTrazabilidad } from '../services/anularCobro.service.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { getActor } from '../../../services/getActor.js';
 
 /**
  * @openapi
@@ -38,7 +39,7 @@ import { logAudit } from '../../audit/services/audit.service.js';
 export const anularCobroHandler = async (req, res) => {
   const { id } = req.params;
   const motivo = String(req.body?.motivo || '').trim();
-  const actor = req.user?.email || req.user?.id;
+  const actor = getActor(req);
 
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return res.status(400).json({ message: 'ID de cobro inválido' });
