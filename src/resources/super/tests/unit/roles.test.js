@@ -10,8 +10,12 @@ vi.mock('../../../roles/models/Rol.js', () => ({
 }));
 
 vi.mock('../../../../services/permisosCache.js', () => ({ invalidarClub: vi.fn() }));
+vi.mock('../../../usuarios/models/User.js', () => ({
+  default: { exists: vi.fn() },
+}));
 
 import Rol from '../../../roles/models/Rol.js';
+import User from '../../../usuarios/models/User.js';
 import { invalidarClub } from '../../../../services/permisosCache.js';
 import { getSuperRolesHandler } from '../../handlers/getSuperRoles.handler.js';
 import { createSuperRolHandler } from '../../handlers/createSuperRol.handler.js';
@@ -185,8 +189,9 @@ describe('deleteSuperRolHandler', () => {
   });
 
   it('desactiva el rol e invalida el cache del club del rol', async () => {
-    const rol = { _id: 'r1', clubId: 'CARC', active: true, save: vi.fn() };
+    const rol = { _id: 'r1', clubId: 'CARC', slug: 'entrenador', active: true, save: vi.fn() };
     Rol.findOne.mockResolvedValue(rol);
+    User.exists.mockResolvedValue(null);
 
     const req = { params: { id: 'r1' } };
     const res = mockRes();
@@ -195,6 +200,31 @@ describe('deleteSuperRolHandler', () => {
     expect(rol.active).toBe(false);
     expect(invalidarClub).toHaveBeenCalledWith('CARC');
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('appcarc-superadmin#37: devuelve 409 si el rol todavía tiene usuarios asignados', async () => {
+    const rol = { _id: 'r1', clubId: 'CARC', slug: 'entrenador', active: true, save: vi.fn() };
+    Rol.findOne.mockResolvedValue(rol);
+    User.exists.mockResolvedValue(true);
+
+    const req = { params: { id: 'r1' } };
+    const res = mockRes();
+    await deleteSuperRolHandler(req, res);
+
+    expect(rol.save).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
+  });
+
+  it.each(['socio', 'admin'])('devuelve 409 si el rol es un slug protegido (%s)', async (slug) => {
+    const rol = { _id: 'r1', clubId: 'CARC', slug, active: true, save: vi.fn() };
+    Rol.findOne.mockResolvedValue(rol);
+
+    const req = { params: { id: 'r1' } };
+    const res = mockRes();
+    await deleteSuperRolHandler(req, res);
+
+    expect(rol.save).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(409);
   });
 });
 
