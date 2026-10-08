@@ -49,5 +49,14 @@ Corrieron una vez contra producción para una migración puntual. No se borran s
 
 Ver `docker-compose.yml`: build dentro del container en la Raspi (`npm ci --omit=dev`, liviano, a diferencia de los frontends — ver `../CLAUDE.md`). `git pull` en la Raspi + `docker compose build app` + `docker compose up -d app`, y reiniciar `gateway` si no refleja cambios (502 silencioso si no).
 
+## Sesiones largas (cupo del plan Pro)
+
+Motivo (2026-10-08): `/usage` mostró 100% del uso en sesiones de 8+ hs y 99% con más de 150k de contexto; cupo semanal al 68% con 2 días por delante. Una sesión larga cuesta mucho más que varias cortas.
+
+- Una sesión por issue o tema. Al cerrar una tarea o cambiar de tema, sugerirle a Nico `/clear`.
+- Si la sesión ya leyó muchos archivos o devolvió salidas largas (tests, logs), sugerir `/compact` antes de seguir. `/context` muestra el tamaño real.
+- Pasando ~100k de contexto, avisar a Nico en vez de seguir acumulando.
+- No fijar `model` ni effort en `.claude/settings.json` del repo (pisa la elección personal).
+
 # Compact instructions
 Al compactar, conservar: qué handlers/services se modificaron y por qué, resultados de tests (pasó/falló y qué), decisiones de diseño explícitas del usuario, y el estado de cualquier issue de GitHub enlazado.

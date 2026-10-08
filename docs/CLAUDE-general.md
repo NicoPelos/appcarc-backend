@@ -37,5 +37,14 @@ Esta copia vive en `appcarc-backend/docs/CLAUDE-general.md` (versionada). El ori
 
 Los 4 repos tienen `ci.yml` (lint/typecheck/build/tests en cada PR y push a `main`) además de los workflows nocturnos de revisión con Claude (`claude-nightly-review.yml`, y `claude-manual-review.yml` solo en backend, que mantiene el manual de usuario al día).
 
+## Sesiones largas (cupo del plan Pro)
+
+Motivo (2026-10-08): `/usage` mostró 100% del uso en sesiones de 8+ hs y 99% con más de 150k de contexto; cupo semanal al 68% con 2 días por delante. Una sesión larga cuesta mucho más que varias cortas.
+
+- Una sesión por issue o tema. Al cerrar una tarea o cambiar de tema, sugerirle a Nico `/clear`.
+- Si la sesión ya leyó muchos archivos o devolvió salidas largas (tests, logs), sugerir `/compact` antes de seguir. `/context` muestra el tamaño real.
+- Pasando ~100k de contexto, avisar a Nico en vez de seguir acumulando.
+- No fijar `model` ni effort en `.claude/settings.json` del repo (pisa la elección personal).
+
 # Compact instructions
 Al compactar, conservar: qué repo(s) y archivo(s) se tocaron, decisiones de diseño que tomó el usuario explícitamente, comandos que fallaron y por qué, y el estado de los issues de GitHub enlazados (abiertos/cerrados, en qué repo).
