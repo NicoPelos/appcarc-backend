@@ -53,8 +53,11 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # --model fijo + --max-turns bajado de 50 a 30 (máximo observado en
+          # las últimas corridas reales: 19 turnos) — appcarc-backend#263.
           claude_args: |
-            --max-turns 50
+            --model claude-sonnet-5-5
+            --max-turns 30
             --allowedTools "Read,Grep,Glob,Bash(git -C appcarc-backend log:*),Bash(git -C appcarc-backend diff:*),Bash(git -C appcarc-backend add:*),Bash(git -C appcarc-backend commit:*),Bash(git -C appcarc-backend push:*),Bash(git -C appcarc-backend config:*),Bash(git -C appcarc-mobile log:*),Bash(git -C appcarc-mobile diff:*),Bash(git -C appcarc-mobile show:*),Bash(gh issue list:*),Bash(gh issue view:*),Bash(gh issue create:*),Bash(gh issue close:*),Edit"
           prompt: |
             Estás parado en un working directory con DOS checkouts hermanos:
