@@ -2,9 +2,10 @@ import fs from 'fs';
 import path from 'path';
 import mongoose from 'mongoose';
 import sharp from 'sharp';
-import multer from 'multer';
 import ItemInventario from '../models/ItemInventario.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { createUploadImagen } from '../../../middleware/uploadImagen.js';
+import { getActor } from '../../../services/getActor.js';
 
 const FOTOS_DIR = path.resolve('uploads/inventario');
 fs.mkdirSync(FOTOS_DIR, { recursive: true });
@@ -12,22 +13,8 @@ fs.mkdirSync(FOTOS_DIR, { recursive: true });
 const MAX_FOTOS_POR_ITEM = 10;
 const MAX_SIZE_MB = 15;
 
-export const uploadFoto = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_SIZE_MB * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (!file.mimetype.startsWith('image/')) return cb(new Error('Solo se permiten imágenes'));
-    cb(null, true);
-  },
-});
-
-export const handleUploadFotoError = (err, req, res, next) => {
-  if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ message: `La imagen supera el tamaño máximo permitido (${MAX_SIZE_MB}MB).` });
-  }
-  if (err) return res.status(400).json({ message: err.message || 'Error al procesar la imagen' });
-  next();
-};
+const { upload: uploadFoto, handleUploadError: handleUploadFotoError } = createUploadImagen(MAX_SIZE_MB);
+export { uploadFoto, handleUploadFotoError };
 
 export const uploadFotoItemInventarioHandler = async (req, res) => {
   try {
@@ -46,7 +33,7 @@ export const uploadFotoItemInventarioHandler = async (req, res) => {
       .jpeg({ quality: 80 })
       .toBuffer();
 
-    const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
+    const actor = getActor(req);
     item.fotos.push({ url: '', createdBy: actor });
     const foto = item.fotos[item.fotos.length - 1];
 
@@ -80,7 +67,7 @@ export const deleteFotoItemInventarioHandler = async (req, res) => {
     const antes = item.toObject();
     const archivo = path.join(FOTOS_DIR, path.basename(foto.url));
     item.fotos.pull({ _id: fotoId });
-    item.updatedBy = req.user?.email ?? req.user?.id ?? 'Sistema';
+    item.updatedBy = getActor(req);
     await item.save();
     fs.promises.unlink(archivo).catch(() => {});
 

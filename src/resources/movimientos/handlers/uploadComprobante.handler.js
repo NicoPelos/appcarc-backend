@@ -1,9 +1,10 @@
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
-import multer from 'multer';
 import Movimiento from '../models/Movimiento.js';
 import { logAudit } from '../../audit/services/audit.service.js';
+import { createUploadImagen } from '../../../middleware/uploadImagen.js';
+import { getActor } from '../../../services/getActor.js';
 
 const COMPROBANTES_DIR = path.resolve('uploads/comprobantes');
 // Mismo criterio que fotos/ de Socio — el volumen de /uploads es un bind
@@ -12,26 +13,7 @@ fs.mkdirSync(COMPROBANTES_DIR, { recursive: true });
 
 const MAX_SIZE_MB = 20;
 
-export const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_SIZE_MB * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (!file.mimetype.startsWith('image/')) {
-      return cb(new Error('Solo se permiten imágenes'));
-    }
-    cb(null, true);
-  },
-});
-
-export const handleUploadError = (err, req, res, next) => {
-  if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ message: `La imagen supera el tamaño máximo permitido (${MAX_SIZE_MB}MB).` });
-  }
-  if (err) {
-    return res.status(400).json({ message: err.message || 'Error al procesar la imagen' });
-  }
-  next();
-};
+export const { upload, handleUploadError } = createUploadImagen(MAX_SIZE_MB);
 
 /**
  * @openapi
@@ -80,7 +62,7 @@ export const uploadComprobanteHandler = async (req, res) => {
       .jpeg({ quality: 80 })
       .toBuffer();
 
-    const actor = req.user?.email ?? req.user?.id ?? 'Sistema';
+    const actor = getActor(req);
     movimiento.comprobantes.push({ url: '', createdBy: actor });
     const nuevo = movimiento.comprobantes[movimiento.comprobantes.length - 1];
 

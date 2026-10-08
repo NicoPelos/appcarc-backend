@@ -17,6 +17,24 @@ const parseUpdatedRangeRow = (updatedRange) => {
   return match ? Number(match[1]) : null;
 };
 
+// Restaurada (appcarc-backend#263): un refactor la había borrado por
+// "no utilizado", pero knip no conoce scripts/*.js como entry points y
+// no detectó que 4 scripts de importación registrados en package.json
+// (import-socios, import-cuotas, import-horarios, import-movimientos)
+// la siguen necesitando — quedaron rotos desde entonces hasta este fix.
+export const getSheetValues = async (spreadsheetId, range) => {
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range,
+    });
+    return response.data.values || [];
+  } catch (error) {
+    console.error('Error leyendo Google Sheets:', error);
+    return [];
+  }
+};
+
 export const appendToSheet = async (spreadsheetId, range, values) => {
   try {
     const response = await sheets.spreadsheets.values.append({

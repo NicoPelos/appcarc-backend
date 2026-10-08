@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
-import multer from 'multer';
 import Socio from '../models/Socio.js';
+import { createUploadImagen } from '../../../middleware/uploadImagen.js';
+import { getActor } from '../../../services/getActor.js';
 
 const FOTO_DIR = path.resolve('uploads/fotos');
 // El volumen de /uploads es un bind mount persistente en el host — nada
@@ -16,30 +17,7 @@ fs.mkdirSync(FOTO_DIR, { recursive: true });
 // quality: 0.7 desde el picker del mobile, igual pueden pesar varios MB).
 const MAX_SIZE_MB = 20;
 
-export const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_SIZE_MB * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (!file.mimetype.startsWith('image/')) {
-      return cb(new Error('Solo se permiten imágenes'));
-    }
-    cb(null, true);
-  },
-});
-
-// multer llama a next(err) cuando se excede el límite de tamaño, antes de
-// llegar al handler — sin esto, Express devuelve una página HTML de error
-// que rompe el parseo de JSON del lado del cliente (la app nunca se entera
-// del mensaje real, solo ve un error de parseo genérico).
-export const handleUploadError = (err, req, res, next) => {
-  if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-    return res.status(413).json({ message: `La imagen supera el tamaño máximo permitido (${MAX_SIZE_MB}MB).` });
-  }
-  if (err) {
-    return res.status(400).json({ message: err.message || 'Error al procesar la imagen' });
-  }
-  next();
-};
+export const { upload, handleUploadError } = createUploadImagen(MAX_SIZE_MB);
 
 /**
  * @openapi
@@ -105,7 +83,7 @@ export const uploadFotoSocioHandler = async (req, res) => {
       .toFile(filepath);
 
     socio.fotoPerfil = `/uploads/fotos/${filename}`;
-    socio.updatedBy = req.user.email || req.user.id;
+    socio.updatedBy = getActor(req);
     await socio.save();
 
     return res.status(200).json({ fotoPerfil: socio.fotoPerfil });

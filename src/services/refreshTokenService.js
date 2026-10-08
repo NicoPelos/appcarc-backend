@@ -20,13 +20,6 @@ export async function issueRefreshToken(userId, payload) {
   return raw;
 }
 
-/** Busca un refresh token vigente (no vencido) por su valor en texto plano.
- * Devuelve el documento completo (con payload y userId) o null. */
-export async function findValidRefreshToken(raw) {
-  if (!raw) return null;
-  return RefreshToken.findOne({ tokenHash: hashToken(raw), expiresAt: { $gt: new Date() } });
-}
-
 /** Consume un refresh token vigente en un solo paso: quien lo borra primero
  * es el único que se lleva la sesión (appcarc-backend#248). */
 export async function claimRefreshToken(raw) {
@@ -40,4 +33,4 @@ export async function revokeRefreshToken(raw) {
   await RefreshToken.deleteOne({ tokenHash: hashToken(raw) });
 }
 
-export default { issueRefreshToken, findValidRefreshToken, claimRefreshToken, revokeRefreshToken };
+export default { issueRefreshToken, claimRefreshToken, revokeRefreshToken };

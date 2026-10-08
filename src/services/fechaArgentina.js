@@ -13,7 +13,10 @@ export const ARG_OFFSET_MS = -3 * 60 * 60 * 1000;
 // desde el día 1 igual (se sigue mostrando en Cuotas/Deuda sin cambios), pero
 // no se la trata como algo a exigir hasta pasado el día 10 — recién el 11 se
 // puede considerar atrasada.
-export const DIA_LIMITE_PAGO_MENSUAL = 10;
+// No exportada (appcarc-backend#263): knip la marcaba "sin uso" porque nadie
+// la importa de afuera, pero solo es un detalle de implementación de
+// dentroDeVentanaDeGracia, que sí se usa en varios lados.
+const DIA_LIMITE_PAGO_MENSUAL = 10;
 
 // Día del mes (1-31) de `fecha`, en huso horario argentino.
 export const diaDelMesArgentino = (fecha) => new Date(fecha.getTime() + ARG_OFFSET_MS).getUTCDate();

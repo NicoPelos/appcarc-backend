@@ -1,28 +1,6 @@
 import { formatISO } from 'date-fns';
 import { appendToSheet, updateSheetRow } from '../../../services/googleSheetsService.js';
 
-export const socioSheetHeaders = [
-  'socioNumber',
-  'sexo',
-  'apellido',
-  'nombre',
-  'dni',
-  'fechaNacimiento',
-  'direccionActual',
-  'domicilioCompleto',
-  'calle',
-  'altura',
-  'ciudad',
-  'nacionalidad',
-  'fechaDeAsociado',
-  'estado',
-  'condicionObs',
-  'correoElectronico',
-  'telefono',
-  'telefonoEmergencia',
-  'observaciones',
-];
-
 export const buildSocioSheetRow = (socio) => {
   const formatDate = (value) => {
     if (!value) return '';
@@ -118,30 +96,6 @@ export const columnsToSocioData = (headerRow, valuesRow) => {
   });
 
   return record;
-};
-
-export const buildHeaderRow = () => {
-  return [
-    'socioNumber',
-    'sexo',
-    'apellido',
-    'nombre',
-    'dni',
-    'fechaNacimiento',
-    'direccionActual',
-    'domicilioCompleto',
-    'calle',
-    'altura',
-    'ciudad',
-    'nacionalidad',
-    'fechaDeAsociado',
-    'estado',
-    'condicionObs',
-    'correoElectronico',
-    'telefono',
-    'telefonoEmergencia',
-    'observaciones',
-  ];
 };
 
 const getSocioSheetConfig = () => ({

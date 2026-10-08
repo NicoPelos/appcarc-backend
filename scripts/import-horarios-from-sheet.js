@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
-import Horarios from '../src/resources/muroLibre/models/Horarios.js';
+import Horarios from '../src/resources/horarios/models/Horarios.js';
 import { getSheetValues } from '../src/services/googleSheetsService.js';
 
 dotenv.config();
