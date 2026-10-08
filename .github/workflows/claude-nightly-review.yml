@@ -1,8 +1,8 @@
-name: Revisión nocturna con Claude
+name: Revisión semanal con Claude
 
 on:
   schedule:
-    - cron: '0 6 * * *'  # 3am ARG (UTC-3) = 6am UTC
+    - cron: '0 6 * * 1'  # lunes 3am ARG (UTC-3) = 6am UTC (escalonado del resto de los repos)
   workflow_dispatch:
 
 env:
