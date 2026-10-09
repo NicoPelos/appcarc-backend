@@ -21,6 +21,7 @@ import { getActor } from '../../../services/getActor.js';
  *             required: [paymentId]
  *             properties:
  *               paymentId: { type: string }
+ *               payerName: { type: string, description: "Nombre del pagador leído a mano (captura o reporte 'Estado de cuenta') cuando la API de pagos no lo trae — appcarc-backend#274. Alimenta el aprendizaje histórico por pagador." }
  *     responses:
  *       200:
  *         description: Vínculo guardado
@@ -34,7 +35,7 @@ import { getActor } from '../../../services/getActor.js';
 export const vincularMercadopagoHandler = async (req, res) => {
   try {
     const { id } = req.params;
-    const { paymentId } = req.body;
+    const { paymentId, payerName = '' } = req.body;
     if (!paymentId) return res.status(400).json({ message: 'Falta paymentId' });
 
     const movimiento = await Movimiento.findOne({ _id: id, clubId: req.user?.clubId, active: true });
@@ -66,6 +67,7 @@ export const vincularMercadopagoHandler = async (req, res) => {
     movimiento.mercadopagoVinculos.push({
       paymentId: String(payment.id),
       payerEmail: contraparteEmail ?? '',
+      payerName: payerName.trim(),
       monto: payment.transaction_amount,
       fecha: payment.date_approved,
       vinculadoPor: actor,

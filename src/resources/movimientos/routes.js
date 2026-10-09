@@ -7,6 +7,7 @@ import { updateFechaBulkHandler } from './handlers/updateFechaBulk.handler.js';
 import { upload, handleUploadError, uploadComprobanteHandler } from './handlers/uploadComprobante.handler.js';
 import { deleteComprobanteHandler } from './handlers/deleteComprobante.handler.js';
 import { mercadopagoCandidatosHandler } from './handlers/mercadopagoCandidatos.handler.js';
+import { sugerirMercadopagoHandler } from './handlers/sugerirMercadopago.handler.js';
 import { conciliacionMercadopagoHandler } from './handlers/conciliacionMercadopago.handler.js';
 import { resumenPorCategoriaHandler, resumenPorCategoriaMensualHandler, resumenPorCategoriaDetalleHandler } from './handlers/resumenPorCategoria.handler.js';
 import { vincularMercadopagoHandler, desvincularMercadopagoHandler } from './handlers/mercadopagoVinculo.handler.js';
@@ -38,6 +39,7 @@ router.get('/resumen-por-categoria', protect, authorize(PERMISOS.MOVIMIENTOS_REA
 router.get('/resumen-por-categoria-mensual', protect, authorize(PERMISOS.MOVIMIENTOS_READ), resumenPorCategoriaMensualHandler);
 router.get('/resumen-por-categoria/detalle', protect, authorize(PERMISOS.MOVIMIENTOS_READ), resumenPorCategoriaDetalleHandler);
 router.get('/mercadopago-descartados', protect, authorize(PERMISOS.MOVIMIENTOS_READ), getMercadopagoDescartadosHandler);
+router.post('/mercadopago-sugerencia', protect, authorize(PERMISOS.MOVIMIENTOS_READ), sugerirMercadopagoHandler);
 router.delete('/mercadopago-descartados/:paymentId', protect, authorize(PERMISOS.MOVIMIENTOS_WRITE), restaurarMercadopagoDescartadoHandler);
 // Al final de los GET: '/:id' captura cualquier segmento, así que tiene que ir
 // después de todas las rutas fijas (mercadopago-sin-vincular, resumen-por-categoria, etc.).
