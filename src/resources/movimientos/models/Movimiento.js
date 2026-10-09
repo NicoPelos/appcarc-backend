@@ -140,6 +140,13 @@ const MovimientoSchema = new mongoose.Schema({
     type: [{
       paymentId: { type: String, required: true },
       payerEmail: { type: String, default: '' },
+      // Nombre del pagador cuando no viene de la API de pagos de MP (que para
+      // esta cuenta nunca trae first_name/last_name) sino de una fuente leída
+      // a mano: una captura de la vista "Actividad" de MP, o una fila del
+      // reporte "Estado de cuenta" — ambas sí muestran el nombre, para
+      // ingresos y egresos (appcarc-backend#274). Alimenta el mismo
+      // aprendizaje histórico por pagador que el email.
+      payerName: { type: String, default: '' },
       monto: { type: Number, required: true },
       fecha: { type: Date, required: true },
       vinculadoPor: { type: String, required: true },

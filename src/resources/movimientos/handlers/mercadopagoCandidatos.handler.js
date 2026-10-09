@@ -1,6 +1,7 @@
 import Movimiento from '../models/Movimiento.js';
 import MercadoPagoConfig from '../../pagos/models/MercadoPagoConfig.js';
 import { buscarPagosMercadoPago } from '../../pagos/services/buscarPagosMercadoPago.service.js';
+import { coincideConHistorialDelSocio } from '../services/pagadorHistorico.service.js';
 
 /**
  * @openapi
@@ -56,10 +57,27 @@ export const mercadopagoCandidatosHandler = async (req, res) => {
     }
 
     const propioIds = new Set((movimiento.mercadopagoVinculos ?? []).map((v) => v.paymentId));
-    const disponibles = candidatos
-      .filter((c) => !propioIds.has(c.paymentId))
-      .map((c) => ({ ...c, vinculadoEnOtros: vinculadoEnPorPaymentId.get(c.paymentId) ?? [] }));
-    disponibles.sort((a, b) => Math.abs(a.monto - movimiento.amount) - Math.abs(b.monto - movimiento.amount));
+    const disponibles = await Promise.all(
+      candidatos
+        .filter((c) => !propioIds.has(c.paymentId))
+        .map(async (c) => ({
+          ...c,
+          vinculadoEnOtros: vinculadoEnPorPaymentId.get(c.paymentId) ?? [],
+          // Si este pagador ya le pagó antes al mismo socio (appcarc-backend#274,
+          // opción 4) se prioriza por sobre la cercanía de monto — ej. dos
+          // candidatos del mismo monto el mismo día, pero solo uno de los
+          // pagadores tiene historial con este socio.
+          coincidePagadorHistorico: await coincideConHistorialDelSocio({
+            clubId: req.user?.clubId,
+            socioId: movimiento.socioId,
+            payerEmail: c.payerEmail,
+          }),
+        })),
+    );
+    disponibles.sort((a, b) => {
+      if (a.coincidePagadorHistorico !== b.coincidePagadorHistorico) return a.coincidePagadorHistorico ? -1 : 1;
+      return Math.abs(a.monto - movimiento.amount) - Math.abs(b.monto - movimiento.amount);
+    });
 
     res.json(disponibles);
   } catch (error) {
